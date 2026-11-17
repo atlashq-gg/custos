@@ -5,4 +5,4 @@
 - Custos only reads the save files of the game. It does not write to them, inject code, or read process memory.
 - Do not send the file name or the Steam ID of the player to a service.
 - Before a commit, run `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`. The application crate needs the GUI libraries in [README.md](README.md#build).
-- The content of this folder is under MIT.
+- The content of this folder is under MIT, except `crates/custos-app/icons/`, which is under CC BY-NC 4.0. Keep its `LICENSE.md` in step with the files.

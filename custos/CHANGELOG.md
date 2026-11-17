@@ -13,3 +13,4 @@ First version. Implements contract version `0.1`. Linux only.
 - Foxhole process detection. Custos is idle while the game does not run.
 - Upload of the full map data file, with the interval rule of the specification.
 - AppImage package.
+- The scrap (Salvage) icon of the Foxhole War API as the application icon, under CC BY-NC 4.0.

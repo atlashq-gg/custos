@@ -26,4 +26,4 @@ Each project folder has a `README.md`, an `AGENTS.md`, a `CHANGELOG.md`, and a `
 
 ## License
 
-The content of this repository is under the MIT license ([LICENSE](LICENSE)), except `server/`, which is under the AGPL-3.0-or-later license in its own `LICENSE` file ([ADR 0005](docs/adr/0005-license-by-project.md)).
+The content of this repository is under the MIT license ([LICENSE](LICENSE)), except `server/`, which is under the AGPL-3.0-or-later license in its own `LICENSE` file ([ADR 0005](docs/adr/0005-license-by-project.md)). The icons of Custos are third-party files under CC BY-NC 4.0 ([custos/crates/custos-app/icons/LICENSE.md](custos/crates/custos-app/icons/LICENSE.md)).
