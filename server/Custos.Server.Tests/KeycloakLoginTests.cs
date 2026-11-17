@@ -16,7 +16,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace Custos.Server.Tests;
 
 /// <summary>
-/// The login of spec/authentication.md against Keycloak with the development realm: Keycloak gets the Client
+/// The login of spec/02-authentication.md against Keycloak with the development realm: Keycloak gets the Client
 /// ID Metadata Document from the server, the browser part is done with plain HTTP requests, and the token is
 /// used for an upload. Needs Docker.
 /// </summary>
@@ -65,7 +65,9 @@ public sealed partial class KeycloakLoginTests
     {
         using var http = new HttpClient(new CookieJar());
         var discovery = await http.GetFromJsonAsync<JsonElement>($"http://localhost:{_serverPort}/.well-known/custos-configuration");
-        string Member(string name) => discovery.GetProperty(name).GetString()!;
+        var openid = await http.GetFromJsonAsync<JsonElement>(discovery.GetProperty("openid_configuration").GetString());
+        string Member(string name) =>
+            (discovery.TryGetProperty(name, out var value) ? value : openid.GetProperty(name)).GetString()!;
 
         var verifier = Base64Url(RandomNumberGenerator.GetBytes(32));
         var challenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));

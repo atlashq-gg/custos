@@ -1,4 +1,4 @@
-//! The discovery document (spec/discovery.md).
+//! The discovery document and the metadata of the authorization server (spec/01-discovery.md).
 
 use serde::Deserialize;
 use url::Url;
@@ -8,6 +8,7 @@ pub const SUPPORTED_VERSIONS: &[&str] = &["0"];
 
 const WELL_KNOWN: &str = "/.well-known/custos-configuration";
 
+/// The discovery document of the service.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Discovery {
     pub custos_versions_supported: Vec<String>,
@@ -16,21 +17,38 @@ pub struct Discovery {
     pub upload_endpoint: Url,
     pub upload_max_bytes: u64,
     pub upload_min_interval_seconds: u64,
-    pub authorization_endpoint: Url,
-    pub token_endpoint: Url,
-    pub revocation_endpoint: Option<Url>,
+    pub openid_configuration: Url,
     pub client_id: String,
     pub scopes: Vec<String>,
 }
 
+/// The members of the metadata of the authorization server that Custos uses.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct AuthorizationServer {
+    pub authorization_endpoint: Url,
+    pub token_endpoint: Url,
+    pub revocation_endpoint: Option<Url>,
+    #[serde(default)]
+    pub code_challenge_methods_supported: Vec<String>,
+}
+
+/// A service: its discovery document and its authorization server.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Service {
+    pub discovery: Discovery,
+    pub authorization_server: AuthorizationServer,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum DiscoveryError {
-    #[error("cannot get the discovery document from {url}: {source}")]
+    #[error("cannot get {url}: {source}")]
     Http { url: Url, source: reqwest::Error },
     #[error("the service supports the contract versions {offered:?}, but Custos supports only {SUPPORTED_VERSIONS:?}")]
     NoCommonVersion { offered: Vec<String> },
-    #[error("the discovery document names an insecure URL: {0}")]
+    #[error("the service names an insecure URL: {0}")]
     Insecure(Url),
+    #[error("the authorization server does not support PKCE with S256")]
+    NoS256,
 }
 
 impl Discovery {
@@ -50,21 +68,31 @@ impl Discovery {
                 offered: self.custos_versions_supported,
             });
         }
-
-        let urls = [
-            &self.upload_endpoint,
-            &self.authorization_endpoint,
-            &self.token_endpoint,
-        ]
-        .into_iter()
-        .chain(self.revocation_endpoint.as_ref());
-        for url in urls {
-            if !crate::url_rules::is_allowed(url) {
-                return Err(DiscoveryError::Insecure(url.clone()));
-            }
-        }
-
+        require_allowed([&self.upload_endpoint, &self.openid_configuration])?;
         Ok(self)
+    }
+}
+
+impl AuthorizationServer {
+    fn validate(self) -> Result<Self, DiscoveryError> {
+        require_allowed(
+            [&self.authorization_endpoint, &self.token_endpoint]
+                .into_iter()
+                .chain(self.revocation_endpoint.as_ref()),
+        )?;
+        if !self.code_challenge_methods_supported.is_empty()
+            && !self.code_challenge_methods_supported.iter().any(|m| m == "S256")
+        {
+            return Err(DiscoveryError::NoS256);
+        }
+        Ok(self)
+    }
+}
+
+fn require_allowed<'a>(urls: impl IntoIterator<Item = &'a Url>) -> Result<(), DiscoveryError> {
+    match urls.into_iter().find(|url| !crate::url_rules::is_allowed(url)) {
+        Some(url) => Err(DiscoveryError::Insecure(url.clone())),
+        None => Ok(()),
     }
 }
 
@@ -80,25 +108,31 @@ pub fn discovery_url(service_url: &Url) -> Url {
     url
 }
 
-/// Gets and checks the discovery document of the service.
-pub async fn fetch(http: &reqwest::Client, service_url: &Url) -> Result<Discovery, DiscoveryError> {
-    let url = discovery_url(service_url);
+/// Gets and checks the discovery document of the service, then the metadata of the authorization server that it links.
+pub async fn fetch(http: &reqwest::Client, service_url: &Url) -> Result<Service, DiscoveryError> {
+    let discovery: Discovery = get_json(http, discovery_url(service_url)).await?;
+    let discovery = discovery.validate()?;
+    let authorization_server: AuthorizationServer = get_json(http, discovery.openid_configuration.clone()).await?;
+
+    Ok(Service {
+        discovery,
+        authorization_server: authorization_server.validate()?,
+    })
+}
+
+async fn get_json<T: serde::de::DeserializeOwned>(http: &reqwest::Client, url: Url) -> Result<T, DiscoveryError> {
     let error = |source| DiscoveryError::Http {
         url: url.clone(),
         source,
     };
-
-    let discovery: Discovery = http
-        .get(url.clone())
+    http.get(url.clone())
         .send()
         .await
         .and_then(reqwest::Response::error_for_status)
         .map_err(error)?
         .json()
         .await
-        .map_err(error)?;
-
-    discovery.validate()
+        .map_err(error)
 }
 
 #[cfg(test)]
@@ -139,30 +173,67 @@ pub(crate) mod tests {
             "upload_endpoint": format!("{base}/api/v1/uploads"),
             "upload_max_bytes": 4_194_304,
             "upload_min_interval_seconds": 60,
-            "authorization_endpoint": format!("{base}/auth"),
-            "token_endpoint": format!("{base}/token"),
+            "openid_configuration": format!("{base}/.well-known/openid-configuration"),
             "client_id": "custos",
             "scopes": ["openid"],
             "a_member_from_the_future": true
         })
     }
 
-    #[tokio::test]
-    async fn document_is_fetched_and_unknown_members_are_ignored() {
+    pub(crate) fn openid_configuration(base: &str) -> serde_json::Value {
+        serde_json::json!({
+            "issuer": base,
+            "authorization_endpoint": format!("{base}/auth"),
+            "token_endpoint": format!("{base}/token"),
+            "code_challenge_methods_supported": ["plain", "S256"],
+            "jwks_uri": format!("{base}/certs")
+        })
+    }
+
+    /// The service of the tests, built without HTTP.
+    pub(crate) fn service(base: &str) -> Service {
+        Service {
+            discovery: serde_json::from_value(document(base)).unwrap(),
+            authorization_server: serde_json::from_value(openid_configuration(base)).unwrap(),
+        }
+    }
+
+    /// Serves both documents. Returns the server.
+    pub(crate) async fn mock_service(
+        discovery: impl FnOnce(&mut serde_json::Value),
+        openid: impl FnOnce(&mut serde_json::Value),
+    ) -> MockServer {
         let server = MockServer::start().await;
+        let (mut d, mut o) = (document(&server.uri()), openid_configuration(&server.uri()));
+        discovery(&mut d);
+        openid(&mut o);
         Mock::given(method("GET"))
             .and(path("/.well-known/custos-configuration"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(document(&server.uri())))
+            .respond_with(ResponseTemplate::new(200).set_body_json(d))
             .mount(&server)
             .await;
+        Mock::given(method("GET"))
+            .and(path("/.well-known/openid-configuration"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(o))
+            .mount(&server)
+            .await;
+        server
+    }
 
-        let discovery = fetch(&reqwest::Client::new(), &Url::parse(&server.uri()).unwrap())
-            .await
-            .unwrap();
+    async fn fetch_from(server: &MockServer) -> Result<Service, DiscoveryError> {
+        fetch(&reqwest::Client::new(), &Url::parse(&server.uri()).unwrap()).await
+    }
 
-        assert_eq!(discovery.selected_version(), Some("0"));
-        assert_eq!(discovery.upload_min_interval_seconds, 60);
-        assert_eq!(discovery.revocation_endpoint, None);
+    #[tokio::test]
+    async fn both_documents_are_fetched_and_unknown_members_are_ignored() {
+        let server = mock_service(|_| {}, |_| {}).await;
+
+        let service = fetch_from(&server).await.unwrap();
+
+        assert_eq!(service.discovery.selected_version(), Some("0"));
+        assert_eq!(service.discovery.upload_min_interval_seconds, 60);
+        assert_eq!(service.authorization_server.token_endpoint.path(), "/token");
+        assert_eq!(service.authorization_server.revocation_endpoint, None);
     }
 
     #[test]
@@ -180,31 +251,26 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn service_without_a_common_version_is_refused() {
-        let server = MockServer::start().await;
-        let mut body = document(&server.uri());
-        body["custos_versions_supported"] = serde_json::json!(["9.0"]);
-        Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(body))
-            .mount(&server)
-            .await;
-
-        let result = fetch(&reqwest::Client::new(), &Url::parse(&server.uri()).unwrap()).await;
-
-        assert!(matches!(result, Err(DiscoveryError::NoCommonVersion { .. })));
+        let server = mock_service(|d| d["custos_versions_supported"] = serde_json::json!(["9"]), |_| {}).await;
+        assert!(matches!(
+            fetch_from(&server).await,
+            Err(DiscoveryError::NoCommonVersion { .. })
+        ));
     }
 
     #[tokio::test]
-    async fn insecure_endpoint_is_refused() {
-        let server = MockServer::start().await;
-        let mut body = document(&server.uri());
-        body["token_endpoint"] = serde_json::json!("http://id.example.com/token");
-        Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(body))
-            .mount(&server)
-            .await;
+    async fn insecure_endpoint_in_the_openid_configuration_is_refused() {
+        let server = mock_service(|_| {}, |o| o["token_endpoint"] = "http://id.example.com/token".into()).await;
+        assert!(matches!(fetch_from(&server).await, Err(DiscoveryError::Insecure(_))));
+    }
 
-        let result = fetch(&reqwest::Client::new(), &Url::parse(&server.uri()).unwrap()).await;
-
-        assert!(matches!(result, Err(DiscoveryError::Insecure(_))));
+    #[tokio::test]
+    async fn authorization_server_without_s256_is_refused() {
+        let server = mock_service(
+            |_| {},
+            |o| o["code_challenge_methods_supported"] = serde_json::json!(["plain"]),
+        )
+        .await;
+        assert!(matches!(fetch_from(&server).await, Err(DiscoveryError::NoS256)));
     }
 }

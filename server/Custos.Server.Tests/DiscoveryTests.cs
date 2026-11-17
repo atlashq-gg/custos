@@ -24,9 +24,10 @@ public sealed class DiscoveryTests
             Assert.That(document.GetProperty("custos_versions_supported")[0].GetString(), Is.EqualTo("0"));
             Assert.That(document.GetProperty("upload_endpoint").GetString(), Is.EqualTo(CustosFactory.PublicBaseUrl + "/api/v1/uploads"));
             Assert.That(document.GetProperty("client_id").GetString(), Is.EqualTo(CustosFactory.ClientId));
-            Assert.That(document.GetProperty("authorization_endpoint").GetString(), Does.StartWith(CustosFactory.Issuer));
+            Assert.That(document.GetProperty("openid_configuration").GetString(),
+                Is.EqualTo(CustosFactory.Issuer + "/.well-known/openid-configuration"));
             Assert.That(document.GetProperty("scopes").EnumerateArray().Select(s => s.GetString()), Is.EqualTo(["openid"]));
-            Assert.That(document.TryGetProperty("revocation_endpoint", out _), Is.False, "An absent optional member is left out, not null.");
+            Assert.That(document.TryGetProperty("authorization_endpoint", out _), Is.False, "The endpoints are in the OpenID configuration.");
         }
     }
 

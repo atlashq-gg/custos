@@ -4,7 +4,7 @@
 
 First version. Implements contract version `v0`.
 
-- Discovery document from the configuration and the metadata of the authorization server.
+- Discovery document from the configuration, with a link to the OpenID configuration of the authorization server.
 - Client ID Metadata Document of Custos.
 - Placeholder upload endpoint: GVAS check, SHA-256, size limit, rate limit, current war from the Foxhole war API.
 - OpenAPI document and Scalar page.

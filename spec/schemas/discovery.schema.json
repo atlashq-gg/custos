@@ -9,8 +9,7 @@
     "upload_endpoint",
     "upload_max_bytes",
     "upload_min_interval_seconds",
-    "authorization_endpoint",
-    "token_endpoint",
+    "openid_configuration",
     "client_id",
     "scopes"
   ],
@@ -25,9 +24,7 @@
     "upload_endpoint": { "type": "string", "format": "uri" },
     "upload_max_bytes": { "type": "integer", "minimum": 1 },
     "upload_min_interval_seconds": { "type": "integer", "minimum": 0 },
-    "authorization_endpoint": { "type": "string", "format": "uri" },
-    "token_endpoint": { "type": "string", "format": "uri" },
-    "revocation_endpoint": { "type": "string", "format": "uri" },
+    "openid_configuration": { "type": "string", "format": "uri" },
     "client_id": { "type": "string", "minLength": 1 },
     "scopes": { "type": "array", "items": { "type": "string" } }
   }

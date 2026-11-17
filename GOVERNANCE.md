@@ -34,7 +34,7 @@ Discussions happen in GitHub issues and pull requests. A decision that does not 
 
 - Each application has one workflow in `.github/workflows/`. It runs on a pull request and on a push to `main` that changes the project or `spec/`.
 - Each project has its own version and its own `CHANGELOG.md`.
-- `spec/` has the version `v0` until the Maintainer decides otherwise. It has no minor or patch versions and no release tags ([spec/versioning.md](spec/versioning.md)).
+- `spec/` has the version `v0` until the Maintainer decides otherwise. It has no minor or patch versions and no release tags ([spec/04-versioning.md](spec/04-versioning.md)).
 - A release of an application is a tag `<project>/vX.Y.Z`, for example `custos/v0.1.0`. The Maintainer creates the tags.
 - The tag `custos/v*` builds the AppImage and attaches it to a GitHub release.
 

@@ -23,7 +23,7 @@ Content-Length: {size}
 | Status | Meaning | Action of Custos |
 |---|---|---|
 | `200` | The service accepted the file. The body is the [result document](#result-document). | Show the result to the user. |
-| `401` | The token is missing or not valid. | Do the challenge steps in [authentication.md](authentication.md#challenge). |
+| `401` | The token is missing or not valid. | Do the challenge steps in [02-authentication.md](02-authentication.md#challenge). |
 | `404` | The endpoint does not exist. | Get the discovery document again. |
 | `413` | The body is larger than `upload_max_bytes`. | Report the error. Do not send the same file again. |
 | `415` | The `Content-Type` is not `application/octet-stream`. | Report the error. |
@@ -35,7 +35,7 @@ Each error response has the type `application/problem+json` ([RFC 9457](https://
 
 ## Result document
 
-**Unstable.** This document changes soon ([versioning.md](versioning.md#unstable-parts)). The schema is [schemas/upload-result.schema.json](schemas/upload-result.schema.json).
+**Unstable.** This document changes soon ([04-versioning.md](04-versioning.md#unstable-parts)). The schema is [schemas/upload-result.schema.json](schemas/upload-result.schema.json).
 
 | Member | Type | Required | Content |
 |---|---|---|---|

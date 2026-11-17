@@ -21,6 +21,12 @@ public sealed class CustosOptions
     /// </summary>
     public string? ClientId { get; set; }
 
+    /// <summary>
+    /// The URL of the metadata document of the authorization server. Empty means
+    /// <c>{Authority}/.well-known/openid-configuration</c>.
+    /// </summary>
+    public string? OpenIdConfiguration { get; set; }
+
     public string ServiceName { get; set; } = "Custos reference server";
 
     /// <summary>The scopes that Custos requests. Set them in configuration: a binding appends to a default array.</summary>
@@ -38,6 +44,9 @@ public sealed class CustosOptions
     /// </summary>
     [Required, Url]
     public string WarApiBaseUrl { get; set; } = "https://war-service-live.foxholeservices.com";
+
+    public string ResolvedOpenIdConfiguration =>
+        string.IsNullOrEmpty(OpenIdConfiguration) ? Combine(Authority, "/.well-known/openid-configuration") : OpenIdConfiguration;
 
     public string ResolvedClientId =>
         string.IsNullOrEmpty(ClientId) ? Combine(PublicBaseUrl, Endpoints.ClientMetadata.Path) : ClientId;

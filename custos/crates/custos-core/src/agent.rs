@@ -12,7 +12,7 @@ use tokio::sync::mpsc;
 
 use crate::auth::{self, PendingLogin, TokenStore, Tokens};
 use crate::config::Config;
-use crate::discovery::{self, Discovery};
+use crate::discovery::{self, Service};
 use crate::locate;
 use crate::process;
 use crate::schedule::Schedule;
@@ -108,7 +108,7 @@ pub struct Agent {
     settings: Settings,
     events: mpsc::UnboundedSender<Event>,
     http: reqwest::Client,
-    discovery: Option<Discovery>,
+    service: Option<Service>,
     last_discovery_attempt: Option<Instant>,
     tokens: Option<Tokens>,
     pending: Option<PendingLogin>,
@@ -136,7 +136,7 @@ impl Agent {
                 .timeout(Duration::from_secs(60))
                 .build()
                 .unwrap_or_default(),
-            discovery: None,
+            service: None,
             last_discovery_attempt: None,
             tokens: None,
             pending: None,
@@ -186,7 +186,7 @@ impl Agent {
     async fn tick(&mut self) {
         let now = Instant::now();
 
-        if self.discovery.is_none() && self.last_discovery_attempt.is_none_or(|t| now >= t + DISCOVERY_RETRY) {
+        if self.service.is_none() && self.last_discovery_attempt.is_none_or(|t| now >= t + DISCOVERY_RETRY) {
             self.fetch_discovery(now).await;
         }
 
@@ -216,7 +216,7 @@ impl Agent {
     fn update_state(&mut self) {
         let state = if self.paused {
             State::Paused
-        } else if self.discovery.is_none() {
+        } else if self.service.is_none() {
             State::Offline
         } else if self.tokens.is_none() {
             State::SignedOut
@@ -238,10 +238,10 @@ impl Agent {
     async fn fetch_discovery(&mut self, now: Instant) {
         self.last_discovery_attempt = Some(now);
         match discovery::fetch(&self.http, &self.settings.config.service_url).await {
-            Ok(d) => {
+            Ok(service) => {
                 self.schedule
-                    .set_service_minimum(Duration::from_secs(d.upload_min_interval_seconds));
-                self.discovery = Some(d);
+                    .set_service_minimum(Duration::from_secs(service.discovery.upload_min_interval_seconds));
+                self.service = Some(service);
             }
             Err(e) => self.notify_error(&e.to_string()),
         }
@@ -272,7 +272,7 @@ impl Agent {
     }
 
     async fn upload(&mut self, now: Instant) {
-        let (Some(file), Some(discovery)) = (self.map_file.clone(), self.discovery.clone()) else {
+        let (Some(file), Some(service)) = (self.map_file.clone(), self.service.clone()) else {
             return;
         };
 
@@ -285,23 +285,23 @@ impl Agent {
             self.dirty = false;
             return;
         }
-        if bytes.len() as u64 > discovery.upload_max_bytes {
+        if bytes.len() as u64 > service.discovery.upload_max_bytes {
             self.schedule.rejected(sha256);
             return self.notify_error(&format!(
                 "The map data file is larger than the limit of {} ({} bytes).",
-                discovery.service_name, discovery.upload_max_bytes
+                service.discovery.service_name, service.discovery.upload_max_bytes
             ));
         }
 
-        if !self.ensure_fresh_token(&discovery).await {
+        if !self.ensure_fresh_token(&service).await {
             return;
         }
 
-        let mut outcome = self.send(&discovery, &bytes).await;
+        let mut outcome = self.send(&service, &bytes).await;
         if outcome == Some(Outcome::Unauthorized) {
             // The token stopped working before its expiry. Refresh one time and send again.
-            outcome = if self.refresh_tokens(&discovery).await {
-                self.send(&discovery, &bytes).await
+            outcome = if self.refresh_tokens(&service).await {
+                self.send(&service, &bytes).await
             } else {
                 None
             };
@@ -316,11 +316,11 @@ impl Agent {
             Outcome::Accepted(result) => {
                 self.schedule.accepted(sha256);
                 self.dirty = false;
-                self.notify(accepted_notification(&discovery.service_name, &result));
+                self.notify(accepted_notification(&service.discovery.service_name, &result));
             }
             Outcome::Unauthorized => {}
             Outcome::NotFound => {
-                self.discovery = None;
+                self.service = None;
                 self.last_discovery_attempt = None;
             }
             Outcome::Rejected { status, problem } => {
@@ -336,33 +336,33 @@ impl Agent {
     }
 
     /// Sends the file. `None` means a transport error, which is already reported.
-    async fn send(&mut self, discovery: &Discovery, bytes: &[u8]) -> Option<Outcome> {
+    async fn send(&mut self, service: &Service, bytes: &[u8]) -> Option<Outcome> {
         let token = self.tokens.as_ref()?.access_token.clone();
-        match upload::send(&self.http, &discovery.upload_endpoint, &token, bytes.to_vec()).await {
+        match upload::send(&self.http, &service.discovery.upload_endpoint, &token, bytes.to_vec()).await {
             Ok(outcome) => Some(outcome),
             Err(e) => {
-                self.notify_error(&format!("cannot reach {}: {e}", discovery.service_name));
+                self.notify_error(&format!("cannot reach {}: {e}", service.discovery.service_name));
                 None
             }
         }
     }
 
-    async fn ensure_fresh_token(&mut self, discovery: &Discovery) -> bool {
+    async fn ensure_fresh_token(&mut self, service: &Service) -> bool {
         match &self.tokens {
             None => false,
-            Some(tokens) if tokens.is_expiring(auth::unix_now()) => self.refresh_tokens(discovery).await,
+            Some(tokens) if tokens.is_expiring(auth::unix_now()) => self.refresh_tokens(service).await,
             Some(_) => true,
         }
     }
 
     /// Gets a new access token. If that fails, Custos forgets the tokens and the user must sign in.
-    async fn refresh_tokens(&mut self, discovery: &Discovery) -> bool {
+    async fn refresh_tokens(&mut self, service: &Service) -> bool {
         let Some(refresh_token) = self.tokens.as_ref().and_then(|t| t.refresh_token.clone()) else {
             self.forget_tokens().await;
             return false;
         };
 
-        match auth::refresh(&self.http, discovery, &refresh_token).await {
+        match auth::refresh(&self.http, service, &refresh_token).await {
             Ok(tokens) => {
                 self.save_tokens(tokens).await;
                 true
@@ -376,10 +376,10 @@ impl Agent {
     }
 
     fn sign_in(&mut self) {
-        let Some(discovery) = &self.discovery else {
+        let Some(service) = &self.service else {
             return self.notify_error("The service is not available. Custos cannot start the login.");
         };
-        let pending = auth::begin(discovery);
+        let pending = auth::begin(service);
         self.emit(Event::OpenUrl(pending.authorize_url.clone()));
         self.pending = Some(pending);
     }
@@ -388,12 +388,12 @@ impl Agent {
         if !auth::is_callback(link) {
             return tracing::debug!("ignored link {link}");
         }
-        let (Some(pending), Some(discovery)) = (self.pending.take(), self.discovery.clone()) else {
+        let (Some(pending), Some(service)) = (self.pending.take(), self.service.clone()) else {
             return self.notify_error("No login is in progress. Use Sign in in the Custos menu.");
         };
 
         let result = match auth::code_from_callback(&pending, link) {
-            Ok(code) => auth::exchange_code(&self.http, &discovery, &pending, &code).await,
+            Ok(code) => auth::exchange_code(&self.http, &service, &pending, &code).await,
             Err(e) => Err(e),
         };
         match result {
@@ -401,7 +401,7 @@ impl Agent {
                 self.save_tokens(tokens).await;
                 self.notify(Notification {
                     title: "Signed in".into(),
-                    body: format!("Custos sends stockpile data to {}.", discovery.service_name),
+                    body: format!("Custos sends stockpile data to {}.", service.discovery.service_name),
                     is_error: false,
                 });
             }
@@ -410,8 +410,8 @@ impl Agent {
     }
 
     async fn sign_out(&mut self) {
-        if let (Some(tokens), Some(discovery)) = (&self.tokens, &self.discovery) {
-            auth::revoke(&self.http, discovery, tokens).await;
+        if let (Some(tokens), Some(service)) = (&self.tokens, &self.service) {
+            auth::revoke(&self.http, service, tokens).await;
         }
         self.forget_tokens().await;
     }
@@ -533,14 +533,8 @@ mod tests {
 
     impl Fixture {
         async fn start(tokens: Option<Tokens>) -> Self {
-            let server = MockServer::start().await;
-            let mut discovery = crate::discovery::tests::document(&server.uri());
-            discovery["upload_min_interval_seconds"] = 0.into();
-            Mock::given(method("GET"))
-                .and(path("/.well-known/custos-configuration"))
-                .respond_with(ResponseTemplate::new(200).set_body_json(discovery))
-                .mount(&server)
-                .await;
+            let server =
+                crate::discovery::tests::mock_service(|d| d["upload_min_interval_seconds"] = 0.into(), |_| {}).await;
 
             let save_dir = tempfile::tempdir().unwrap();
             std::fs::write(save_dir.path().join("1_MapData.sav"), b"GVAS0001").unwrap();

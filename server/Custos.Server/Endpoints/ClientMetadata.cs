@@ -18,7 +18,7 @@ internal static class ClientMetadata
 {
     public const string Path = "/custos/client-metadata.json";
 
-    /// <summary>The redirect URI of Custos (spec/authentication.md).</summary>
+    /// <summary>The redirect URI of Custos (spec/02-authentication.md).</summary>
     public const string RedirectUri = "custos://oauth2callback";
 
     public static IEndpointRouteBuilder MapClientMetadata(this IEndpointRouteBuilder app)

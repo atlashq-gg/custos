@@ -7,7 +7,7 @@ Custos is a public OAuth 2.0 client on the computer of the user ([RFC 8252](http
 Custos starts a login when it has no token, or when its token stops working (see [Challenge](#challenge)).
 
 1. Custos makes a PKCE code verifier and an S256 code challenge ([RFC 7636](https://www.rfc-editor.org/rfc/rfc7636)), and a random `state`.
-2. Custos opens the `authorization_endpoint` from the discovery document in the default browser, with these parameters:
+2. Custos opens the `authorization_endpoint` of the authorization server ([01-discovery.md](01-discovery.md#authorization-server)) in the default browser, with these parameters:
    - `response_type=code`
    - `client_id` from the discovery document
    - `redirect_uri=custos://oauth2callback`
@@ -54,4 +54,4 @@ Custos MUST NOT start a browser login without an action of the user, so that a b
 
 ## Logout
 
-Custos deletes its tokens. If the discovery document has a `revocation_endpoint`, Custos SHOULD revoke the refresh token first.
+Custos deletes its tokens. If the metadata document of the authorization server has a `revocation_endpoint`, Custos SHOULD revoke the refresh token first.

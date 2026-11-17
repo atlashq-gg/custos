@@ -1,4 +1,4 @@
-//! The upload of spec/upload.md.
+//! The upload of spec/03-upload.md.
 
 use std::time::Duration;
 
@@ -49,7 +49,7 @@ impl Problem {
     }
 }
 
-/// What the service answered, with the action of Custos in the table of spec/upload.md.
+/// What the service answered, with the action of Custos in the table of spec/03-upload.md.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Outcome {
     /// `200`.

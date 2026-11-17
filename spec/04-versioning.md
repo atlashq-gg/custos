@@ -10,10 +10,10 @@ The contract version is one number. The current version is `v0`. In the discover
 
 ## Agreement
 
-1. A service lists each contract version that it supports in `custos_versions_supported` of the discovery document ([discovery.md](discovery.md)).
+1. A service lists each contract version that it supports in `custos_versions_supported` of the discovery document ([01-discovery.md](01-discovery.md)).
 2. Custos selects the highest version in that list that it also supports.
 3. If no version matches, Custos MUST NOT send data to the service. It reports the mismatch to the user.
 
 ## Unstable parts
 
-A document can mark a part as unstable, as a warning that it changes soon. In `v0`, the upload result document is unstable ([upload.md](upload.md#result-document)).
+A document can mark a part as unstable, as a warning that it changes soon. In `v0`, the upload result document is unstable ([03-upload.md](03-upload.md#result-document)).

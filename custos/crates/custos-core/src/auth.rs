@@ -1,4 +1,4 @@
-//! The login of spec/authentication.md: Authorization Code with PKCE and the redirect URI
+//! The login of spec/02-authentication.md: Authorization Code with PKCE and the redirect URI
 //! [`REDIRECT_URI`], which the operating system gives to Custos as a deep link.
 
 use std::sync::Mutex;
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use url::Url;
 
-use crate::discovery::Discovery;
+use crate::discovery::Service;
 
 /// The redirect URI of Custos. The application registers the scheme `custos` with the desktop.
 pub const REDIRECT_URI: &str = "custos://oauth2callback";
@@ -61,18 +61,18 @@ pub struct PendingLogin {
 
 /// Starts a login. Open [`PendingLogin::authorize_url`] in the browser.
 #[must_use]
-pub fn begin(discovery: &Discovery) -> PendingLogin {
+pub fn begin(service: &Service) -> PendingLogin {
     let verifier = random_token();
     let state = random_token();
     let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
 
-    let mut authorize_url = discovery.authorization_endpoint.clone();
+    let mut authorize_url = service.authorization_server.authorization_endpoint.clone();
     authorize_url
         .query_pairs_mut()
         .append_pair("response_type", "code")
-        .append_pair("client_id", &discovery.client_id)
+        .append_pair("client_id", &service.discovery.client_id)
         .append_pair("redirect_uri", REDIRECT_URI)
-        .append_pair("scope", &discovery.scopes.join(" "))
+        .append_pair("scope", &service.discovery.scopes.join(" "))
         .append_pair("state", &state)
         .append_pair("code_challenge", &challenge)
         .append_pair("code_challenge_method", "S256");
@@ -113,16 +113,16 @@ pub fn code_from_callback(pending: &PendingLogin, link: &str) -> Result<String, 
 /// Exchanges the authorization code for tokens.
 pub async fn exchange_code(
     http: &reqwest::Client,
-    discovery: &Discovery,
+    service: &Service,
     pending: &PendingLogin,
     code: &str,
 ) -> Result<Tokens, AuthError> {
     request_tokens(
         http,
-        discovery,
+        service,
         &[
             ("grant_type", "authorization_code"),
-            ("client_id", &discovery.client_id),
+            ("client_id", &service.discovery.client_id),
             ("redirect_uri", REDIRECT_URI),
             ("code", code),
             ("code_verifier", &pending.verifier),
@@ -133,13 +133,13 @@ pub async fn exchange_code(
 }
 
 /// Gets a new access token with the refresh token. A response without a new refresh token keeps the old one.
-pub async fn refresh(http: &reqwest::Client, discovery: &Discovery, refresh_token: &str) -> Result<Tokens, AuthError> {
+pub async fn refresh(http: &reqwest::Client, service: &Service, refresh_token: &str) -> Result<Tokens, AuthError> {
     request_tokens(
         http,
-        discovery,
+        service,
         &[
             ("grant_type", "refresh_token"),
-            ("client_id", &discovery.client_id),
+            ("client_id", &service.discovery.client_id),
             ("refresh_token", refresh_token),
         ],
         Some(refresh_token),
@@ -149,12 +149,13 @@ pub async fn refresh(http: &reqwest::Client, discovery: &Discovery, refresh_toke
 
 /// Revokes the refresh token when the service has a revocation endpoint. A failure is not an error: the
 /// tokens are deleted locally in any case.
-pub async fn revoke(http: &reqwest::Client, discovery: &Discovery, tokens: &Tokens) {
-    let (Some(endpoint), Some(token)) = (&discovery.revocation_endpoint, &tokens.refresh_token) else {
+pub async fn revoke(http: &reqwest::Client, service: &Service, tokens: &Tokens) {
+    let (Some(endpoint), Some(token)) = (&service.authorization_server.revocation_endpoint, &tokens.refresh_token)
+    else {
         return;
     };
     let form = [
-        ("client_id", discovery.client_id.as_str()),
+        ("client_id", service.discovery.client_id.as_str()),
         ("token", token),
         ("token_type_hint", "refresh_token"),
     ];
@@ -172,11 +173,15 @@ struct TokenResponse {
 
 async fn request_tokens(
     http: &reqwest::Client,
-    discovery: &Discovery,
+    service: &Service,
     form: &[(&str, &str)],
     old_refresh_token: Option<&str>,
 ) -> Result<Tokens, AuthError> {
-    let response = http.post(discovery.token_endpoint.clone()).form(form).send().await?;
+    let response = http
+        .post(service.authorization_server.token_endpoint.clone())
+        .form(form)
+        .send()
+        .await?;
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
@@ -282,8 +287,8 @@ mod tests {
     use wiremock::matchers::{body_string_contains, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    fn discovery(base: &str) -> Discovery {
-        serde_json::from_value(crate::discovery::tests::document(base)).unwrap()
+    fn discovery(base: &str) -> Service {
+        crate::discovery::tests::service(base)
     }
 
     fn param(url: &Url, name: &str) -> String {

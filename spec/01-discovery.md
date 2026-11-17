@@ -23,19 +23,33 @@ The schema is [schemas/discovery.schema.json](schemas/discovery.schema.json).
 
 | Member | Type | Required | Content |
 |---|---|---|---|
-| `custos_versions_supported` | array of strings | yes | The contract versions that the service supports ([versioning.md](versioning.md)). |
+| `custos_versions_supported` | array of strings | yes | The contract versions that the service supports ([04-versioning.md](04-versioning.md)). |
 | `service_name` | string | yes | A short name that Custos shows to the user. |
 | `service_documentation` | string (URL) | no | A page for humans about the service. |
-| `upload_endpoint` | string (URL) | yes | The endpoint for the upload ([upload.md](upload.md)). |
+| `upload_endpoint` | string (URL) | yes | The endpoint for the upload ([03-upload.md](03-upload.md)). |
 | `upload_max_bytes` | integer | yes | The largest body that the upload endpoint accepts. |
 | `upload_min_interval_seconds` | integer | yes | The shortest time between two uploads of one client. |
-| `authorization_endpoint` | string (URL) | yes | The OAuth 2.0 authorization endpoint ([authentication.md](authentication.md)). |
-| `token_endpoint` | string (URL) | yes | The OAuth 2.0 token endpoint. |
-| `revocation_endpoint` | string (URL) | no | The OAuth 2.0 revocation endpoint ([RFC 7009](https://www.rfc-editor.org/rfc/rfc7009)). |
+| `openid_configuration` | string (URL) | yes | The URL of the metadata document of the authorization server ([Authorization server](#authorization-server)). |
 | `client_id` | string | yes | The client ID that Custos uses at the authorization server. |
 | `scopes` | array of strings | yes | The scopes that Custos requests. It can be empty. |
 
 Each URL in the document MUST use HTTPS, with the same exception for loopback hosts. The URLs can point to a different host than the service URL, for example to an identity provider.
+
+## Authorization server
+
+`openid_configuration` links to the metadata document of the authorization server, for example `https://id.example.com/realms/custos/.well-known/openid-configuration`. The format is [OpenID Connect Discovery 1.0](https://openid.net/specs/openid-connect-discovery-1_0.html) or [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414). Custos gets it after the discovery document, without credentials.
+
+Custos uses these members. It ignores all other members.
+
+| Member | Required | Content |
+|---|---|---|
+| `authorization_endpoint` | yes | The authorization endpoint ([02-authentication.md](02-authentication.md)). |
+| `token_endpoint` | yes | The token endpoint. |
+| `revocation_endpoint` | no | The revocation endpoint ([RFC 7009](https://www.rfc-editor.org/rfc/rfc7009)). |
+| `code_challenge_methods_supported` | no | If present, it MUST contain `S256`. |
+
+- Each URL MUST obey the HTTPS rule above.
+- A service that has its own login, without an identity provider, publishes such a document for its own endpoints.
 
 ## Example
 
@@ -47,9 +61,7 @@ Each URL in the document MUST use HTTPS, with the same exception for loopback ho
   "upload_endpoint": "https://example.com/api/v1/uploads",
   "upload_max_bytes": 4194304,
   "upload_min_interval_seconds": 60,
-  "authorization_endpoint": "https://id.example.com/realms/custos/protocol/openid-connect/auth",
-  "token_endpoint": "https://id.example.com/realms/custos/protocol/openid-connect/token",
-  "revocation_endpoint": "https://id.example.com/realms/custos/protocol/openid-connect/revoke",
+  "openid_configuration": "https://id.example.com/realms/custos/.well-known/openid-configuration",
   "client_id": "https://example.com/custos/client-metadata.json",
   "scopes": ["openid", "offline_access"]
 }
@@ -57,4 +69,4 @@ Each URL in the document MUST use HTTPS, with the same exception for loopback ho
 
 ## Refresh
 
-Custos gets the discovery document when it starts and when the user changes the service URL. Custos SHOULD get it again after an upload fails with `404`.
+Custos gets the discovery document and the metadata document of the authorization server when it starts, and when the user changes the service URL. Custos SHOULD get it again after an upload fails with `404`.

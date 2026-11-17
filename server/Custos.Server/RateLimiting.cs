@@ -7,7 +7,7 @@ namespace Custos.Server;
 
 /// <summary>
 /// One upload for each user in each <see cref="CustosOptions.UploadMinIntervalSeconds"/>. A rejected request
-/// gets <c>429</c> with <c>Retry-After</c> (spec/upload.md).
+/// gets <c>429</c> with <c>Retry-After</c> (spec/03-upload.md).
 /// </summary>
 internal static class RateLimiting
 {

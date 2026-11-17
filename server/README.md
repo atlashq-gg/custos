@@ -26,9 +26,9 @@ Keycloak imports [the realm](Custos.Server.AppHost/keycloak/custos-realm.json) o
 
 | Endpoint | Content |
 |---|---|
-| `GET /.well-known/custos-configuration` | The discovery document ([spec](../spec/discovery.md)). |
+| `GET /.well-known/custos-configuration` | The discovery document ([spec](../spec/01-discovery.md)). |
 | `GET /custos/client-metadata.json` | The Client ID Metadata Document (CIMD) of Custos. Its URL is the client ID. |
-| `POST /api/v1/uploads` | The upload ([spec](../spec/upload.md)). It checks the GVAS header and returns the SHA-256 and the current war. The stockpile list is empty. |
+| `POST /api/v1/uploads` | The upload ([spec](../spec/03-upload.md)). It checks the GVAS header and returns the SHA-256 and the current war. The stockpile list is empty. |
 | `GET /openapi/v1.json` | The OpenAPI document, generated from the code. |
 | `GET /docs` | The Scalar page for the OpenAPI document. |
 | `GET /health/alive` | The liveness check. |
@@ -41,6 +41,7 @@ The section `Custos` in `appsettings.json` or environment variables (`Custos__Pu
 |---|---|---|
 | `PublicBaseUrl` | (required) | The origin of the server as Custos sees it. |
 | `Authority` | (required) | The issuer URL of the authorization server. |
+| `OpenIdConfiguration` | `{Authority}/.well-known/openid-configuration` | The metadata document of the authorization server, as the discovery document links it. |
 | `ClientId` | `{PublicBaseUrl}/custos/client-metadata.json` | The client ID of Custos. |
 | `ServiceName` | `Custos reference server` | The name that Custos shows. |
 | `Scopes` | `["openid"]` | The scopes that Custos requests. |

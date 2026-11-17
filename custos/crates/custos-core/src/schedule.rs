@@ -1,4 +1,4 @@
-//! The interval rule of spec/upload.md.
+//! The interval rule of spec/03-upload.md.
 
 use std::time::{Duration, Instant};
 
