@@ -14,6 +14,7 @@ public sealed record WarInfo(string WarId, int WarNumber);
 /// </summary>
 internal sealed class WarApiClient(HttpClient http, IMemoryCache cache, IOptions<CustosOptions> options, ILogger<WarApiClient> logger)
 {
+    public const string CurrentWarPath = "/api/worldconquest/war";
     private static readonly JsonSerializerOptions ApiJson = new(JsonSerializerDefaults.Web);
     private sealed record ApiWar(string WarId, int WarNumber);
 
@@ -22,7 +23,8 @@ internal sealed class WarApiClient(HttpClient http, IMemoryCache cache, IOptions
         {
             try
             {
-                var war = await http.GetFromJsonAsync<ApiWar>(options.Value.WarApiUrl, ApiJson, cancellationToken);
+                var war = await http.GetFromJsonAsync<ApiWar>(
+                    CustosOptions.Combine(options.Value.WarApiBaseUrl, CurrentWarPath), ApiJson, cancellationToken);
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
                 return war is null ? null : new WarInfo(war.WarId, war.WarNumber);
             }

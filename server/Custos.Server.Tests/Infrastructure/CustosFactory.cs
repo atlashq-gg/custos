@@ -79,10 +79,12 @@ internal sealed class FakeWarApi : HttpMessageHandler
 {
     public bool Fail { get; set; }
     public int Calls { get; private set; }
+    public Uri? LastRequest { get; private set; }
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         Calls++;
+        LastRequest = request.RequestUri;
         return Task.FromResult(Fail
             ? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
             : new HttpResponseMessage(HttpStatusCode.OK)

@@ -46,7 +46,7 @@ The section `Custos` in `appsettings.json` or environment variables (`Custos__Pu
 | `Scopes` | `["openid"]` | The scopes that Custos requests. |
 | `UploadMaxBytes` | `4194304` | The largest upload body. |
 | `UploadMinIntervalSeconds` | `60` | The shortest time between two uploads of one user. `10` in development. |
-| `WarApiUrl` | The `war-service-live` host | The current war in the Foxhole war API. |
+| `WarApiBaseUrl` | `https://war-service-live.foxholeservices.com` | The origin of the Foxhole war API. Each shard has its own host. The server gets the current war from `/api/worldconquest/war` on it. |
 
 ## Authentication with Keycloak
 

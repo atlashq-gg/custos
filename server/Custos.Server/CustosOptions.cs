@@ -32,9 +32,12 @@ public sealed class CustosOptions
     [Range(0, int.MaxValue)]
     public int UploadMinIntervalSeconds { get; set; } = 60;
 
-    /// <summary>The URL of the current war in the Foxhole war API.</summary>
+    /// <summary>
+    /// The origin of the Foxhole war API. Each shard has its own host, for example war-service-live-2 for
+    /// shard 2.
+    /// </summary>
     [Required, Url]
-    public string WarApiUrl { get; set; } = "https://war-service-live.foxholeservices.com/api/worldconquest/war";
+    public string WarApiBaseUrl { get; set; } = "https://war-service-live.foxholeservices.com";
 
     public string ResolvedClientId =>
         string.IsNullOrEmpty(ClientId) ? Combine(PublicBaseUrl, Endpoints.ClientMetadata.Path) : ClientId;

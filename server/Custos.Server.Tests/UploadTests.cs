@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Custos.Server.Tests.Infrastructure;
+using Microsoft.AspNetCore.TestHost;
 
 namespace Custos.Server.Tests;
 
@@ -57,6 +58,20 @@ public sealed class UploadTests
         (await client.PostAsync(Path, Body(SaveFile))).Dispose();
 
         Assert.That(_factory.WarApi.Calls, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task War_api_host_is_configurable()
+    {
+        using var factory = _factory.WithWebHostBuilder(b =>
+            b.UseSetting("Custos:WarApiBaseUrl", "https://war-service-live-2.foxholeservices.com"));
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = _factory.CreateAuthorizedClient().DefaultRequestHeaders.Authorization;
+
+        (await client.PostAsync(Path, Body(SaveFile))).Dispose();
+
+        Assert.That(_factory.WarApi.LastRequest?.ToString(),
+            Is.EqualTo("https://war-service-live-2.foxholeservices.com/api/worldconquest/war"));
     }
 
     [Test]

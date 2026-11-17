@@ -175,7 +175,7 @@ public sealed partial class KeycloakLoginTests
             builder.UseSetting("Custos:Scopes:0", "openid");
             builder.UseSetting("Custos:UploadMinIntervalSeconds", "0");
             // A fixed war API is not needed here: a failure gives war = null, and the upload still succeeds.
-            builder.UseSetting("Custos:WarApiUrl", "http://127.0.0.1:9/war");
+            builder.UseSetting("Custos:WarApiBaseUrl", "http://127.0.0.1:9");
         }
     }
 }
