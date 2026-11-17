@@ -38,7 +38,7 @@ jobs:
         working-directory: custos/crates/custos-app
         run: cargo tauri build --bundles appimage
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           name: Custos ${{ github.ref_name }}
           files: custos/target/release/bundle/appimage/*.AppImage
