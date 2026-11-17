@@ -4,4 +4,4 @@
 - Write the documents in ASD-STE100 style. Use RFC 2119 key words for requirements.
 - Keep each JSON Schema in `schemas/` in step with the document that describes it. Both implementations test against these files.
 - Do not add an OpenAPI document. The server generates its own.
-- Record each change in `CHANGELOG.md`. Increment the contract version by the rules in `versioning.md`.
+- Record each change in `CHANGELOG.md` under `v0`. Do not add a minor or patch version. Only the Maintainer changes the version.

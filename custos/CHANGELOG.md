@@ -2,7 +2,7 @@
 
 ## 0.1.0
 
-First version. Implements contract version `0.1`. Linux only.
+First version. Implements contract version `v0`. Linux only.
 
 - Tray application with the menu items Pause, Sign in, Sign out, Open configuration, and Quit.
 - Desktop notifications for upload results and errors.

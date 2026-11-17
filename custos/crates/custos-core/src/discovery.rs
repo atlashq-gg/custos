@@ -4,7 +4,7 @@ use serde::Deserialize;
 use url::Url;
 
 /// The contract versions that this version of Custos implements.
-pub const SUPPORTED_VERSIONS: &[&str] = &["0.1"];
+pub const SUPPORTED_VERSIONS: &[&str] = &["0"];
 
 const WELL_KNOWN: &str = "/.well-known/custos-configuration";
 
@@ -134,7 +134,7 @@ pub(crate) mod tests {
 
     pub(crate) fn document(base: &str) -> serde_json::Value {
         serde_json::json!({
-            "custos_versions_supported": ["0.1"],
+            "custos_versions_supported": ["0"],
             "service_name": "Test",
             "upload_endpoint": format!("{base}/api/v1/uploads"),
             "upload_max_bytes": 4_194_304,
@@ -160,7 +160,7 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        assert_eq!(discovery.selected_version(), Some("0.1"));
+        assert_eq!(discovery.selected_version(), Some("0"));
         assert_eq!(discovery.upload_min_interval_seconds, 60);
         assert_eq!(discovery.revocation_endpoint, None);
     }

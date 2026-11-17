@@ -24,7 +24,7 @@ internal static class Discovery
     public const string Path = "/.well-known/custos-configuration";
 
     /// <summary>The contract versions of spec/ that this server implements.</summary>
-    public static readonly string[] SupportedVersions = ["0.1"];
+    public static readonly string[] SupportedVersions = ["0"];
 
     public static IEndpointRouteBuilder MapDiscovery(this IEndpointRouteBuilder app)
     {

@@ -21,7 +21,7 @@ public sealed class DiscoveryTests
         SpecSchemas.AssertDiscoveryDocument(document);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(document.GetProperty("custos_versions_supported")[0].GetString(), Is.EqualTo("0.1"));
+            Assert.That(document.GetProperty("custos_versions_supported")[0].GetString(), Is.EqualTo("0"));
             Assert.That(document.GetProperty("upload_endpoint").GetString(), Is.EqualTo(CustosFactory.PublicBaseUrl + "/api/v1/uploads"));
             Assert.That(document.GetProperty("client_id").GetString(), Is.EqualTo(CustosFactory.ClientId));
             Assert.That(document.GetProperty("authorization_endpoint").GetString(), Does.StartWith(CustosFactory.Issuer));

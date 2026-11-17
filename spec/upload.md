@@ -35,7 +35,7 @@ Each error response has the type `application/problem+json` ([RFC 9457](https://
 
 ## Result document
 
-**Unstable.** This document can change in a MINOR contract version ([versioning.md](versioning.md#unstable-parts)). The schema is [schemas/upload-result.schema.json](schemas/upload-result.schema.json).
+**Unstable.** This document changes soon ([versioning.md](versioning.md#unstable-parts)). The schema is [schemas/upload-result.schema.json](schemas/upload-result.schema.json).
 
 | Member | Type | Required | Content |
 |---|---|---|---|

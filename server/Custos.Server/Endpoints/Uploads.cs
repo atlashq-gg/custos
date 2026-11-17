@@ -6,7 +6,7 @@ using Microsoft.Net.Http.Headers;
 
 namespace Custos.Server.Endpoints;
 
-/// <summary>The upload result document (spec/upload.md). Unstable in contract version 0.1.</summary>
+/// <summary>The upload result document (spec/upload.md). Unstable in contract version v0.</summary>
 public sealed record UploadResult(
     string Status,
     DateTimeOffset ReceivedAt,

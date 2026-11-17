@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.0
+## v0
 
-First version. Contract version `0.1`.
+First version. It has no minor or patch versions.
 
 - Discovery document at `/.well-known/custos-configuration`.
 - Authentication with Authorization Code, PKCE, and the redirect URI `custos://oauth2callback`.

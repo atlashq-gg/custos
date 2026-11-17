@@ -2,7 +2,7 @@
 
 ## 0.1.0
 
-First version. Implements contract version `0.1`.
+First version. Implements contract version `v0`.
 
 - Discovery document from the configuration and the metadata of the authorization server.
 - Client ID Metadata Document of Custos.

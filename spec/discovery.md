@@ -41,7 +41,7 @@ Each URL in the document MUST use HTTPS, with the same exception for loopback ho
 
 ```json
 {
-  "custos_versions_supported": ["0.1"],
+  "custos_versions_supported": ["0"],
   "service_name": "Example Logistics",
   "service_documentation": "https://example.com/docs",
   "upload_endpoint": "https://example.com/api/v1/uploads",

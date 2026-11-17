@@ -1,6 +1,6 @@
 # Custos reference server
 
-Version 0.1.0. Contract version `0.1`. License: AGPL-3.0-or-later ([LICENSE](LICENSE)).
+Version 0.1.0. Contract version `v0`. License: AGPL-3.0-or-later ([LICENSE](LICENSE)).
 
 The reference implementation of the [Custos specification](../spec/README.md). It serves the discovery document and the Client ID Metadata Document of Custos, and it accepts uploads. It does not parse or keep the uploaded files: the upload endpoint is a placeholder.
 

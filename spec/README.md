@@ -1,6 +1,6 @@
 # Custos specification
 
-Version 0.1.0. Contract version `0.1`.
+Version `v0`. The specification has no minor or patch versions ([versioning.md](versioning.md)).
 
 This project defines the contract between Custos and a compliant service. Custos and the reference server conform to it. A third party can implement a compliant service from these documents alone ([ADR 0004](../docs/adr/0004-the-specification-is-the-authority.md)).
 
@@ -28,4 +28,4 @@ The specification holds no OpenAPI document. The reference server generates one 
 
 ## Changes
 
-See [CHANGELOG.md](CHANGELOG.md). The version of this project and the contract version are different numbers ([versioning.md](versioning.md)).
+See [CHANGELOG.md](CHANGELOG.md). While the version is `v0`, the contract can change without notice.

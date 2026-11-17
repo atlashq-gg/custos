@@ -6,7 +6,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use url::Url;
 
-/// The result document. Unstable in contract version 0.1: unknown members are ignored.
+/// The result document. Unstable in contract version v0: unknown members are ignored.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct UploadResult {
     pub status: String,
