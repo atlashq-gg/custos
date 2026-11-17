@@ -32,7 +32,10 @@ Discussions happen in GitHub issues and pull requests. A decision that does not 
 
 ## CI and releases
 
-No CI exists yet.
+- Each application has one workflow in `.github/workflows/`. It runs on a pull request and on a push to `main` that changes the project or `spec/`.
+- Each project has its own version and its own `CHANGELOG.md`.
+- A release is a tag `<project>/vX.Y.Z`, for example `custos/v0.1.0`. The Maintainer creates the tags.
+- The tag `custos/v*` builds the AppImage and attaches it to a GitHub release.
 
 ## Licenses
 

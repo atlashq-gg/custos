@@ -1,0 +1,40 @@
+name: custos
+
+on:
+  pull_request:
+    paths: ["custos/**", "spec/**", ".github/workflows/custos.yml"]
+  push:
+    branches: [main]
+    paths: ["custos/**", "spec/**", ".github/workflows/custos.yml"]
+
+defaults:
+  run:
+    working-directory: custos
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the Tauri libraries
+        working-directory: .
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: custos
+
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
