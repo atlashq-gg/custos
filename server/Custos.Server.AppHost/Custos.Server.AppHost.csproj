@@ -1,0 +1,20 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UserSecretsId>0b8e3c5e-9f0e-4c1a-9a57-5a0b7c1d2e31</UserSecretsId>
+    <!-- Run with `dotnet run`, not the Aspire CLI. The dashboard and DCP come in as packages. -->
+    <AspireUseCliBundle>false</AspireUseCliBundle>
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Custos.Server\Custos.Server.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.6.5" />
+    <PackageReference Include="Aspire.Hosting.Keycloak" Version="13.6.5-preview.1.26559.7" />
+  </ItemGroup>
+
+</Project>

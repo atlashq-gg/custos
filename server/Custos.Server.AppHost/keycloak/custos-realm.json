@@ -1,0 +1,56 @@
+{
+  "realm": "custos",
+  "enabled": true,
+  "displayName": "Custos (development)",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "ssoSessionIdleTimeout": 604800,
+  "ssoSessionMaxLifespan": 2592000,
+  "clientPolicies": {
+    "policies": [
+      {
+        "name": "custos-cimd",
+        "description": "Clients whose ID is the URL of a Client ID Metadata Document on the Custos server.",
+        "enabled": true,
+        "conditions": [
+          {
+            "condition": "client-id-uri",
+            "configuration": {
+              "client-id-uri-scheme": ["http", "https"],
+              "client-id-uri-allow-permitted-domains": ["${CUSTOS_CIMD_HOST}"]
+            }
+          }
+        ],
+        "profiles": ["custos-cimd"]
+      }
+    ]
+  },
+  "clientProfiles": {
+    "profiles": [
+      {
+        "name": "custos-cimd",
+        "description": "Accepts the metadata document of Custos. HTTP is for development only. The host of a private-use redirect URI such as custos://oauth2callback is its first segment, so it is a permitted domain.",
+        "executors": [
+          {
+            "executor": "client-id-metadata-document",
+            "configuration": {
+              "cimd-allow-http-scheme": "true",
+              "cimd-allow-permitted-domains": ["${CUSTOS_CIMD_HOST}", "oauth2callback"]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "dev",
+      "enabled": true,
+      "email": "dev@example.invalid",
+      "emailVerified": true,
+      "firstName": "Dev",
+      "lastName": "User",
+      "credentials": [{ "type": "password", "value": "dev", "temporary": false }]
+    }
+  ]
+}

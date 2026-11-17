@@ -1,0 +1,44 @@
+name: release-custos
+
+# Builds the AppImage for a tag custos/vX.Y.Z and attaches it to a GitHub release.
+on:
+  push:
+    tags: ["custos/v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  appimage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the Tauri libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: custos
+
+      - name: Check the version
+        run: |
+          tag="${GITHUB_REF_NAME#custos/v}"
+          version=$(grep -m1 '^version' custos/Cargo.toml | cut -d'"' -f2)
+          test "$tag" = "$version" || { echo "The tag $tag is not the version $version in custos/Cargo.toml."; exit 1; }
+
+      - run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Build the AppImage
+        working-directory: custos/crates/custos-app
+        run: cargo tauri build --bundles appimage
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Custos ${{ github.ref_name }}
+          files: custos/target/release/bundle/appimage/*.AppImage

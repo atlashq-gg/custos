@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/atlashq-gg/custos/spec/schemas/upload-result.schema.json",
+  "title": "Custos upload result document (unstable)",
+  "type": "object",
+  "required": ["status", "received_at", "size_bytes", "sha256", "war", "stockpiles"],
+  "properties": {
+    "status": { "type": "string", "enum": ["accepted"] },
+    "received_at": { "type": "string", "format": "date-time" },
+    "size_bytes": { "type": "integer", "minimum": 0 },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "war": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["war_id", "war_number"],
+          "properties": {
+            "war_id": { "type": "string", "minLength": 1 },
+            "war_number": { "type": "integer" }
+          }
+        }
+      ]
+    },
+    "stockpiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "location": { "type": "string" },
+          "item_count": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

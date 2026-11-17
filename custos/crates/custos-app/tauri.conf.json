@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Custos",
+  "mainBinaryName": "custos",
+  "version": "0.1.0",
+  "identifier": "gg.atlashq.custos",
+  "build": {
+    "frontendDist": "dist"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": "default-src 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["appimage"],
+    "category": "Utility",
+    "shortDescription": "Sends Foxhole stockpile data to a Custos service.",
+    "copyright": "The Custos contributors",
+    "license": "MIT",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.png"],
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["custos"]
+      }
+    }
+  }
+}

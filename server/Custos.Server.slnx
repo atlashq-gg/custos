@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Dockerfile" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="Custos.Server/Custos.Server.csproj" />
+  <Project Path="Custos.Server.AppHost/Custos.Server.AppHost.csproj" />
+  <Project Path="Custos.Server.Tests/Custos.Server.Tests.csproj" />
+</Solution>
