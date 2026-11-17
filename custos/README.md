@@ -100,6 +100,29 @@ cargo tauri build --bundles appimage       # Run in crates/custos-app.
 
 Set `RUST_LOG=debug` for more log output.
 
+## Development
+
+Run Custos against a local service. The [server](../server/README.md) supplies the service and a login.
+
+1. Install the packages in [Build](#build). The local service also needs the .NET SDK 10 and Docker.
+2. Start the service from the `server/` folder: `dotnet run --project Custos.Server.AppHost`. It starts these resources:
+
+   | Resource | URL |
+   |---|---|
+   | Service | `http://localhost:5080` |
+   | Keycloak | `http://localhost:8180` |
+   | Aspire dashboard | `http://localhost:15180` |
+
+3. Set the service URL in `~/.config/custos/config.toml`: `service_url = "http://localhost:5080"`. Custos accepts HTTP only for `localhost`.
+4. Start Custos from the `custos/` folder: `RUST_LOG=debug cargo run -p custos-app`.
+5. Use **Sign in** in the tray menu. The user is `dev` and the password is `dev`. Keycloak shows a consent page at the first login.
+
+Notes:
+
+- A development build has no installed desktop file. At startup, Custos registers the `custos://` scheme itself. If the browser does not return to Custos after the login, search the log for `cannot register the custos:// scheme`.
+- Custos sends data only while Foxhole runs. Without the game, set `save_dir` in the configuration file to a test folder.
+- The service imports the Keycloak realm at each start. A change in the Keycloak console lasts for one run.
+
 ## Layout
 
 | Crate | Content |
