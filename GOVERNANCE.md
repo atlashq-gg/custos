@@ -37,6 +37,7 @@ Discussions happen in GitHub issues and pull requests. A decision that does not 
 - `spec/` has the version `v0` until the Maintainer decides otherwise. It has no minor or patch versions and no release tags ([spec/04-versioning.md](spec/04-versioning.md)).
 - A release of an application is a tag `<project>/vX.Y.Z`, for example `custos/v0.1.0`. The Maintainer creates the tags.
 - The tag `custos/v*` builds the AppImage and attaches it to a GitHub release.
+- The tag `server/v*` publishes the container image `ghcr.io/atlashq-gg/custos-server`. Each push to `main` that changes the server publishes the tag `unstable`.
 
 ## Licenses
 

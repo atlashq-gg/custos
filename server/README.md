@@ -69,6 +69,20 @@ The tests check the JSON documents against the schemas in [spec/schemas](../spec
 
 ## Container
 
+CI publishes the image `ghcr.io/atlashq-gg/custos-server`:
+
+| Tag | Content |
+|---|---|
+| `X.Y.Z`, `X.Y` | The release from the Git tag `server/vX.Y.Z`. |
+| `unstable` | The latest build of `main`. |
+| `sha-<commit>` | The build of one commit on `main`. |
+
+```sh
+docker pull ghcr.io/atlashq-gg/custos-server:unstable
+```
+
+To build and run the image locally:
+
 ```sh
 docker build -t custos-server .
 docker run -p 8080:8080 -e Custos__PublicBaseUrl=https://custos.example.com -e Custos__Authority=https://id.example.com/realms/custos custos-server

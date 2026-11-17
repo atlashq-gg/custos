@@ -1,11 +1,27 @@
 name: server
 
+# Tests the server and builds its container image ghcr.io/atlashq-gg/custos-server.
+#
+#   pull request          -> build the image, no push
+#   push to main          -> push the tags unstable and sha-<sha>, version "unstable+<short sha>"
+#   push of server/vX.Y.Z -> push the tags X.Y.Z and X.Y, version "X.Y.Z"
+#
+# GitHub does not apply the paths filter to a tag push, so each server/v* tag runs this workflow.
 on:
   pull_request:
     paths: ["server/**", "spec/**", ".github/workflows/server.yml"]
   push:
     branches: [main]
+    tags: ["server/v[0-9]+.[0-9]+.[0-9]+"]
     paths: ["server/**", "spec/**", ".github/workflows/server.yml"]
+
+# One run for each ref at a time, so two pushes to main cannot race on the tag unstable.
+concurrency:
+  group: server-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 defaults:
   run:
@@ -36,3 +52,66 @@ jobs:
           name: server-test-results
           path: server/TestResults/**/*.trx
           retention-days: 14
+
+  image:
+    # No image is published without a green test suite.
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve the version
+        id: version
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/server/v* ]]; then
+            semver="${GITHUB_REF#refs/tags/server/v}"
+            grep -qx "## ${semver}" CHANGELOG.md || { echo "server/CHANGELOG.md has no section ## ${semver}."; exit 1; }
+            printf 'semver=%s\nversion=%s\nassembly=%s\n' "$semver" "$semver" "$semver" >> "$GITHUB_OUTPUT"
+          else
+            # AssemblyVersion must be numeric. Only the informational version can hold "unstable".
+            printf 'version=unstable+%s\nassembly=0.0.0\n' "${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract the metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/custos-server
+          flavor: latest=false
+          # The tag has the prefix server/v, so the semver entries get the version from the value.
+          tags: |
+            type=semver,pattern={{version}},value=${{ steps.version.outputs.semver }},enable=${{ startsWith(github.ref, 'refs/tags/server/v') }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.semver }},enable=${{ startsWith(github.ref, 'refs/tags/server/v') }}
+            type=raw,value=unstable,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,prefix=sha-,format=long,enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=pr
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: server
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SOURCE_REPO=${{ github.server_url }}/${{ github.repository }}
+            REVISION=${{ github.sha }}
+            VERSION=${{ steps.version.outputs.version }}
+            ASSEMBLY_VERSION=${{ steps.version.outputs.assembly }}
+          cache-from: type=gha,scope=custos-server
+          cache-to: type=gha,scope=custos-server,mode=max
