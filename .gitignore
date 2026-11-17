@@ -1,0 +1,16 @@
+# Secrets
+.env
+.env.*
+
+# Local agent and editor state
+.claude/settings.local.json
+CLAUDE.local.md
+*.local.md
+.idea/
+.vs/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Each project folder holds the entries of its toolchain.
