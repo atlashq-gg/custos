@@ -18,7 +18,7 @@ pub const TEMPLATE: &str = r#"# Custos configuration.
 # upload_interval_seconds = 300
 
 # The folder that holds the save files of Foxhole. Custos finds it in the Proton prefix when this is not set.
-# save_dir = "/home/user/.local/share/Steam/steamapps/compatdata/505460/pfx/drive_c/users/steamuser/AppData/Local/War/Saved/SaveGames"
+# save_dir = "/home/user/.local/share/Steam/steamapps/compatdata/505460/pfx/drive_c/users/steamuser/AppData/Local/Foxhole/Saved/SaveGames"
 
 # The Steam folder. Custos tries the usual locations when this is not set.
 # steam_root = "/home/user/.local/share/Steam"
