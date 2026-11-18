@@ -24,6 +24,7 @@ Content-Length: {size}
 |---|---|---|
 | `200` | The service accepted the file. The body is the [result document](#result-document). | Show the result to the user. |
 | `401` | The token is missing or not valid. | Do the challenge steps in [02-authentication.md](02-authentication.md#challenge). |
+| `403` | The token is valid, but the service does not accept uploads from this user, for example because the token names no guild. | Report the error. Try again at the next interval. |
 | `404` | The endpoint does not exist. | Get the discovery document again. |
 | `413` | The body is larger than `upload_max_bytes`. | Report the error. Do not send the same file again. |
 | `415` | The `Content-Type` is not `application/octet-stream`. | Report the error. |

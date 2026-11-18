@@ -7,18 +7,25 @@ namespace Custos.Server.Tests.Infrastructure;
 internal static class SpecSchemas
 {
     private static readonly Lazy<JsonSchema> Discovery = new(() => Load("discovery.schema.json"));
-    private static readonly Lazy<JsonSchema> UploadResult = new(() => Load("upload-result.schema.json"));
+    private static readonly Lazy<JsonSchema> UploadResult = new(() =>
+        Load("upload-result.schema.json")
+    );
 
-    public static void AssertDiscoveryDocument(JsonElement document) => AssertValid(Discovery.Value, document);
+    public static void AssertDiscoveryDocument(JsonElement document) =>
+        AssertValid(Discovery.Value, document);
 
-    public static void AssertUploadResult(JsonElement document) => AssertValid(UploadResult.Value, document);
+    public static void AssertUploadResult(JsonElement document) =>
+        AssertValid(UploadResult.Value, document);
 
     private static JsonSchema Load(string name) =>
         JsonSchema.FromFile(Path.Combine(AppContext.BaseDirectory, "spec", name));
 
     private static void AssertValid(JsonSchema schema, JsonElement document)
     {
-        var result = schema.Evaluate(document, new EvaluationOptions { OutputFormat = OutputFormat.List });
+        var result = schema.Evaluate(
+            document,
+            new EvaluationOptions { OutputFormat = OutputFormat.List }
+        );
         var errors = (result.Details ?? [])
             .Where(d => d.Errors is not null)
             .SelectMany(d => d.Errors!.Select(e => $"{d.InstanceLocation}: {e.Value}"));

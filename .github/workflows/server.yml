@@ -40,6 +40,17 @@ jobs:
           global-json-file: server/global.json
 
       - run: dotnet restore Custos.Server.slnx
+
+      # CSharpier wraps code at 100 characters. It does not wrap comments and strings, so a second
+      # check finds those lines. EF Core generates the excluded migration files.
+      - name: Check the format
+        run: |
+          dotnet tool restore
+          dotnet csharpier check .
+          long=$(find . -name '*.cs' -not -path '*/obj/*' -not -path '*/bin/*' \
+            -not -name '*.Designer.cs' -not -name '*ModelSnapshot.cs' \
+            -exec awk 'length > 100 { print FILENAME ":" FNR }' {} +)
+          if [ -n "$long" ]; then echo "Lines over 100 characters:"; echo "$long"; exit 1; fi
       - run: dotnet build Custos.Server.slnx --configuration Release --no-restore
       - run: >
           dotnet test Custos.Server.slnx --configuration Release --no-build

@@ -1,0 +1,3 @@
+# EF Core generates these files. Generate them again instead of an edit.
+**/Migrations/*.Designer.cs
+**/Migrations/*ModelSnapshot.cs

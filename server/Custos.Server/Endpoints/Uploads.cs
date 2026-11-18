@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using Custos.Server.MapData;
+using Custos.Server.Storage;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;
@@ -6,14 +8,19 @@ using Microsoft.Net.Http.Headers;
 
 namespace Custos.Server.Endpoints;
 
-/// <summary>The upload result document (spec/03-upload.md). Unstable in contract version v0.</summary>
+/// <summary>The upload result document (spec/03-upload.md). Unstable in contract version
+/// v0.</summary>
 public sealed record UploadResult(
     string Status,
     DateTimeOffset ReceivedAt,
     long SizeBytes,
     string Sha256,
     WarInfo? War,
-    StockpileSummary[] Stockpiles);
+    StockpileSummary[] Stockpiles
+);
+
+/// <summary>The war of the upload, as the upload result gives it.</summary>
+public sealed record WarInfo(string WarId, int WarNumber);
 
 public sealed record StockpileSummary(string Name, string? Location, int? ItemCount);
 
@@ -21,9 +28,6 @@ internal static class Uploads
 {
     public const string Path = "/api/v1/uploads";
     public const string OctetStream = "application/octet-stream";
-
-    /// <summary>The magic bytes of an Unreal Engine save file.</summary>
-    private static ReadOnlySpan<byte> GvasMagic => "GVAS"u8;
 
     public static IEndpointRouteBuilder MapUploads(this IEndpointRouteBuilder app)
     {
@@ -33,10 +37,12 @@ internal static class Uploads
             .WithSummary("Upload the full map data file of Foxhole.")
             .Accepts<Stream>(OctetStream)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .RequireAuthorization(Authentication.CustosPolicy)
             .RequireRateLimiting(RateLimiting.UploadPolicy);
 
@@ -46,54 +52,121 @@ internal static class Uploads
     private static async Task<Results<Ok<UploadResult>, ProblemHttpResult>> PostAsync(
         HttpRequest request,
         IOptions<CustosOptions> options,
+        IHostEnvironment environment,
         WarApiClient warApi,
+        WarRegistry wars,
+        UploadStore store,
         TimeProvider time,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
-        var maxBytes = options.Value.UploadMaxBytes;
-
-        if (!MediaTypeHeaderValue.TryParse(request.ContentType, out var type)
-            || !type.MediaType.Equals(OctetStream, StringComparison.OrdinalIgnoreCase))
+        var receivedAt = time.GetUtcNow();
+        var guildId = ActiveGuild.Resolve(request.HttpContext.User, options.Value, environment);
+        if (guildId is null)
         {
-            return Problem(StatusCodes.Status415UnsupportedMediaType, "Unsupported media type",
-                $"The body must be {OctetStream}.");
+            return Problem(
+                StatusCodes.Status403Forbidden,
+                "No guild",
+                $"The access token has no valid claim {ActiveGuild.ClaimType}. "
+                    + "Choose a guild when you log in."
+            );
         }
 
-        if (request.ContentLength > maxBytes) return TooLarge(maxBytes);
+        var maxBytes = options.Value.UploadMaxBytes;
 
-        // One byte more than the limit, so that a body without Content-Length can be found too large.
+        if (
+            !MediaTypeHeaderValue.TryParse(request.ContentType, out var type)
+            || !type.MediaType.Equals(OctetStream, StringComparison.OrdinalIgnoreCase)
+        )
+        {
+            return Problem(
+                StatusCodes.Status415UnsupportedMediaType,
+                "Unsupported media type",
+                $"The body must be {OctetStream}."
+            );
+        }
+
+        if (request.ContentLength > maxBytes)
+            return TooLarge(maxBytes);
+
+        // One byte more than the limit, so that a body without Content-Length can be found too
+        // large.
         var body = new MemoryStream();
         var limited = request.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>();
-        if (limited is { IsReadOnly: false }) limited.MaxRequestBodySize = maxBytes + 1L;
+        if (limited is { IsReadOnly: false })
+            limited.MaxRequestBodySize = maxBytes + 1L;
 
         try
         {
             await request.Body.CopyToAsync(body, cancellationToken);
         }
-        catch (BadHttpRequestException e) when (e.StatusCode == StatusCodes.Status413PayloadTooLarge)
+        catch (BadHttpRequestException e)
+            when (e.StatusCode == StatusCodes.Status413PayloadTooLarge)
         {
             return TooLarge(maxBytes);
         }
 
-        if (body.Length > maxBytes) return TooLarge(maxBytes);
+        if (body.Length > maxBytes)
+            return TooLarge(maxBytes);
 
-        var bytes = body.GetBuffer().AsSpan(0, (int)body.Length);
-        if (!bytes.StartsWith(GvasMagic))
+        var bytes = body.GetBuffer().AsMemory(0, (int)body.Length);
+        IReadOnlyList<PinnedItem> items;
+        try
         {
-            return Problem(StatusCodes.Status422UnprocessableEntity, "Not a save file",
-                "The body is not an Unreal Engine save file (GVAS).");
+            items = MapDataFile.Parse(bytes);
+        }
+        catch (GvasFormatException e)
+        {
+            return Problem(
+                StatusCodes.Status422UnprocessableEntity,
+                "Not a map data file",
+                e.Message
+            );
         }
 
-        var sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes));
+        // The key of an entity needs the war, and the server does not keep the file. Thus Custos
+        // tries again.
         var war = await warApi.GetCurrentWarAsync(cancellationToken);
+        if (war is null)
+        {
+            return Problem(
+                StatusCodes.Status503ServiceUnavailable,
+                "War unknown",
+                "The Foxhole war API did not answer. Try again later."
+            );
+        }
 
-        // A placeholder: this server does not parse the file, so the stockpile list is empty.
-        return TypedResults.Ok(new UploadResult("accepted", time.GetUtcNow(), body.Length, sha256, war, []));
+        var warStartedAt = await wars.RecordAsync(war, cancellationToken);
+        var upload = new Upload
+        {
+            GuildId = guildId.Value,
+            WarId = war.WarId,
+            UploadId = Guid.CreateVersion7(receivedAt),
+            UserId = request.HttpContext.User.FindFirst("sub")?.Value ?? "",
+            ReceivedAt = receivedAt,
+            Sha256 = SHA256.HashData(bytes.Span),
+            SizeBytes = bytes.Length,
+        };
+        var stockpiles = await store.SaveAsync(upload, items, warStartedAt, cancellationToken);
+
+        return TypedResults.Ok(
+            new UploadResult(
+                "accepted",
+                receivedAt,
+                upload.SizeBytes,
+                Convert.ToHexStringLower(upload.Sha256),
+                new WarInfo(war.WarId.ToString("D"), war.WarNumber),
+                stockpiles
+            )
+        );
     }
 
     private static ProblemHttpResult TooLarge(int maxBytes) =>
-        Problem(StatusCodes.Status413PayloadTooLarge, "File too large",
-            $"The body is larger than {maxBytes} bytes.");
+        Problem(
+            StatusCodes.Status413PayloadTooLarge,
+            "File too large",
+            $"The body is larger than {maxBytes} bytes."
+        );
 
     private static ProblemHttpResult Problem(int status, string title, string detail) =>
         TypedResults.Problem(statusCode: status, title: title, detail: detail);

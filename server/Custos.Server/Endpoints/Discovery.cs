@@ -13,7 +13,9 @@ public sealed record DiscoveryDocument(
     string OpenidConfiguration,
     string ClientId,
     string[] Scopes,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ServiceDocumentation);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        string? ServiceDocumentation
+);
 
 internal static class Discovery
 {
@@ -36,7 +38,11 @@ internal static class Discovery
                     OpenidConfiguration: o.ResolvedOpenIdConfiguration,
                     ClientId: o.ResolvedClientId,
                     Scopes: o.Scopes,
-                    ServiceDocumentation: CustosOptions.Combine(o.PublicBaseUrl, OpenApiSetup.ScalarPath));
+                    ServiceDocumentation: CustosOptions.Combine(
+                        o.PublicBaseUrl,
+                        OpenApiSetup.ScalarPath
+                    )
+                );
             })
             .WithName("GetDiscoveryDocument")
             .WithTags("Discovery")
