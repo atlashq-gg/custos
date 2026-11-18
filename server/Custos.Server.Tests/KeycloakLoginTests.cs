@@ -40,10 +40,10 @@ public sealed partial class KeycloakLoginTests
         _keycloak = new ContainerBuilder("quay.io/keycloak/keycloak:26.8.2")
             .WithCommand("start-dev", "--features=cimd", "--import-realm")
             .WithResourceMapping(
-                new FileInfo(
+                FilePath.Of(
                     Path.Combine(AppContext.BaseDirectory, "keycloak", "custos-realm.json")
                 ),
-                "/opt/keycloak/data/import/"
+                DirectoryPath.Of("/opt/keycloak/data/import/")
             )
             .WithEnvironment("CUSTOS_CIMD_HOST", ContainerHost)
             .WithPortBinding(8080, assignRandomHostPort: true)
