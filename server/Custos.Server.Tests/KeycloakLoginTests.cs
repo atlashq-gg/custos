@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Custos.Server.Storage;
 using Custos.Server.Tests.Infrastructure;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Configurations;
@@ -106,13 +107,14 @@ public sealed partial class KeycloakLoginTests
         var token = await tokenResponse.Content.ReadFromJsonAsync<JsonElement>();
         Assert.That(token.TryGetProperty("refresh_token", out _), Is.True, token.ToString());
 
+        // The body is not a save file. 422 shows that the server accepted the token and read the body.
         var upload = new ByteArrayContent([.. "GVAS"u8, 0, 0, 0, 0]);
         upload.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         using var request = new HttpRequestMessage(HttpMethod.Post, Member("upload_endpoint")) { Content = upload };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.GetProperty("access_token").GetString());
         using var response = await http.SendAsync(request);
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), await response.Content.ReadAsStringAsync());
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.UnprocessableEntity), await response.Content.ReadAsStringAsync());
     }
 
     private static async Task<string> PostFormAsync(HttpClient http, string action, Dictionary<string, string> form)
@@ -170,14 +172,15 @@ public sealed partial class KeycloakLoginTests
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment("Testing");
+            // Development: the realm sets no claim active_guild, so the server uses DevelopmentGuildId.
+            builder.UseEnvironment("Development");
             builder.UseSetting("Custos:PublicBaseUrl", $"http://localhost:{port}");
             builder.UseSetting("Custos:Authority", authority);
             builder.UseSetting("Custos:ClientId", clientId);
             builder.UseSetting("Custos:Scopes:0", "openid");
             builder.UseSetting("Custos:UploadMinIntervalSeconds", "0");
-            // A fixed war API is not needed here: a failure gives war = null, and the upload still succeeds.
-            builder.UseSetting("Custos:WarApiBaseUrl", "http://127.0.0.1:9");
+            builder.UseSetting("Custos:WarPollIntervalSeconds", "0");
+            builder.UseSetting($"ConnectionStrings:{CustosDb.ConnectionName}", Postgres.NewDatabase());
         }
     }
 }

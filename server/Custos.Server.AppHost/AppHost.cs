@@ -21,11 +21,19 @@ var keycloak = builder.AddKeycloak("keycloak", keycloakPort)
     .WithRealmImport(Path.Combine(builder.AppHostDirectory, "keycloak", "custos-realm.json"))
     .WithoutHttpsCertificate();
 
+// PostgreSQL 18, the version that the table definitions in issue #1 were tested on. No volume: the data lasts
+// one run. The database name is CustosDb.ConnectionName of the server.
+var database = builder.AddPostgres("postgres")
+    .WithImageTag("18")
+    .AddDatabase("custos");
+
 // The launch profile gives the port and the Development environment. appsettings.Development.json of the
 // server holds the localhost URLs of the server and of the realm.
 var api = builder.AddProject<Projects.Custos_Server>("api")
     .WithEnvironment("Custos__ClientId", clientId)
-    .WithHttpHealthCheck("/health/alive");
+    .WithReference(database)
+    .WaitFor(database)
+    .WithHttpHealthCheck("/health/ready");
 
 // The tunnel serves only an endpoint that a container references. This reference also gives the realm
 // the host name of the server as Keycloak sees it (aspire.dev.internal). The server does not wait for

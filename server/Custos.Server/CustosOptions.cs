@@ -45,6 +45,24 @@ public sealed class CustosOptions
     [Required, Url]
     public string WarApiBaseUrl { get; set; } = "https://war-service-live.foxholeservices.com";
 
+    /// <summary>
+    /// A stable label for the shard of <see cref="WarApiBaseUrl"/>. The war API does not label its shard. The
+    /// label is a part of the ID of each structure, so do not change it during a war. The server supports one shard.
+    /// </summary>
+    [Required]
+    public string Shard { get; set; } = "live";
+
+    /// <summary>The time between two requests for the current war. <c>0</c> stops the requests.</summary>
+    [Range(0, int.MaxValue)]
+    public int WarPollIntervalSeconds { get; set; } = 300;
+
+    /// <summary>
+    /// The guild of a request whose token has no claim <c>active_guild</c>. The server uses it only in the
+    /// environment Development, and ignores it in all other environments.
+    /// </summary>
+    [Range(1, long.MaxValue)]
+    public long? DevelopmentGuildId { get; set; }
+
     public string ResolvedOpenIdConfiguration =>
         string.IsNullOrEmpty(OpenIdConfiguration) ? Combine(Authority, "/.well-known/openid-configuration") : OpenIdConfiguration;
 

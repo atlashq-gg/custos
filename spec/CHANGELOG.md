@@ -8,3 +8,4 @@ First version. It has no minor or patch versions.
 - Authentication with Authorization Code, PKCE, and the redirect URI `custos://oauth2callback`.
 - Upload of the full map data file as `application/octet-stream`.
 - Upload result document, marked unstable.
+- Upload response `403`: the service does not accept uploads from the user.

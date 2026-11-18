@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Custos.Server;
 using Custos.Server.Endpoints;
+using Custos.Server.Storage;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +24,17 @@ builder.Services.AddHealthChecks();
 builder.Services.AddHttpClient<WarApiClient>(http => http.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddSingleton(TimeProvider.System);
 
+// No retries: a retrying execution strategy refuses the transactions that the server opens itself. Custos
+// sends the file again at the next interval after a 5xx.
+builder.AddNpgsqlDbContext<CustosDb>(CustosDb.ConnectionName,
+    settings => settings.DisableRetry = true,
+    CustosDb.Configure);
+builder.Services.AddScoped<WarRegistry>();
+builder.Services.AddScoped<UploadStore>();
+// The migrator must start first: hosted services start in the order of registration.
+builder.Services.AddHostedService<DatabaseMigrator>();
+builder.Services.AddHostedService<WarMonitor>();
+
 builder
     .AddCustosAuthentication()
     .AddCustosRateLimiting()
@@ -39,7 +52,9 @@ app.MapDiscovery();
 app.MapClientMetadata();
 app.MapUploads();
 app.MapCustosOpenApi();
-app.MapHealthChecks("/health/alive");
+// Liveness does not depend on the database. Readiness runs all checks, the database too.
+app.MapHealthChecks("/health/alive", new HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks("/health/ready");
 
 app.Run();
 
