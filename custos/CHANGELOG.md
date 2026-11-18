@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix: the save folder in the Proton prefix is `AppData/Local/Foxhole/Saved/SaveGames`, not `AppData/Local/War/Saved/SaveGames`. Custos 0.1.0 does not find the map data file without `save_dir`.
+
 ## 0.1.0
 
 First version. Implements contract version `v0`. Linux only.

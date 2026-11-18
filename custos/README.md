@@ -38,7 +38,7 @@ service_url = "https://example.com"
 upload_interval_seconds = 300
 
 # Optional. The folder that holds the save files of Foxhole.
-# save_dir = "/home/user/.local/share/Steam/steamapps/compatdata/505460/pfx/drive_c/users/steamuser/AppData/Local/War/Saved/SaveGames"
+# save_dir = "/home/user/.local/share/Steam/steamapps/compatdata/505460/pfx/drive_c/users/steamuser/AppData/Local/Foxhole/Saved/SaveGames"
 
 # Optional. The Steam folder.
 # steam_root = "/home/user/.local/share/Steam"
@@ -52,7 +52,7 @@ Without `save_dir`, Custos searches these Steam folders and each library in thei
 - `~/.local/share/Steam`
 - `~/.var/app/com.valvesoftware.Steam/.local/share/Steam` (Flatpak)
 
-In each library, the save folder is `steamapps/compatdata/505460/pfx/drive_c/users/steamuser/AppData/Local/War/Saved/SaveGames`. Custos reads `UserData.sav` in that folder to find the name of the map data file.
+In each library, the save folder is `steamapps/compatdata/505460/pfx/drive_c/users/steamuser/AppData/Local/Foxhole/Saved/SaveGames`. Custos reads `UserData.sav` in that folder to find the name of the map data file.
 
 ## Login
 
