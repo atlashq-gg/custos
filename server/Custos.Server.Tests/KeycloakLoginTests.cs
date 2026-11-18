@@ -180,7 +180,7 @@ public sealed partial class KeycloakLoginTests
             builder.UseSetting("Custos:Scopes:0", "openid");
             builder.UseSetting("Custos:UploadMinIntervalSeconds", "0");
             builder.UseSetting("Custos:WarPollIntervalSeconds", "0");
-            builder.UseSetting($"ConnectionStrings:{CustosDb.ConnectionName}", Postgres.NewDatabase());
+            builder.UseSetting($"ConnectionStrings:{CustosDbContext.ConnectionName}", Postgres.NewDatabase());
         }
     }
 }

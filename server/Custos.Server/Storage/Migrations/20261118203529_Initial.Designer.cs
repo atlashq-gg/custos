@@ -11,8 +11,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Custos.Server.Storage.Migrations
 {
-    [DbContext(typeof(CustosDb))]
-    [Migration("20261118195642_Initial")]
+    [DbContext(typeof(CustosDbContext))]
+    [Migration("20261118203529_Initial")]
     partial class Initial
     {
         /// <inheritdoc />

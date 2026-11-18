@@ -11,7 +11,7 @@ internal sealed class DatabaseMigrator(IServiceScopeFactory scopes) : IHostedSer
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await using var scope = scopes.CreateAsyncScope();
-        await scope.ServiceProvider.GetRequiredService<CustosDb>().Database.MigrateAsync(cancellationToken);
+        await scope.ServiceProvider.GetRequiredService<CustosDbContext>().Database.MigrateAsync(cancellationToken);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

@@ -22,7 +22,7 @@ var keycloak = builder.AddKeycloak("keycloak", keycloakPort)
     .WithoutHttpsCertificate();
 
 // PostgreSQL 18, the version that the table definitions in issue #1 were tested on. No volume: the data lasts
-// one run. The database name is CustosDb.ConnectionName of the server.
+// one run. The database name is CustosDbContext.ConnectionName of the server.
 var database = builder.AddPostgres("postgres")
     .WithImageTag("18")
     .AddDatabase("custos");

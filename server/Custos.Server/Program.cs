@@ -26,9 +26,9 @@ builder.Services.AddSingleton(TimeProvider.System);
 
 // No retries: a retrying execution strategy refuses the transactions that the server opens itself. Custos
 // sends the file again at the next interval after a 5xx.
-builder.AddNpgsqlDbContext<CustosDb>(CustosDb.ConnectionName,
+builder.AddNpgsqlDbContext<CustosDbContext>(CustosDbContext.ConnectionName,
     settings => settings.DisableRetry = true,
-    CustosDb.Configure);
+    CustosDbContext.Configure);
 builder.Services.AddScoped<WarRegistry>();
 builder.Services.AddScoped<UploadStore>();
 // The migrator must start first: hosted services start in the order of registration.

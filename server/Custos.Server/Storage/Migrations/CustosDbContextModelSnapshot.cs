@@ -10,8 +10,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Custos.Server.Storage.Migrations
 {
-    [DbContext(typeof(CustosDb))]
-    partial class CustosDbModelSnapshot : ModelSnapshot
+    [DbContext(typeof(CustosDbContext))]
+    partial class CustosDbContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
         {

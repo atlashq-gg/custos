@@ -35,11 +35,11 @@ internal sealed class CustosFactory(int uploadMinIntervalSeconds = 0, string env
     public FakeWarApi WarApi { get; } = new();
 
     /// <summary>A database context outside a request, to check what the server stored.</summary>
-    public CustosDb CreateDb()
+    public CustosDbContext CreateDb()
     {
-        var options = new DbContextOptionsBuilder<CustosDb>().UseNpgsql(_connectionString);
-        CustosDb.Configure(options);
-        return new CustosDb(options.Options);
+        var options = new DbContextOptionsBuilder<CustosDbContext>().UseNpgsql(_connectionString);
+        CustosDbContext.Configure(options);
+        return new CustosDbContext(options.Options);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -52,7 +52,7 @@ internal sealed class CustosFactory(int uploadMinIntervalSeconds = 0, string env
         builder.UseSetting("Custos:UploadMinIntervalSeconds", uploadMinIntervalSeconds.ToString());
         builder.UseSetting("Custos:DevelopmentGuildId", DevelopmentGuildId.ToString());
         builder.UseSetting("Custos:WarPollIntervalSeconds", "0");
-        builder.UseSetting($"ConnectionStrings:{CustosDb.ConnectionName}", _connectionString);
+        builder.UseSetting($"ConnectionStrings:{CustosDbContext.ConnectionName}", _connectionString);
 
         builder.ConfigureTestServices(services =>
         {

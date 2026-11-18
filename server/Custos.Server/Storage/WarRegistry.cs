@@ -10,7 +10,7 @@ namespace Custos.Server.Storage;
 /// history tables, and ends the earlier wars of the shard: the war API reports a new war only when the
 /// earlier war ended.
 /// </summary>
-internal sealed class WarRegistry(CustosDb db, IMemoryCache cache, IOptions<CustosOptions> options, TimeProvider time)
+internal sealed class WarRegistry(CustosDbContext db, IMemoryCache cache, IOptions<CustosOptions> options, TimeProvider time)
 {
     /// <summary>The advisory lock of this registry. The locks of guilds use the guild ID, which is positive.</summary>
     public const long LockKey = -1;

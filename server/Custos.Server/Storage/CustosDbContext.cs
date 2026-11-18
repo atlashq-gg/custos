@@ -7,7 +7,7 @@ namespace Custos.Server.Storage;
 /// The database of the server, PostgreSQL. The names of tables and columns are in snake_case. The history
 /// tables have one partition for each war (<see cref="WarRegistry"/>), so the migration creates them with SQL.
 /// </summary>
-public sealed class CustosDb(DbContextOptions<CustosDb> options) : DbContext(options)
+public sealed class CustosDbContext(DbContextOptions<CustosDbContext> options) : DbContext(options)
 {
     /// <summary>The name of the connection string, and of the database in the AppHost.</summary>
     public const string ConnectionName = "custos";
@@ -76,12 +76,12 @@ public sealed class CustosDb(DbContextOptions<CustosDb> options) : DbContext(opt
 }
 
 /// <summary>Creates the context for <c>dotnet ef</c>. A migration needs no connection.</summary>
-internal sealed class CustosDbDesignTimeFactory : IDesignTimeDbContextFactory<CustosDb>
+internal sealed class CustosDbContextDesignTimeFactory : IDesignTimeDbContextFactory<CustosDbContext>
 {
-    public CustosDb CreateDbContext(string[] args)
+    public CustosDbContext CreateDbContext(string[] args)
     {
-        var options = new DbContextOptionsBuilder<CustosDb>().UseNpgsql();
-        CustosDb.Configure(options);
-        return new CustosDb(options.Options);
+        var options = new DbContextOptionsBuilder<CustosDbContext>().UseNpgsql();
+        CustosDbContext.Configure(options);
+        return new CustosDbContext(options.Options);
     }
 }

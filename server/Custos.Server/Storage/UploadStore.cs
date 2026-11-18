@@ -12,7 +12,7 @@ namespace Custos.Server.Storage;
 /// Writes an upload and the observations of its pinned items. The history keeps a change, not a sighting:
 /// if the content of an entity is equal to its current state, the store only moves <c>last_seen_at</c>.
 /// </summary>
-internal sealed class UploadStore(CustosDb db, IOptions<CustosOptions> options)
+internal sealed class UploadStore(CustosDbContext db, IOptions<CustosOptions> options)
 {
     private enum Observation { Stale, Seen, Changed }
 
