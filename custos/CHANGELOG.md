@@ -1,9 +1,5 @@
 # Changelog
 
-## Unreleased
-
-- Fix: the save folder in the Proton prefix is `AppData/Local/Foxhole/Saved/SaveGames`, not `AppData/Local/War/Saved/SaveGames`. Custos 0.1.0 does not find the map data file without `save_dir`.
-
 ## 0.1.0
 
 First version. Implements contract version `v0`. Linux only.
@@ -13,7 +9,7 @@ First version. Implements contract version `v0`. Linux only.
 - Configuration in `~/.config/custos/config.toml`.
 - Discovery of the service from one URL.
 - Login with Authorization Code, PKCE, and the deep link `custos://oauth2callback`. Tokens in the Secret Service.
-- Location of the save folder in the Proton prefix of each Steam library.
+- Location of the save folder in the Proton prefix of each Steam library (`AppData/Local/Foxhole/Saved/SaveGames`).
 - Foxhole process detection. Custos is idle while the game does not run.
 - Upload of the full map data file, with the interval rule of the specification.
 - AppImage package.

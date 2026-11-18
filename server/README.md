@@ -253,7 +253,7 @@ This method works with Keycloak 26.8 and a client that Keycloak registered throu
 ```yaml
 services:
   custos-server:
-    image: ghcr.io/atlashq-gg/custos-server:unstable
+    image: ghcr.io/atlashq-gg/custos-server:0.1.0
     restart: unless-stopped
     environment:
       Custos__PublicBaseUrl: https://custos.example.com
@@ -271,7 +271,7 @@ networks:
     name: postgres_default
 ```
 
-- `image`: pin a release tag (`X.Y.Z`) or a `sha-<commit>` tag. `unstable` changes with each push to `main` ([Container](#container)).
+- `image`: a release tag (`X.Y.Z`). `unstable` changes with each push to `main` ([Container](#container)).
 - `Custos__PublicBaseUrl`: the origin that Custos and Keycloak use to reach the server. The client ID of Custos is `{PublicBaseUrl}/.well-known/custos-client`. The server makes all its URLs from this value, not from the request, so the proxy needs no forwarded headers.
 - `Custos__Authority`: the issuer of the realm, exactly as the `iss` claim of a token has it. The server gets the metadata and the signing keys of Keycloak from this URL, so the container must reach it.
 - `ConnectionStrings__custos`: an Npgsql connection string. Put the password in a `.env` file next to the Compose file (`CUSTOS_DB_PASSWORD=...`). Do not commit that file.
