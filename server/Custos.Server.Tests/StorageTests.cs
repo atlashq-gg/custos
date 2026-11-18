@@ -10,7 +10,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Custos.Server.Tests;
 
-/// <summary>What the upload stores: the upload, the current state, the history, and the wars.</summary>
+/// <summary>What the upload stores: the upload, the current state, the history, and the
+/// wars.</summary>
 public sealed class StorageTests
 {
     private static readonly DateTimeOffset T1 = FakeWarApi.War142.StartedAt!.Value.AddDays(1);
@@ -24,10 +25,18 @@ public sealed class StorageTests
     [TearDown]
     public void TearDown() => _factory.Dispose();
 
-    private static byte[] Depot(DateTimeOffset lastUpdated, short rifles = 20) => MapDataWriter.File(new Pinned(
-        "OriginHex", 0.25f, 0.75f, "StorageFacility", lastUpdated,
-        [("ItemCrates", "RifleC", rifles)],
-        [("ATLAS REC", [("Vehicles", "TruckC", 2)])]));
+    private static byte[] Depot(DateTimeOffset lastUpdated, short rifles = 20) =>
+        MapDataWriter.File(
+            new Pinned(
+                "OriginHex",
+                0.25f,
+                0.75f,
+                "StorageFacility",
+                lastUpdated,
+                [("ItemCrates", "RifleC", rifles)],
+                [("ATLAS REC", [("Vehicles", "TruckC", 2)])]
+            )
+        );
 
     [Test]
     public async Task Upload_stores_the_upload_and_the_current_state()
@@ -42,14 +51,25 @@ public sealed class StorageTests
             Assert.That(upload.GuildId, Is.EqualTo(CustosFactory.GuildId));
             Assert.That(upload.UserId, Is.EqualTo("dev"));
             Assert.That(upload.WarId, Is.EqualTo(FakeWarApi.War142.WarId));
-            Assert.That(structure.StructureId, Is.EqualTo(EntityIds.Structure("live", FakeWarApi.War142.WarId, "OriginHex", 0.25f, 0.75f)));
+            Assert.That(
+                structure.StructureId,
+                Is.EqualTo(
+                    EntityIds.Structure("live", FakeWarApi.War142.WarId, "OriginHex", 0.25f, 0.75f)
+                )
+            );
             Assert.That(structure.CodeName, Is.EqualTo("StorageFacility"));
             Assert.That(structure.ObservedAt, Is.EqualTo(T1));
-            Assert.That(await db.Stockpiles.Select(s => s.Name).ToListAsync(), Is.EquivalentTo(new[] { null, "ATLAS REC" }));
+            Assert.That(
+                await db.Stockpiles.Select(s => s.Name).ToListAsync(),
+                Is.EquivalentTo(new[] { null, "ATLAS REC" })
+            );
             Assert.That(await db.StockpileEntries.CountAsync(), Is.EqualTo(2));
             Assert.That(await db.StockpileChanges.CountAsync(), Is.EqualTo(2));
             Assert.That(await db.StructureChanges.CountAsync(), Is.EqualTo(1));
-            Assert.That(await db.StockpileChanges.Select(c => c.Entries).ToListAsync(), Does.Contain("""{"item_crate": {"RifleC": 20}}"""));
+            Assert.That(
+                await db.StockpileChanges.Select(c => c.Entries).ToListAsync(),
+                Does.Contain("""{"item_crate": {"RifleC": 20}}""")
+            );
         }
     }
 
@@ -64,10 +84,22 @@ public sealed class StorageTests
         {
             Assert.That(await db.Uploads.CountAsync(), Is.EqualTo(2));
             Assert.That(await db.StockpileChanges.CountAsync(), Is.EqualTo(2));
-            Assert.That(await db.StockpileChanges.Select(c => c.LastSeenAt).Distinct().SingleAsync(), Is.EqualTo(T2));
-            Assert.That(await db.Stockpiles.Select(s => s.ObservedAt).Distinct().SingleAsync(), Is.EqualTo(T1));
-            Assert.That(await db.Structures.Select(s => s.LastSeenAt).SingleAsync(), Is.EqualTo(T2));
-            Assert.That(await db.StructureChanges.Select(c => c.LastSeenAt).SingleAsync(), Is.EqualTo(T2));
+            Assert.That(
+                await db.StockpileChanges.Select(c => c.LastSeenAt).Distinct().SingleAsync(),
+                Is.EqualTo(T2)
+            );
+            Assert.That(
+                await db.Stockpiles.Select(s => s.ObservedAt).Distinct().SingleAsync(),
+                Is.EqualTo(T1)
+            );
+            Assert.That(
+                await db.Structures.Select(s => s.LastSeenAt).SingleAsync(),
+                Is.EqualTo(T2)
+            );
+            Assert.That(
+                await db.StructureChanges.Select(c => c.LastSeenAt).SingleAsync(),
+                Is.EqualTo(T2)
+            );
         }
     }
 
@@ -81,7 +113,13 @@ public sealed class StorageTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(await db.StockpileChanges.CountAsync(), Is.EqualTo(3));
-            Assert.That(await db.StockpileEntries.Where(e => e.CodeName == "RifleC").Select(e => e.Quantity).SingleAsync(), Is.EqualTo(5));
+            Assert.That(
+                await db
+                    .StockpileEntries.Where(e => e.CodeName == "RifleC")
+                    .Select(e => e.Quantity)
+                    .SingleAsync(),
+                Is.EqualTo(5)
+            );
             Assert.That(await db.StructureChanges.CountAsync(), Is.EqualTo(1));
         }
     }
@@ -95,7 +133,13 @@ public sealed class StorageTests
         await using var db = _factory.CreateDb();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await db.StockpileEntries.Where(e => e.CodeName == "RifleC").Select(e => e.Quantity).SingleAsync(), Is.EqualTo(5));
+            Assert.That(
+                await db
+                    .StockpileEntries.Where(e => e.CodeName == "RifleC")
+                    .Select(e => e.Quantity)
+                    .SingleAsync(),
+                Is.EqualTo(5)
+            );
             Assert.That(await db.StockpileChanges.CountAsync(), Is.EqualTo(2));
         }
     }
@@ -117,7 +161,9 @@ public sealed class StorageTests
     [Test]
     public async Task Empty_public_stockpile_is_not_kept()
     {
-        await UploadAsync(MapDataWriter.File(new Pinned("OriginHex", 0.3f, 0.6f, "MaintenanceTunnel", T1, [])));
+        await UploadAsync(
+            MapDataWriter.File(new Pinned("OriginHex", 0.3f, 0.6f, "MaintenanceTunnel", T1, []))
+        );
 
         await using var db = _factory.CreateDb();
         using (Assert.EnterMultipleScope())
@@ -153,8 +199,14 @@ public sealed class StorageTests
 
         await using var db = _factory.CreateDb();
         var wars = await db.Wars.OrderBy(w => w.WarNumber).ToListAsync();
-        var partitions = await db.Database
-            .SqlQuery<string>($"SELECT c.relname AS \"Value\" FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid WHERE c.relkind = 'r'")
+        var partitions = await db
+            .Database.SqlQuery<string>(
+                $"""
+                SELECT c.relname AS "Value"
+                FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid
+                WHERE c.relkind = 'r'
+                """
+            )
             .ToListAsync();
         using (Assert.EnterMultipleScope())
         {
@@ -162,24 +214,37 @@ public sealed class StorageTests
             Assert.That(wars[0].EndedAt, Is.Not.Null);
             Assert.That(wars[1].EndedAt, Is.Null);
             Assert.That(wars[1].StartedAt, Is.EqualTo(T2));
-            Assert.That(partitions, Is.EquivalentTo(new[]
-            {
-                "stockpile_changes_w142", "structure_changes_w142",
-                "stockpile_changes_w143", "structure_changes_w143",
-            }));
-            Assert.That(await db.Structures.Select(s => s.WarId).Distinct().CountAsync(), Is.EqualTo(2));
+            Assert.That(
+                partitions,
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        "stockpile_changes_w142",
+                        "structure_changes_w142",
+                        "stockpile_changes_w143",
+                        "structure_changes_w143",
+                    }
+                )
+            );
+            Assert.That(
+                await db.Structures.Select(s => s.WarId).Distinct().CountAsync(),
+                Is.EqualTo(2)
+            );
         }
     }
 
     [Test]
     public async Task War_monitor_records_the_current_war_without_an_upload()
     {
-        using var factory = _factory.WithWebHostBuilder(b => b.UseSetting("Custos:WarPollIntervalSeconds", "1"));
+        using var factory = _factory.WithWebHostBuilder(b =>
+            b.UseSetting("Custos:WarPollIntervalSeconds", "1")
+        );
         _ = factory.Server;
 
         await using var db = _factory.CreateDb();
         var deadline = DateTime.UtcNow.AddSeconds(30);
-        while (!await db.Wars.AnyAsync() && DateTime.UtcNow < deadline) await Task.Delay(100);
+        while (!await db.Wars.AnyAsync() && DateTime.UtcNow < deadline)
+            await Task.Delay(100);
 
         Assert.That(await db.Wars.Select(w => w.WarNumber).SingleAsync(), Is.EqualTo(142));
     }

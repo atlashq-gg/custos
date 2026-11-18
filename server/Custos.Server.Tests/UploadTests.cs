@@ -12,10 +12,17 @@ namespace Custos.Server.Tests;
 public sealed class UploadTests
 {
     private const string Path = "/api/v1/uploads";
-    private static readonly byte[] SaveFile = MapDataWriter.File(new Pinned(
-        "OriginHex", 0.25f, 0.75f, "StorageFacility", FakeWarApi.War142.StartedAt!.Value.AddDays(1),
-        [("ItemCrates", "RifleC", 20)],
-        [("ATLAS REC", [("Vehicles", "TruckC", 2)])]));
+    private static readonly byte[] SaveFile = MapDataWriter.File(
+        new Pinned(
+            "OriginHex",
+            0.25f,
+            0.75f,
+            "StorageFacility",
+            FakeWarApi.War142.StartedAt!.Value.AddDays(1),
+            [("ItemCrates", "RifleC", 20)],
+            [("ATLAS REC", [("Vehicles", "TruckC", 2)])]
+        )
+    );
 
     private CustosFactory _factory = null!;
 
@@ -38,11 +45,25 @@ public sealed class UploadTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.GetProperty("size_bytes").GetInt64(), Is.EqualTo(SaveFile.Length));
-            Assert.That(result.GetProperty("sha256").GetString(), Is.EqualTo(Convert.ToHexStringLower(SHA256.HashData(SaveFile))));
-            Assert.That(result.GetProperty("war").GetProperty("war_number").GetInt32(), Is.EqualTo(142));
-            Assert.That(result.GetProperty("stockpiles").EnumerateArray().Select(s => s.GetProperty("name").GetString()),
-                Is.EqualTo(new[] { "Public", "ATLAS REC" }));
-            Assert.That(result.GetProperty("stockpiles")[0].GetProperty("location").GetString(), Is.EqualTo("StorageFacility, OriginHex"));
+            Assert.That(
+                result.GetProperty("sha256").GetString(),
+                Is.EqualTo(Convert.ToHexStringLower(SHA256.HashData(SaveFile)))
+            );
+            Assert.That(
+                result.GetProperty("war").GetProperty("war_number").GetInt32(),
+                Is.EqualTo(142)
+            );
+            Assert.That(
+                result
+                    .GetProperty("stockpiles")
+                    .EnumerateArray()
+                    .Select(s => s.GetProperty("name").GetString()),
+                Is.EqualTo(new[] { "Public", "ATLAS REC" })
+            );
+            Assert.That(
+                result.GetProperty("stockpiles")[0].GetProperty("location").GetString(),
+                Is.EqualTo("StorageFacility, OriginHex")
+            );
         }
     }
 
@@ -52,7 +73,10 @@ public sealed class UploadTests
         _factory.WarApi.Fail = true;
         using var client = _factory.CreateAuthorizedClient();
 
-        await AssertProblemAsync(await client.PostAsync(Path, Body(SaveFile)), HttpStatusCode.ServiceUnavailable);
+        await AssertProblemAsync(
+            await client.PostAsync(Path, Body(SaveFile)),
+            HttpStatusCode.ServiceUnavailable
+        );
     }
 
     [Test]
@@ -61,7 +85,8 @@ public sealed class UploadTests
         using var client = _factory.CreateAuthorizedClient();
         (await client.PostAsync(Path, Body(SaveFile))).Dispose();
         _factory.WarApi.Fail = true;
-        _factory.Services.GetRequiredService<IMemoryCache>().Remove("war:current"); // The fresh answer expires.
+        // The fresh answer expires.
+        _factory.Services.GetRequiredService<IMemoryCache>().Remove("war:current");
 
         using var response = await client.PostAsync(Path, Body(SaveFile));
         var result = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
@@ -70,7 +95,10 @@ public sealed class UploadTests
         {
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(_factory.WarApi.Calls, Is.EqualTo(2));
-            Assert.That(result.GetProperty("war").GetProperty("war_number").GetInt32(), Is.EqualTo(142));
+            Assert.That(
+                result.GetProperty("war").GetProperty("war_number").GetInt32(),
+                Is.EqualTo(142)
+            );
         }
     }
 
@@ -88,14 +116,19 @@ public sealed class UploadTests
     public async Task War_api_host_is_configurable()
     {
         using var factory = _factory.WithWebHostBuilder(b =>
-            b.UseSetting("Custos:WarApiBaseUrl", "https://war-service-live-2.foxholeservices.com"));
+            b.UseSetting("Custos:WarApiBaseUrl", "https://war-service-live-2.foxholeservices.com")
+        );
         using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = _factory.CreateAuthorizedClient().DefaultRequestHeaders.Authorization;
+        client.DefaultRequestHeaders.Authorization = _factory
+            .CreateAuthorizedClient()
+            .DefaultRequestHeaders.Authorization;
 
         (await client.PostAsync(Path, Body(SaveFile))).Dispose();
 
-        Assert.That(_factory.WarApi.LastRequest?.ToString(),
-            Is.EqualTo("https://war-service-live-2.foxholeservices.com/api/worldconquest/war"));
+        Assert.That(
+            _factory.WarApi.LastRequest?.ToString(),
+            Is.EqualTo("https://war-service-live-2.foxholeservices.com/api/worldconquest/war")
+        );
     }
 
     [Test]
@@ -107,8 +140,14 @@ public sealed class UploadTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
-            Assert.That(response.Headers.WwwAuthenticate.Select(h => h.Scheme), Does.Contain("Bearer"));
-            Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/problem+json"));
+            Assert.That(
+                response.Headers.WwwAuthenticate.Select(h => h.Scheme),
+                Does.Contain("Bearer")
+            );
+            Assert.That(
+                response.Content.Headers.ContentType?.MediaType,
+                Is.EqualTo("application/problem+json")
+            );
         }
     }
 
@@ -130,7 +169,10 @@ public sealed class UploadTests
     {
         using var client = _factory.CreateAuthorizedClient(guild: guild);
 
-        await AssertProblemAsync(await client.PostAsync(Path, Body(SaveFile)), HttpStatusCode.Forbidden);
+        await AssertProblemAsync(
+            await client.PostAsync(Path, Body(SaveFile)),
+            HttpStatusCode.Forbidden
+        );
     }
 
     [Test]
@@ -142,7 +184,10 @@ public sealed class UploadTests
 
         using var accepted = await developmentClient.PostAsync(Path, Body(SaveFile));
         Assert.That(accepted.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        await AssertProblemAsync(await productionClient.PostAsync(Path, Body(SaveFile)), HttpStatusCode.Forbidden);
+        await AssertProblemAsync(
+            await productionClient.PostAsync(Path, Body(SaveFile)),
+            HttpStatusCode.Forbidden
+        );
     }
 
     [Test]
@@ -152,7 +197,10 @@ public sealed class UploadTests
         var content = new ByteArrayContent(SaveFile);
         content.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
 
-        await AssertProblemAsync(await client.PostAsync(Path, content), HttpStatusCode.UnsupportedMediaType);
+        await AssertProblemAsync(
+            await client.PostAsync(Path, content),
+            HttpStatusCode.UnsupportedMediaType
+        );
     }
 
     [Test]
@@ -161,7 +209,10 @@ public sealed class UploadTests
         using var client = _factory.CreateAuthorizedClient();
         var file = MapDataWriter.File("/Script/War.PlayerSaveGame", MapDataWriter.Properties());
 
-        await AssertProblemAsync(await client.PostAsync(Path, Body(file)), HttpStatusCode.UnprocessableEntity);
+        await AssertProblemAsync(
+            await client.PostAsync(Path, Body(file)),
+            HttpStatusCode.UnprocessableEntity
+        );
     }
 
     [Test]
@@ -169,7 +220,10 @@ public sealed class UploadTests
     {
         using var client = _factory.CreateAuthorizedClient();
 
-        await AssertProblemAsync(await client.PostAsync(Path, Body("NOPE"u8.ToArray())), HttpStatusCode.UnprocessableEntity);
+        await AssertProblemAsync(
+            await client.PostAsync(Path, Body("NOPE"u8.ToArray())),
+            HttpStatusCode.UnprocessableEntity
+        );
     }
 
     [Test]
@@ -179,7 +233,10 @@ public sealed class UploadTests
         var body = new byte[CustosFactory.UploadMaxBytes + 1];
         "GVAS"u8.CopyTo(body);
 
-        await AssertProblemAsync(await client.PostAsync(Path, Body(body)), HttpStatusCode.RequestEntityTooLarge);
+        await AssertProblemAsync(
+            await client.PostAsync(Path, Body(body)),
+            HttpStatusCode.RequestEntityTooLarge
+        );
     }
 
     [Test]
@@ -191,7 +248,10 @@ public sealed class UploadTests
         var content = new StreamContent(new UnknownLengthStream(body));
         content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
-        await AssertProblemAsync(await client.PostAsync(Path, content), HttpStatusCode.RequestEntityTooLarge);
+        await AssertProblemAsync(
+            await client.PostAsync(Path, content),
+            HttpStatusCode.RequestEntityTooLarge
+        );
     }
 
     [Test]
@@ -227,18 +287,28 @@ public sealed class UploadTests
         return content;
     }
 
-    private static async Task AssertProblemAsync(HttpResponseMessage response, HttpStatusCode status)
+    private static async Task AssertProblemAsync(
+        HttpResponseMessage response,
+        HttpStatusCode status
+    )
     {
         using (response)
         using (Assert.EnterMultipleScope())
         {
             Assert.That(response.StatusCode, Is.EqualTo(status));
-            Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/problem+json"));
-            Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain($"\"status\":{(int)status}"));
+            Assert.That(
+                response.Content.Headers.ContentType?.MediaType,
+                Is.EqualTo("application/problem+json")
+            );
+            Assert.That(
+                await response.Content.ReadAsStringAsync(),
+                Does.Contain($"\"status\":{(int)status}")
+            );
         }
     }
 
-    /// <summary>A stream that hides its length, so that the client sends the body without Content-Length.</summary>
+    /// <summary>A stream that hides its length, so that the client sends the body without
+    /// Content-Length.</summary>
     private sealed class UnknownLengthStream(byte[] bytes) : MemoryStream(bytes)
     {
         public override bool CanSeek => false;

@@ -8,14 +8,16 @@ using Microsoft.Net.Http.Headers;
 
 namespace Custos.Server.Endpoints;
 
-/// <summary>The upload result document (spec/03-upload.md). Unstable in contract version v0.</summary>
+/// <summary>The upload result document (spec/03-upload.md). Unstable in contract version
+/// v0.</summary>
 public sealed record UploadResult(
     string Status,
     DateTimeOffset ReceivedAt,
     long SizeBytes,
     string Sha256,
     WarInfo? War,
-    StockpileSummary[] Stockpiles);
+    StockpileSummary[] Stockpiles
+);
 
 /// <summary>The war of the upload, as the upload result gives it.</summary>
 public sealed record WarInfo(string WarId, int WarNumber);
@@ -55,42 +57,57 @@ internal static class Uploads
         WarRegistry wars,
         UploadStore store,
         TimeProvider time,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         var receivedAt = time.GetUtcNow();
         var guildId = ActiveGuild.Resolve(request.HttpContext.User, options.Value, environment);
         if (guildId is null)
         {
-            return Problem(StatusCodes.Status403Forbidden, "No guild",
-                $"The access token has no valid claim {ActiveGuild.ClaimType}. Choose a guild when you log in.");
+            return Problem(
+                StatusCodes.Status403Forbidden,
+                "No guild",
+                $"The access token has no valid claim {ActiveGuild.ClaimType}. "
+                    + "Choose a guild when you log in."
+            );
         }
 
         var maxBytes = options.Value.UploadMaxBytes;
 
-        if (!MediaTypeHeaderValue.TryParse(request.ContentType, out var type)
-            || !type.MediaType.Equals(OctetStream, StringComparison.OrdinalIgnoreCase))
+        if (
+            !MediaTypeHeaderValue.TryParse(request.ContentType, out var type)
+            || !type.MediaType.Equals(OctetStream, StringComparison.OrdinalIgnoreCase)
+        )
         {
-            return Problem(StatusCodes.Status415UnsupportedMediaType, "Unsupported media type",
-                $"The body must be {OctetStream}.");
+            return Problem(
+                StatusCodes.Status415UnsupportedMediaType,
+                "Unsupported media type",
+                $"The body must be {OctetStream}."
+            );
         }
 
-        if (request.ContentLength > maxBytes) return TooLarge(maxBytes);
+        if (request.ContentLength > maxBytes)
+            return TooLarge(maxBytes);
 
-        // One byte more than the limit, so that a body without Content-Length can be found too large.
+        // One byte more than the limit, so that a body without Content-Length can be found too
+        // large.
         var body = new MemoryStream();
         var limited = request.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>();
-        if (limited is { IsReadOnly: false }) limited.MaxRequestBodySize = maxBytes + 1L;
+        if (limited is { IsReadOnly: false })
+            limited.MaxRequestBodySize = maxBytes + 1L;
 
         try
         {
             await request.Body.CopyToAsync(body, cancellationToken);
         }
-        catch (BadHttpRequestException e) when (e.StatusCode == StatusCodes.Status413PayloadTooLarge)
+        catch (BadHttpRequestException e)
+            when (e.StatusCode == StatusCodes.Status413PayloadTooLarge)
         {
             return TooLarge(maxBytes);
         }
 
-        if (body.Length > maxBytes) return TooLarge(maxBytes);
+        if (body.Length > maxBytes)
+            return TooLarge(maxBytes);
 
         var bytes = body.GetBuffer().AsMemory(0, (int)body.Length);
         IReadOnlyList<PinnedItem> items;
@@ -100,15 +117,23 @@ internal static class Uploads
         }
         catch (GvasFormatException e)
         {
-            return Problem(StatusCodes.Status422UnprocessableEntity, "Not a map data file", e.Message);
+            return Problem(
+                StatusCodes.Status422UnprocessableEntity,
+                "Not a map data file",
+                e.Message
+            );
         }
 
-        // The key of an entity needs the war, and the server does not keep the file. Thus Custos tries again.
+        // The key of an entity needs the war, and the server does not keep the file. Thus Custos
+        // tries again.
         var war = await warApi.GetCurrentWarAsync(cancellationToken);
         if (war is null)
         {
-            return Problem(StatusCodes.Status503ServiceUnavailable, "War unknown",
-                "The Foxhole war API did not answer. Try again later.");
+            return Problem(
+                StatusCodes.Status503ServiceUnavailable,
+                "War unknown",
+                "The Foxhole war API did not answer. Try again later."
+            );
         }
 
         var warStartedAt = await wars.RecordAsync(war, cancellationToken);
@@ -124,13 +149,24 @@ internal static class Uploads
         };
         var stockpiles = await store.SaveAsync(upload, items, warStartedAt, cancellationToken);
 
-        return TypedResults.Ok(new UploadResult("accepted", receivedAt, upload.SizeBytes, Convert.ToHexStringLower(upload.Sha256),
-            new WarInfo(war.WarId.ToString("D"), war.WarNumber), stockpiles));
+        return TypedResults.Ok(
+            new UploadResult(
+                "accepted",
+                receivedAt,
+                upload.SizeBytes,
+                Convert.ToHexStringLower(upload.Sha256),
+                new WarInfo(war.WarId.ToString("D"), war.WarNumber),
+                stockpiles
+            )
+        );
     }
 
     private static ProblemHttpResult TooLarge(int maxBytes) =>
-        Problem(StatusCodes.Status413PayloadTooLarge, "File too large",
-            $"The body is larger than {maxBytes} bytes.");
+        Problem(
+            StatusCodes.Status413PayloadTooLarge,
+            "File too large",
+            $"The body is larger than {maxBytes} bytes."
+        );
 
     private static ProblemHttpResult Problem(int status, string title, string detail) =>
         TypedResults.Problem(statusCode: status, title: title, detail: detail);

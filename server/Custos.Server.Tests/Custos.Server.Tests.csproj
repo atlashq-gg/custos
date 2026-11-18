@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
@@ -15,8 +14,16 @@
 
   <ItemGroup>
     <!-- The tests validate the server against the files of spec/, the authority for the contract. -->
-    <None Include="..\..\spec\schemas\*.json" LinkBase="spec" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\Custos.Server.AppHost\keycloak\custos-realm.json" Link="keycloak\custos-realm.json" CopyToOutputDirectory="PreserveNewest" />
+    <None
+      Include="..\..\spec\schemas\*.json"
+      LinkBase="spec"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <None
+      Include="..\Custos.Server.AppHost\keycloak\custos-realm.json"
+      Link="keycloak\custos-realm.json"
+      CopyToOutputDirectory="PreserveNewest"
+    />
   </ItemGroup>
 
   <ItemGroup>
@@ -32,5 +39,4 @@
     <PackageReference Include="Testcontainers" Version="4.16.0" />
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.16.0" />
   </ItemGroup>
-
 </Project>

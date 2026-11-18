@@ -4,8 +4,9 @@ using Testcontainers.PostgreSql;
 namespace Custos.Server.Tests.Infrastructure;
 
 /// <summary>
-/// One PostgreSQL container for the test run. It starts on first use. Each factory gets its own database, and
-/// the server creates it with its migrations. Testcontainers removes the container after the run.
+/// One PostgreSQL container for the test run. It starts on first use. Each factory gets its own
+/// database, and the server creates it with its migrations. Testcontainers removes the container
+/// after the run.
 /// </summary>
 internal static class Postgres
 {

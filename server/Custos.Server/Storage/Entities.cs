@@ -1,7 +1,7 @@
 namespace Custos.Server.Storage;
 
-// The tables of issue #1 ("Extension: guild storage in server/"). guild_id, then war_id, start each key of
-// guild data. wars is the only table without guild_id.
+// The tables of issue #1 ("Extension: guild storage in server/"). guild_id, then war_id, start each
+// key of guild data. wars is the only table without guild_id.
 
 /// <summary>Reference data from the Foxhole war API. Not guild data.</summary>
 public sealed class War
@@ -86,14 +86,16 @@ public sealed class Stockpile
     public required byte[] ContentHash { get; set; }
 }
 
-/// <summary>Current state. The server replaces the entries of a stockpile when the stockpile changes.</summary>
+/// <summary>Current state. The server replaces the entries of a stockpile when the stockpile
+/// changes.</summary>
 public sealed class StockpileEntry
 {
     public required long GuildId { get; init; }
     public required Guid WarId { get; init; }
     public required Guid StockpileId { get; init; }
 
-    /// <summary><c>item</c>, <c>item_crate</c>, <c>vehicle</c>, <c>vehicle_crate</c>, <c>structure</c>, or <c>structure_crate</c>.</summary>
+    /// <summary><c>item</c>, <c>item_crate</c>, <c>vehicle</c>, <c>vehicle_crate</c>,
+    /// <c>structure</c>, or <c>structure_crate</c>.</summary>
     public required string Category { get; init; }
 
     public required string CodeName { get; init; }
@@ -115,7 +117,8 @@ public sealed class StockpileChange
 
     public required Guid UploadId { get; init; }
 
-    /// <summary>The entries by category, as JSON, for example <c>{"item_crate": {"RifleC": 20}}</c>.</summary>
+    /// <summary>The entries by category, as JSON, for example <c>{"item_crate": {"RifleC":
+    /// 20}}</c>.</summary>
     public required string Entries { get; init; }
 }
 

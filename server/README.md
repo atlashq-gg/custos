@@ -93,6 +93,17 @@ Keycloak 26.8 has the experimental feature `cimd`. The realm has a client policy
 - A token for Custos has no audience. The server requires the claim `azp` to be the client ID.
 - Keycloak shows a consent page for the client on the first login.
 
+## Format
+
+[CSharpier](https://csharpier.com) formats the C# code. `.editorconfig` sets the line width to 100 characters.
+
+```sh
+dotnet tool restore
+dotnet csharpier format .
+```
+
+CSharpier does not wrap comments and strings. Keep them at 100 characters or less by hand. CI runs `dotnet csharpier check .` and fails on a longer line. The generated migration files are excluded.
+
 ## Tests
 
 ```sh
