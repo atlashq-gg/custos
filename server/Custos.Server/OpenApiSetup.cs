@@ -23,6 +23,7 @@ internal static class OpenApiSetup
                 (document, _, _) =>
                 {
                     document.Info.Title = "Custos reference server";
+                    document.Info.Version = ServerVersion.Value;
                     document.Info.Description =
                         "Generated from the code. "
                         + "The contract is defined in spec/ of the Custos repository.";

@@ -14,6 +14,6 @@ First version. Implements contract version `v0`.
 - War monitor: it records each new war from the Foxhole war API, creates its history partitions, and ends the earlier war. The server ignores a pinned item from before the start of the war.
 - When the war API does not answer, the server uses the last answer. Without an earlier answer, the upload answers `503`.
 - `GET /health/alive` for liveness, and `GET /health/ready` with the database.
-- OpenAPI document and Scalar page.
+- OpenAPI document and Scalar page. The document has the version of the build, and the server logs the version when it starts.
 - Aspire AppHost with PostgreSQL 18, Keycloak 26.8.2, and a development realm that accepts the CIMD client.
-- Container image `ghcr.io/atlashq-gg/custos-server`.
+- Container image `ghcr.io/atlashq-gg/custos-server`. Its labels have the version of the build and the license AGPL-3.0-or-later.

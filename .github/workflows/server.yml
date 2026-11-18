@@ -111,6 +111,11 @@ jobs:
             type=raw,value=unstable,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,prefix=sha-,format=long,enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=pr
+          # The action derives the version from the first tag and the license from the repository
+          # (MIT). These labels override both, so that the image matches the app and the Dockerfile.
+          labels: |
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
 
       - name: Build and push
         uses: docker/build-push-action@v7

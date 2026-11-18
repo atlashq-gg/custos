@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using Custos.Server.Tests.Infrastructure;
 
@@ -91,6 +92,20 @@ public sealed class DiscoveryTests
                 Is.True
             );
         }
+    }
+
+    [Test]
+    public async Task OpenApi_document_has_the_version_of_the_build()
+    {
+        var document = await GetJsonAsync("/openapi/v1.json");
+        var expected = typeof(Program)
+            .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
+            .InformationalVersion;
+
+        Assert.That(
+            document.GetProperty("info").GetProperty("version").GetString(),
+            Is.EqualTo(expected)
+        );
     }
 
     private async Task<JsonElement> GetJsonAsync(string path)
