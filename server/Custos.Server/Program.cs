@@ -57,6 +57,8 @@ app.MapCustosOpenApi();
 app.MapHealthChecks("/health/alive", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready");
 
+app.Logger.LogInformation("Custos reference server {Version}", ServerVersion.Value);
+
 app.Run();
 
 /// <summary>The entry point. Public for the tests.</summary>
