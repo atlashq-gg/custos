@@ -18,7 +18,7 @@ var clientId = $"http://{tunnelHost}:{apiPort}/.well-known/custos-client";
 // No volume: Keycloak imports the realm on every start. What the console changes lasts one run.
 var keycloak = builder
     .AddKeycloak("keycloak", keycloakPort)
-    .WithImageTag("26.8.0")
+    .WithImageTag("26.8.2")
     .WithArgs("--features=cimd")
     .WithRealmImport(Path.Combine(builder.AppHostDirectory, "keycloak", "custos-realm.json"))
     .WithoutHttpsCertificate();

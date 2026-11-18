@@ -37,7 +37,7 @@ public sealed partial class KeycloakLoginTests
         _serverPort = FreePort();
         await TestcontainersSettings.ExposeHostPortsAsync((ushort)_serverPort);
 
-        _keycloak = new ContainerBuilder("quay.io/keycloak/keycloak:26.8.0")
+        _keycloak = new ContainerBuilder("quay.io/keycloak/keycloak:26.8.2")
             .WithCommand("start-dev", "--features=cimd", "--import-realm")
             .WithResourceMapping(
                 new FileInfo(
