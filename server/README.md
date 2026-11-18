@@ -49,7 +49,7 @@ The section `Custos` in `appsettings.json` or environment variables (`Custos__Pu
 | `Scopes` | `["openid"]` | The scopes that Custos requests. |
 | `UploadMaxBytes` | `4194304` | The largest upload body. |
 | `UploadMinIntervalSeconds` | `60` | The shortest time between two uploads of one user. `10` in development. |
-| `DevelopmentGuildId` | (none) | The guild of an upload whose token has no claim `active_guild`. The server uses it only in the environment `Development`. `1` in development. |
+| `DevelopmentGuildId` | (none) | The guild of an upload whose token has no claim `active_guild`. The server uses it only in the environment `Development`. `1236389163276959888` in development. |
 | `WarApiBaseUrl` | `https://war-service-live.foxholeservices.com` | The origin of the Foxhole war API. Each shard has its own host. The server gets the current war from `/api/worldconquest/war` on it. If the API does not answer, the server uses the last answer. Without an earlier answer, an upload gets `503`. |
 | `Shard` | `live` | A stable label for the shard of `WarApiBaseUrl`. The war API does not label its shard. The label is a part of the ID of each structure, so do not change it during a war. The server supports one shard. |
 | `WarPollIntervalSeconds` | `300` | The time between two requests for the current war. `0` stops the requests. |
