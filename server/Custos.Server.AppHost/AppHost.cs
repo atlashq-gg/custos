@@ -13,7 +13,7 @@ const int keycloakPort = 8180;
 // it uses the Aspire container tunnel (ASPIRE_ENABLE_CONTAINER_TUNNEL in launchSettings.json) and
 // its host name. The client ID is the URL that Keycloak gets, so the server announces the same URL.
 const string tunnelHost = "aspire.dev.internal";
-var clientId = $"http://{tunnelHost}:{apiPort}/custos/client-metadata.json";
+var clientId = $"http://{tunnelHost}:{apiPort}/.well-known/custos-client";
 
 // No volume: Keycloak imports the realm on every start. What the console changes lasts one run.
 var keycloak = builder

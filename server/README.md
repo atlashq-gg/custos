@@ -28,7 +28,7 @@ Keycloak imports [the realm](Custos.Server.AppHost/keycloak/custos-realm.json) o
 | Endpoint | Content |
 |---|---|
 | `GET /.well-known/custos-configuration` | The discovery document ([spec](../spec/01-discovery.md)). |
-| `GET /custos/client-metadata.json` | The Client ID Metadata Document (CIMD) of Custos. Its URL is the client ID. |
+| `GET /.well-known/custos-client` | The Client ID Metadata Document (CIMD) of Custos. Its URL is the client ID. |
 | `POST /api/v1/uploads` | The upload ([spec](../spec/03-upload.md)). It parses the file, keeps the data for the guild of the user, and returns the stockpiles in the file. |
 | `GET /openapi/v1.json` | The OpenAPI document, generated from the code. |
 | `GET /docs` | The Scalar page for the OpenAPI document. |
@@ -44,7 +44,7 @@ The section `Custos` in `appsettings.json` or environment variables (`Custos__Pu
 | `PublicBaseUrl` | (required) | The origin of the server as Custos sees it. |
 | `Authority` | (required) | The issuer URL of the authorization server. |
 | `OpenIdConfiguration` | `{Authority}/.well-known/openid-configuration` | The metadata document of the authorization server, as the discovery document links it. |
-| `ClientId` | `{PublicBaseUrl}/custos/client-metadata.json` | The client ID of Custos. |
+| `ClientId` | `{PublicBaseUrl}/.well-known/custos-client` | The client ID of Custos. |
 | `ServiceName` | `Custos reference server` | The name that Custos shows. |
 | `Scopes` | `["openid"]` | The scopes that Custos requests. |
 | `UploadMaxBytes` | `4194304` | The largest upload body. |
@@ -87,7 +87,7 @@ EF Core cannot declare a partitioned table. A migration that creates or changes 
 
 Keycloak 26.8 has the experimental feature `cimd`. The realm has a client policy that accepts a client ID that is a URL on the host of the server. Keycloak then gets the registration of Custos from the CIMD document.
 
-- Keycloak must reach the server at the client ID URL. In development, Keycloak runs in a container and uses the Aspire container tunnel, so the client ID is `http://aspire.dev.internal:5080/custos/client-metadata.json`.
+- Keycloak must reach the server at the client ID URL. In development, Keycloak runs in a container and uses the Aspire container tunnel, so the client ID is `http://aspire.dev.internal:5080/.well-known/custos-client`.
 - The policy permits the domain `oauth2callback`, because Keycloak reads the redirect URI `custos://oauth2callback` as a URL with that host.
 - The development realm permits HTTP. A production realm must use HTTPS for the client ID ([Prepare Keycloak](#2-prepare-keycloak)).
 - A token for Custos has no audience. The server requires the claim `azp` to be the client ID.
@@ -272,7 +272,7 @@ networks:
 ```
 
 - `image`: pin a release tag (`X.Y.Z`) or a `sha-<commit>` tag. `unstable` changes with each push to `main` ([Container](#container)).
-- `Custos__PublicBaseUrl`: the origin that Custos and Keycloak use to reach the server. The client ID of Custos is `{PublicBaseUrl}/custos/client-metadata.json`. The server makes all its URLs from this value, not from the request, so the proxy needs no forwarded headers.
+- `Custos__PublicBaseUrl`: the origin that Custos and Keycloak use to reach the server. The client ID of Custos is `{PublicBaseUrl}/.well-known/custos-client`. The server makes all its URLs from this value, not from the request, so the proxy needs no forwarded headers.
 - `Custos__Authority`: the issuer of the realm, exactly as the `iss` claim of a token has it. The server gets the metadata and the signing keys of Keycloak from this URL, so the container must reach it.
 - `ConnectionStrings__custos`: an Npgsql connection string. Put the password in a `.env` file next to the Compose file (`CUSTOS_DB_PASSWORD=...`). Do not commit that file.
 - `networks`: an existing network that PostgreSQL is on. `docker network ls` shows its name. If PostgreSQL runs on another host, remove `networks` and use that host name in `Host=`.
@@ -282,7 +282,7 @@ The other settings are in [Configuration](#configuration). Set them as `Custos__
 
 ### 4. Configure the reverse proxy
 
-Send all paths of `https://custos.example.com` to port 8080 of the container. Keycloak gets `/custos/client-metadata.json` through this proxy, so the certificate must be valid for Keycloak.
+Send all paths of `https://custos.example.com` to port 8080 of the container. Keycloak gets `/.well-known/custos-client` through this proxy, so the certificate must be valid for Keycloak.
 
 ### 5. Start and check the server
 

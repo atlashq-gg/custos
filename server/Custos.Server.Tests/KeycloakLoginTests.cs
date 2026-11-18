@@ -57,7 +57,7 @@ public sealed partial class KeycloakLoginTests
         _server = new KestrelFactory(
             port: _serverPort,
             authority: $"http://localhost:{_keycloak.GetMappedPublicPort(8080)}/realms/{Realm}",
-            clientId: $"http://{ContainerHost}:{_serverPort}/custos/client-metadata.json"
+            clientId: $"http://{ContainerHost}:{_serverPort}/.well-known/custos-client"
         );
         _server.UseKestrel(_serverPort);
         _server.StartServer();

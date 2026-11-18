@@ -9,6 +9,7 @@
 - War monitor: it records each new war, creates its history partitions, and ends the earlier war. The server ignores a pinned item from before the start of the war.
 - When the war API does not answer, the server uses the last answer. Without an earlier answer, the upload answers `503`.
 - `GET /health/ready` checks the database. `GET /health/alive` does not.
+- The Client ID Metadata Document moved from `/custos/client-metadata.json` to `/.well-known/custos-client`. Its URL is the client ID, so the client ID of Custos changes.
 
 ## 0.1.0
 

@@ -28,7 +28,7 @@ internal sealed class CustosFactory(
 {
     public const string PublicBaseUrl = "http://custos.test";
     public const string Issuer = "http://idp.test/realms/custos";
-    public const string ClientId = PublicBaseUrl + "/custos/client-metadata.json";
+    public const string ClientId = PublicBaseUrl + "/.well-known/custos-client";
     public const int UploadMaxBytes = 16 * 1024;
     public const long GuildId = 1234;
     public const long DevelopmentGuildId = 99;

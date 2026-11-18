@@ -52,7 +52,7 @@ public sealed class DiscoveryTests
     [Test]
     public async Task Client_metadata_document_names_itself_and_the_redirect_uri()
     {
-        var document = await GetJsonAsync("/custos/client-metadata.json");
+        var document = await GetJsonAsync("/.well-known/custos-client");
 
         using (Assert.EnterMultipleScope())
         {
@@ -80,7 +80,7 @@ public sealed class DiscoveryTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(paths.TryGetProperty("/.well-known/custos-configuration", out _), Is.True);
-            Assert.That(paths.TryGetProperty("/custos/client-metadata.json", out _), Is.True);
+            Assert.That(paths.TryGetProperty("/.well-known/custos-client", out _), Is.True);
             Assert.That(
                 paths
                     .GetProperty("/api/v1/uploads")

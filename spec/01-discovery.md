@@ -62,7 +62,7 @@ Custos uses these members. It ignores all other members.
   "upload_max_bytes": 4194304,
   "upload_min_interval_seconds": 60,
   "openid_configuration": "https://id.example.com/realms/custos/.well-known/openid-configuration",
-  "client_id": "https://example.com/custos/client-metadata.json",
+  "client_id": "https://example.com/.well-known/custos-client",
   "scopes": ["openid", "offline_access"]
 }
 ```

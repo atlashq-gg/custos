@@ -17,7 +17,7 @@ public sealed record ClientMetadataDocument(
 
 internal static class ClientMetadata
 {
-    public const string Path = "/custos/client-metadata.json";
+    public const string Path = "/.well-known/custos-client";
 
     /// <summary>The redirect URI of Custos (spec/02-authentication.md).</summary>
     public const string RedirectUri = "custos://oauth2callback";
