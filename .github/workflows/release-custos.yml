@@ -27,10 +27,12 @@ jobs:
           workspaces: custos
 
       - name: Check the version
+        id: version
         run: |
           tag="${GITHUB_REF_NAME#custos/v}"
           version=$(grep -m1 '^version' custos/Cargo.toml | cut -d'"' -f2)
           test "$tag" = "$version" || { echo "The tag $tag is not the version $version in custos/Cargo.toml."; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - run: cargo install tauri-cli --version "^2" --locked
 
@@ -40,5 +42,5 @@ jobs:
 
       - uses: softprops/action-gh-release@v3
         with:
-          name: Custos ${{ github.ref_name }}
+          name: Custos ${{ steps.version.outputs.version }}
           files: custos/target/release/bundle/appimage/*.AppImage
