@@ -45,14 +45,8 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          notes="$RUNNER_TEMP/release-notes.md"
-          awk -v heading="## $VERSION" \
-            '$0 == heading { found = 1; next } found && /^## / { exit } found' \
-            custos/CHANGELOG.md | sed '/./,$!d' > "$notes"
-          if [ ! -s "$notes" ]; then
-            echo "custos/CHANGELOG.md has no section ## $VERSION."
-            exit 1
-          fi
+          .github/scripts/release-notes.sh custos/CHANGELOG.md "$VERSION" \
+            "$RUNNER_TEMP/release-notes.md"
 
       - run: cargo install tauri-cli --version "^2" --locked
 
