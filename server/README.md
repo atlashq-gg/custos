@@ -76,6 +76,10 @@ The war monitor asks the war API for the current war on an interval. An upload d
 
 ### Migrations
 
+The server applies all pending migrations when it starts, before it accepts requests. The container image does this too, so a deployment needs no .NET SDK and no separate migration step. EF Core locks the migration history while it applies migrations.
+
+To add a migration in development:
+
 ```sh
 dotnet tool restore
 dotnet ef migrations add <Name> --project Custos.Server --output-dir Storage/Migrations
@@ -302,5 +306,5 @@ curl https://custos.example.com/.well-known/custos-configuration
 
 - Run one instance. The rate limit and the cache of the war API are in the memory of the process.
 - The image has no shell and no `curl`, so a Compose `healthcheck` cannot run in it. Check `/health/ready` from the proxy or from a monitor.
-- Back up the database before you update the image. The server applies new migrations when it starts.
+- Back up the database before you update the image. The server applies new migrations when it starts ([Migrations](#migrations)).
 - The archive and the purge of a war are manual ([Wars](#wars)).
