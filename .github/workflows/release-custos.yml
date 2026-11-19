@@ -1,6 +1,7 @@
 name: release-custos
 
-# Builds the AppImage for a tag custos/vX.Y.Z and attaches it to a GitHub release.
+# Builds the AppImage for a tag custos/vX.Y.Z and attaches it to a GitHub release. The description
+# of the release is the section of the version in custos/CHANGELOG.md.
 on:
   push:
     tags: ["custos/v*"]
@@ -18,7 +19,8 @@ jobs:
       - name: Install the Tauri libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+            libssl-dev libxdo-dev
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -27,10 +29,24 @@ jobs:
           workspaces: custos
 
       - name: Check the version
+        id: version
         run: |
           tag="${GITHUB_REF_NAME#custos/v}"
           version=$(grep -m1 '^version' custos/Cargo.toml | cut -d'"' -f2)
-          test "$tag" = "$version" || { echo "The tag $tag is not the version $version in custos/Cargo.toml."; exit 1; }
+          if [ "$tag" != "$version" ]; then
+            echo "The tag $tag is not the version $version in custos/Cargo.toml."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # The release description is the section of the version in custos/CHANGELOG.md. A missing
+      # section stops the release before the build.
+      - name: Extract the release notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          .github/scripts/release-notes.sh custos/CHANGELOG.md "$VERSION" \
+            "$RUNNER_TEMP/release-notes.md"
 
       - run: cargo install tauri-cli --version "^2" --locked
 
@@ -40,5 +56,6 @@ jobs:
 
       - uses: softprops/action-gh-release@v3
         with:
-          name: Custos ${{ github.ref_name }}
+          name: Custos ${{ steps.version.outputs.version }}
+          body_path: ${{ runner.temp }}/release-notes.md
           files: custos/target/release/bundle/appimage/*.AppImage
