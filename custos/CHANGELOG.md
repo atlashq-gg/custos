@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Windows build, experimental: process detection, the save folder in `%LOCALAPPDATA%`, the Credential Manager for the tokens, a configuration template with Windows paths, and an ICO icon. A release build opens no console window.
+- If the tokens are larger than 2,560 bytes, the credential store keeps only the refresh token.
+- Custos now uses `steam_root` of the configuration. Before, it ignored the value.
+
 ## 0.1.0
 
 First version. Implements contract version `v0`. Linux only.

@@ -74,11 +74,13 @@ pub enum Event {
     OpenUrl(url::Url),
 }
 
-/// What the agent needs from its environment. Tests replace the paths and the store.
+/// What the agent needs from its environment. Tests replace the process check, the paths, and the store.
 pub struct Settings {
     pub config: Config,
     pub store: Arc<dyn TokenStore>,
-    pub proc_root: PathBuf,
+    /// True when Foxhole runs.
+    pub is_game_running: Box<dyn Fn() -> bool + Send + Sync>,
+    /// The Steam folders where Custos searches the save folder when the configuration sets none.
     pub steam_roots: Vec<PathBuf>,
     /// How often the loop runs.
     pub tick: Duration,
@@ -87,15 +89,27 @@ pub struct Settings {
 }
 
 impl Settings {
-    /// The settings of the real desktop: `/proc`, the usual Steam folders, and the credential store.
+    /// The settings of the real desktop: the process list, the save folder, and the credential store.
+    ///
+    /// On Linux, Custos searches the configured Steam folder, or else the usual Steam folders. On
+    /// Windows, the save folder of Foxhole is the default.
     #[must_use]
-    pub fn desktop(config: Config) -> Self {
-        let home = dirs::home_dir().unwrap_or_default();
+    pub fn desktop(mut config: Config) -> Self {
+        let steam_roots = if cfg!(windows) {
+            config.save_dir = config.save_dir.or_else(locate::windows_save_dir);
+            Vec::new()
+        } else {
+            let home = dirs::home_dir().unwrap_or_default();
+            config
+                .steam_root
+                .clone()
+                .map_or_else(|| locate::default_steam_roots(&home), |root| vec![root])
+        };
         Self {
             store: Arc::new(auth::KeyringStore::new(&config.service_url)),
             config,
-            proc_root: PathBuf::from("/proc"),
-            steam_roots: locate::default_steam_roots(&home),
+            is_game_running: Box::new(process::is_foxhole_running),
+            steam_roots,
             tick: Duration::from_secs(1),
             process_poll: Duration::from_secs(10),
         }
@@ -194,7 +208,7 @@ impl Agent {
             .is_none_or(|t| now >= t + self.settings.process_poll)
         {
             self.last_process_check = Some(now);
-            let running = process::is_foxhole_running(&self.settings.proc_root);
+            let running = (self.settings.is_game_running)();
             if running != self.game_running {
                 self.game_running = running;
                 self.emit(Event::GameRunning(running));
@@ -548,6 +562,7 @@ fn accepted_notification(service: &str, result: &UploadResult) -> Notification {
 mod tests {
     use super::*;
     use crate::auth::MemoryStore;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use wiremock::matchers::{header, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -560,7 +575,7 @@ mod tests {
         events: mpsc::UnboundedReceiver<Event>,
         commands: mpsc::UnboundedSender<Command>,
         save_dir: tempfile::TempDir,
-        proc_root: tempfile::TempDir,
+        game: Arc<AtomicBool>,
         store: Arc<MemoryStore>,
     }
 
@@ -571,14 +586,15 @@ mod tests {
 
             let save_dir = tempfile::tempdir().unwrap();
             std::fs::write(save_dir.path().join("1_MapData.sav"), b"GVAS0001").unwrap();
-            let proc_root = tempfile::tempdir().unwrap();
+            let game = Arc::new(AtomicBool::new(false));
             let store = Arc::new(MemoryStore::default());
             if let Some(tokens) = &tokens {
                 store.save(tokens).unwrap();
             }
 
+            // A literal string, because a path on Windows holds backslashes.
             let config: Config = toml::from_str(&format!(
-                "service_url = \"{}\"\nupload_interval_seconds = 0\nsave_dir = \"{}\"",
+                "service_url = \"{}\"\nupload_interval_seconds = 0\nsave_dir = '{}'",
                 server.uri(),
                 save_dir.path().display()
             ))
@@ -586,7 +602,10 @@ mod tests {
             let settings = Settings {
                 config,
                 store: store.clone(),
-                proc_root: proc_root.path().to_owned(),
+                is_game_running: Box::new({
+                    let game = game.clone();
+                    move || game.load(Ordering::Relaxed)
+                }),
                 steam_roots: vec![],
                 tick: Duration::from_millis(20),
                 process_poll: Duration::from_millis(20),
@@ -601,19 +620,17 @@ mod tests {
                 events,
                 commands,
                 save_dir,
-                proc_root,
+                game,
                 store,
             }
         }
 
         fn start_game(&self) {
-            let dir = self.proc_root.path().join("4242");
-            std::fs::create_dir(&dir).unwrap();
-            std::fs::write(dir.join("cmdline"), b"Z:\\Foxhole\\War-Win64-Shipping.exe\0").unwrap();
+            self.game.store(true, Ordering::Relaxed);
         }
 
         fn stop_game(&self) {
-            std::fs::remove_dir_all(self.proc_root.path().join("4242")).unwrap();
+            self.game.store(false, Ordering::Relaxed);
         }
 
         async fn next(&mut self, wanted: impl Fn(&Event) -> bool) -> Event {
