@@ -24,11 +24,10 @@ mod platform {
 
     use super::{Notification, Reference, Settings};
 
-    /// The distance between the overlay and the edges of the screen before the first placement, in pixels.
+    /// The distance from the top or bottom edge, in pixels, in addition to the offset.
     const MARGIN: i32 = 16;
-    /// The distance from the left or right edge, in percent of the monitor height. It agrees with the
-    /// notifications of the game.
-    const SIDE_MARGIN_PERCENT: i32 = 4;
+    /// The distance from the left or right edge, in pixels. It agrees with the notifications of the game.
+    const SIDE_MARGIN: i32 = 56;
     /// A line wraps when it is wider than this share of the monitor width, in percent.
     const MAX_LINE_WIDTH_PERCENT: i32 = 15;
     /// The font of the lines, as in the CSS: the first modern monospace font that the computer has.
@@ -85,10 +84,10 @@ mod platform {
         window.set_keyboard_mode(KeyboardMode::None);
         let vertical = if anchor.is_top() { Edge::Top } else { Edge::Bottom };
         let horizontal = if anchor.is_left() { Edge::Left } else { Edge::Right };
-        for edge in [vertical, horizontal] {
-            window.set_anchor(edge, true);
-            window.set_layer_shell_margin(edge, MARGIN);
-        }
+        window.set_anchor(vertical, true);
+        window.set_anchor(horizontal, true);
+        window.set_layer_shell_margin(vertical, MARGIN);
+        window.set_layer_shell_margin(horizontal, SIDE_MARGIN);
 
         // A transparent window: an RGBA visual, and a clear background before GTK draws the lines.
         let screen = WidgetExt::screen(&window).ok_or("the window has no screen")?;
@@ -305,15 +304,15 @@ mod platform {
             self.monitor = found;
             self.placed = true;
 
-            // The margins are a share of the monitor height, so that they fit each screen size.
+            // The offset is a share of the monitor height, so that it fits each screen size.
             let height = monitor.geometry().height();
-            let anchor = self.settings.anchor;
-            let vertical = if anchor.is_top() { Edge::Top } else { Edge::Bottom };
-            let horizontal = if anchor.is_left() { Edge::Left } else { Edge::Right };
+            let vertical = if self.settings.anchor.is_top() {
+                Edge::Top
+            } else {
+                Edge::Bottom
+            };
             self.window
                 .set_layer_shell_margin(vertical, MARGIN + height * i32::from(self.settings.offset) / 100);
-            self.window
-                .set_layer_shell_margin(horizontal, height * SIDE_MARGIN_PERCENT / 100);
 
             let font = pango::FontDescription::from_string(FONT);
             let char_width = self
