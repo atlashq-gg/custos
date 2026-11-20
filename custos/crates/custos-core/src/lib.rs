@@ -10,5 +10,6 @@ pub mod discovery;
 pub mod locate;
 pub mod process;
 pub mod schedule;
+pub mod stream;
 pub mod upload;
 pub mod url_rules;

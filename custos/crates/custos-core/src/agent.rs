@@ -16,6 +16,7 @@ use crate::discovery::{self, Service};
 use crate::locate;
 use crate::process;
 use crate::schedule::Schedule;
+use crate::stream::{Kind, Notification, Reference};
 use crate::upload::{self, Outcome, UploadResult};
 
 /// An identical error notification is shown at most one time in this period.
@@ -64,16 +65,13 @@ impl State {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     State(State),
+    /// Foxhole started (`true`) or stopped (`false`).
+    GameRunning(bool),
     Notify(Notification),
+    /// The message with this reference is no longer correct. Remove it if it is visible.
+    Expire(Reference),
     /// Open this URL in the browser.
     OpenUrl(url::Url),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Notification {
-    pub title: String,
-    pub body: String,
-    pub is_error: bool,
 }
 
 /// What the agent needs from its environment. Tests replace the paths and the store.
@@ -121,7 +119,8 @@ pub struct Agent {
     file_events: (mpsc::UnboundedSender<()>, mpsc::UnboundedReceiver<()>),
     dirty: bool,
     state: Option<State>,
-    shown_errors: HashMap<String, Instant>,
+    /// The last time that each error showed, by reference and text.
+    shown_errors: HashMap<(Reference, String), Instant>,
 }
 
 impl Agent {
@@ -198,6 +197,7 @@ impl Agent {
             let running = process::is_foxhole_running(&self.settings.proc_root);
             if running != self.game_running {
                 self.game_running = running;
+                self.emit(Event::GameRunning(running));
                 if running {
                     self.start_watching();
                 } else {
@@ -228,7 +228,10 @@ impl Agent {
 
         if self.state.as_ref() != Some(&state) {
             if state == State::SignedOut && self.state.is_some() {
-                self.notify_error("Sign in to send stockpile data. Use the Custos menu in the tray.");
+                self.notify_error(
+                    Kind::SignInRequired,
+                    "Sign in to send stockpile data. Use the Custos menu in the tray.",
+                );
             }
             self.state = Some(state.clone());
             self.emit(Event::State(state));
@@ -243,7 +246,7 @@ impl Agent {
                     .set_service_minimum(Duration::from_secs(service.discovery.upload_min_interval_seconds));
                 self.service = Some(service);
             }
-            Err(e) => self.notify_error(&e.to_string()),
+            Err(e) => self.notify_error(Kind::ServiceError, &e.to_string()),
         }
     }
 
@@ -252,12 +255,12 @@ impl Agent {
             .and_then(|dir| locate::find_map_data(&dir).map(|file| (dir, file)));
         let (dir, file) = match located {
             Ok(found) => found,
-            Err(e) => return self.notify_error(&e.to_string()),
+            Err(e) => return self.notify_error(Kind::SaveFile, &e.to_string()),
         };
 
         match watch(&dir, &file, self.file_events.0.clone()) {
             Ok(watcher) => self.watcher = Some(watcher),
-            Err(e) => self.notify_error(&format!("cannot watch {}: {e}", dir.display())),
+            Err(e) => self.notify_error(Kind::SaveFile, &format!("cannot watch {}: {e}", dir.display())),
         }
         tracing::info!("watching {}", file.display());
         self.map_file = Some(file);
@@ -278,7 +281,7 @@ impl Agent {
 
         let bytes = match tokio::fs::read(&file).await {
             Ok(bytes) => bytes,
-            Err(e) => return self.notify_error(&format!("cannot read {}: {e}", file.display())),
+            Err(e) => return self.notify_error(Kind::UploadError, &format!("cannot read {}: {e}", file.display())),
         };
         let sha256 = hex::encode(Sha256::digest(&bytes));
         if !self.schedule.is_new(&sha256) {
@@ -287,10 +290,13 @@ impl Agent {
         }
         if bytes.len() as u64 > service.discovery.upload_max_bytes {
             self.schedule.rejected(sha256);
-            return self.notify_error(&format!(
-                "The map data file is larger than the limit of {} ({} bytes).",
-                service.discovery.service_name, service.discovery.upload_max_bytes
-            ));
+            return self.notify_error(
+                Kind::UploadError,
+                &format!(
+                    "The map data file is larger than the limit of {} ({} bytes).",
+                    service.discovery.service_name, service.discovery.upload_max_bytes
+                ),
+            );
         }
 
         if !self.ensure_fresh_token(&service).await {
@@ -316,6 +322,8 @@ impl Agent {
             Outcome::Accepted(result) => {
                 self.schedule.accepted(sha256);
                 self.dirty = false;
+                self.expire(Kind::UploadError);
+                self.expire(Kind::ServiceError);
                 self.notify(accepted_notification(&service.discovery.service_name, &result));
             }
             Outcome::Unauthorized => {}
@@ -326,11 +334,17 @@ impl Agent {
             Outcome::Rejected { status, problem } => {
                 self.schedule.rejected(sha256);
                 self.dirty = false;
-                self.notify_error(&problem.text(&format!("The service refused the file ({status}).")));
+                self.notify_error(
+                    Kind::UploadError,
+                    &problem.text(&format!("The service refused the file ({status}).")),
+                );
             }
             Outcome::RateLimited { retry_after } => self.schedule.retry_after(now, retry_after),
             Outcome::Failed { status, problem } => {
-                self.notify_error(&problem.text(&format!("The service failed ({status}). Custos tries again later.")));
+                self.notify_error(
+                    Kind::ServiceError,
+                    &problem.text(&format!("The service failed ({status}). Custos tries again later.")),
+                );
             }
         }
     }
@@ -341,7 +355,10 @@ impl Agent {
         match upload::send(&self.http, &service.discovery.upload_endpoint, &token, bytes.to_vec()).await {
             Ok(outcome) => Some(outcome),
             Err(e) => {
-                self.notify_error(&format!("cannot reach {}: {e}", service.discovery.service_name));
+                self.notify_error(
+                    Kind::ServiceError,
+                    &format!("cannot reach {}: {e}", service.discovery.service_name),
+                );
                 None
             }
         }
@@ -377,7 +394,10 @@ impl Agent {
 
     fn sign_in(&mut self) {
         let Some(service) = &self.service else {
-            return self.notify_error("The service is not available. Custos cannot start the login.");
+            return self.notify_error(
+                Kind::Login,
+                "The service is not available. Custos cannot start the login.",
+            );
         };
         let pending = auth::begin(service);
         self.emit(Event::OpenUrl(pending.authorize_url.clone()));
@@ -389,7 +409,7 @@ impl Agent {
             return tracing::debug!("ignored link {link}");
         }
         let (Some(pending), Some(service)) = (self.pending.take(), self.service.clone()) else {
-            return self.notify_error("No login is in progress. Use Sign in in the Custos menu.");
+            return self.notify_error(Kind::Login, "No login is in progress. Use Sign in in the Custos menu.");
         };
 
         let result = match auth::code_from_callback(&pending, link) {
@@ -399,13 +419,15 @@ impl Agent {
         match result {
             Ok(tokens) => {
                 self.save_tokens(tokens).await;
+                self.expire(Kind::SignInRequired);
                 self.notify(Notification {
+                    reference: Kind::Login.into(),
                     title: "Signed in".into(),
                     body: format!("Custos sends stockpile data to {}.", service.discovery.service_name),
                     is_error: false,
                 });
             }
-            Err(e) => self.notify_error(&e.to_string()),
+            Err(e) => self.notify_error(Kind::Login, &e.to_string()),
         }
     }
 
@@ -436,7 +458,7 @@ impl Agent {
         let copy = tokens.clone();
         if let Ok(Err(e)) = tokio::task::spawn_blocking(move || store.save(&copy)).await {
             // The session still works until Custos stops.
-            self.notify_error(&e.to_string());
+            self.notify_error(Kind::TokenStore, &e.to_string());
         }
         self.tokens = Some(tokens);
     }
@@ -453,22 +475,32 @@ impl Agent {
         self.emit(Event::Notify(notification));
     }
 
-    fn notify_error(&mut self, message: &str) {
+    /// Shows an error, but not an identical error that showed less than [`ERROR_REPEAT`] before.
+    fn notify_error(&mut self, kind: Kind, message: &str) {
         let now = Instant::now();
+        let key = (Reference::new(kind), message.to_owned());
         if self
             .shown_errors
-            .get(message)
+            .get(&key)
             .is_some_and(|shown| now < *shown + ERROR_REPEAT)
         {
             return;
         }
         tracing::warn!("{message}");
-        self.shown_errors.insert(message.to_owned(), now);
+        self.shown_errors.insert(key.clone(), now);
         self.notify(Notification {
+            reference: key.0,
             title: "Custos".into(),
             body: message.to_owned(),
             is_error: true,
         });
+    }
+
+    /// Removes the message of this kind. The error can then show again at once if it occurs again.
+    fn expire(&mut self, kind: Kind) {
+        let reference = Reference::new(kind);
+        self.shown_errors.retain(|(r, _), _| *r != reference);
+        self.emit(Event::Expire(reference));
     }
 
     fn emit(&self, event: Event) {
@@ -505,6 +537,7 @@ fn accepted_notification(service: &str, result: &UploadResult) -> Notification {
         let _ = write!(body, " Stockpiles: {}.", names.join(", "));
     }
     Notification {
+        reference: Kind::Upload.into(),
         title: "Stockpile data sent".into(),
         body,
         is_error: false,
@@ -626,15 +659,21 @@ mod tests {
 
         f.next(is_state(State::Idle)).await;
         f.start_game();
+        f.next(|e| *e == Event::GameRunning(true)).await;
         f.next(is_state(State::Watching)).await;
 
+        // An accepted upload expires the errors of the upload and of the service.
+        f.next(|e| *e == Event::Expire(Kind::UploadError.into())).await;
+        f.next(|e| *e == Event::Expire(Kind::ServiceError.into())).await;
         let Event::Notify(n) = f.next(is_notification).await else {
             unreachable!()
         };
+        assert_eq!(n.reference, Kind::Upload.into());
         assert_eq!(n.title, "Stockpile data sent");
         assert!(n.body.contains("War 142"), "{}", n.body);
 
         f.stop_game();
+        f.next(|e| *e == Event::GameRunning(false)).await;
         f.next(is_state(State::Idle)).await;
         // The same file is not sent again: wiremock checks expect(1) when the server drops.
     }
@@ -726,6 +765,8 @@ mod tests {
         f.commands
             .send(Command::Link(format!("custos://oauth2callback/?state={state}&code=c1")))
             .unwrap();
+        // A completed login expires the line that asks for the login.
+        f.next(|e| *e == Event::Expire(Kind::SignInRequired.into())).await;
         f.next(is_state(State::Idle)).await;
 
         assert_eq!(f.store.load().unwrap().unwrap().access_token, "a1");

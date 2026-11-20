@@ -127,5 +127,5 @@ Notes:
 
 | Crate | Content |
 |---|---|
-| [crates/custos-core](crates/custos-core) | The engine: configuration, discovery, login, save-file location, process detection, upload, and the interval rule. |
+| [crates/custos-core](crates/custos-core) | The engine: configuration, discovery, login, save-file location, process detection, upload, the interval rule, and the message stream of the overlay. |
 | [crates/custos-app](crates/custos-app) | The Tauri tray application: menu, notifications, and the deep link. |

@@ -167,6 +167,8 @@ fn on_agent_event(app: &AppHandle, event: Event) -> tauri::Result<()> {
             *tray.state.lock().expect("the state lock is not poisoned") = Some(state);
         }
         Event::Notify(n) => notify(app, &n.title, &n.body),
+        // The desktop route has nothing to remove. The overlay uses these events.
+        Event::GameRunning(_) | Event::Expire(_) => {}
         Event::OpenUrl(url) => {
             if let Err(e) = app.opener().open_url(url.as_str(), None::<&str>) {
                 notify(
