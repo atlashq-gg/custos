@@ -53,7 +53,7 @@ pub const TEMPLATE: &str = concat!(
 # anchor = "top-left"
 # The distance from the top or bottom edge, in percent of the monitor height, from 0 to 90. In the
 # top left corner, the default puts the overlay below the notifications of the game.
-# offset = 36
+# offset = 28
 "#
 );
 
@@ -88,7 +88,7 @@ impl Default for Overlay {
         Self {
             enabled: true,
             anchor: Anchor::TopLeft,
-            offset: 36,
+            offset: 28,
         }
     }
 }

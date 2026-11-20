@@ -57,8 +57,8 @@ upload_interval_seconds = 300
 enabled = true
 # The corner of the screen: "top-left", "top-right", "bottom-left", or "bottom-right". Default: "top-left".
 anchor = "top-left"
-# The distance from the top or bottom edge, in percent of the monitor height, from 0 to 90. Default: 36.
-offset = 36
+# The distance from the top or bottom edge, in percent of the monitor height, from 0 to 90. Default: 28.
+offset = 28
 ```
 
 On Windows, the template has no `steam_root`, and the default `save_dir` is `%LOCALAPPDATA%\Foxhole\Saved\SaveGames`. Write a Windows path in single quotes, so that TOML reads the backslashes as text:
@@ -85,7 +85,7 @@ Custos keeps the tokens in the Secret Service on Linux, and in the Credential Ma
 
 ## Overlay
 
-While Foxhole runs, Custos shows its messages as lines in a corner of the monitor that shows the game. The newest line is at the bottom. A line wraps when it is wider than 15 % of the monitor width. In the top left corner, the default `offset` of 36 % puts the lines below the notifications of the game. The overlay shows at most 6 lines. A line goes after 20 seconds, and an error line after 60 seconds. A new message of the same kind replaces the old line. A completed login removes the line that asks for the login. An accepted upload removes the error lines of the upload and of the service.
+While Foxhole runs, Custos shows its messages as lines in a corner of the monitor that shows the game. The newest line is at the bottom. A line wraps when it is wider than 15 % of the monitor width. In the top left corner, the default `offset` of 28 % puts the lines below the notifications of the game. The overlay shows at most 6 lines. A line goes after 20 seconds, and an error line after 60 seconds. A new message of the same kind replaces the old line. A completed login removes the line that asks for the login. An accepted upload removes the error lines of the upload and of the service.
 
 Custos finds the monitor of the game through the window list of XWayland. If it cannot find the game window, the desktop selects the monitor.
 
