@@ -38,3 +38,35 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
+
+  # The first Windows build. The MSVC toolchain is the default of rustup on this runner.
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: custos
+
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+
+      # The user must not need the Visual C++ Redistributable (see custos/.cargo/config.toml).
+      - name: Make sure that custos.exe needs no Visual C++ runtime DLL
+        shell: pwsh
+        run: |
+          cargo build -p custos-app --locked
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $dumpbin = Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" | Select-Object -First 1
+          $dependents = & $dumpbin.FullName /dependents target\debug\custos.exe
+          $dependents
+          if ($dependents -match 'VCRUNTIME|MSVCP') {
+            Write-Error "custos.exe needs the Visual C++ runtime."
+            exit 1
+          }
