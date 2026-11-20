@@ -17,7 +17,7 @@ mod platform {
     use std::time::Instant;
 
     use custos_core::screen::{self, Rect};
-    use custos_core::stream::Stream;
+    use custos_core::stream::{self, Stream};
     use gtk::prelude::*;
     use gtk::{cairo, glib, pango};
     use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
@@ -32,12 +32,18 @@ mod platform {
     const FONT: &str = "JetBrains Mono,Cascadia Mono,Fira Code,Source Code Pro,Hack,Noto Sans Mono,monospace 11";
     /// The style of the lines (GTK CSS).
     const CSS: &str = include_str!("overlay.css");
-    /// The block cursor at the end of a line that types.
+    /// The block cursor at the end of a line that types, and at the prompt while no line types.
     const CURSOR: char = '\u{2588}';
+    /// The number of seconds between two searches for the monitor of the game.
+    const PLACE_INTERVAL: u32 = 5;
 
     struct Overlay {
         window: gtk::Window,
         lines: gtk::Box,
+        /// The prompt with the cursor that fades in and out while no line types.
+        prompt: gtk::Box,
+        cursor: gtk::Label,
+        opened: Instant,
         /// The style, which applies to the screen until the overlay closes.
         style: gtk::CssProvider,
         settings: Settings,
@@ -46,9 +52,13 @@ mod platform {
         stream: Stream,
         /// The label of each line, with its prompt and its full text.
         labels: Vec<(gtk::Label, &'static str, String)>,
-        /// Types the lines at each frame while a line is not complete.
-        typing: Option<gtk::TickCallbackId>,
-        /// Removes the stale lines each second.
+        /// The index of the monitor of the game, when Custos found it.
+        monitor: Option<usize>,
+        /// True after the first placement.
+        placed: bool,
+        /// The number of seconds since the overlay opened.
+        seconds: u32,
+        /// Removes the stale lines, and searches for the monitor of the game.
         ticker: glib::SourceId,
     }
 
@@ -56,7 +66,7 @@ mod platform {
         static OVERLAY: RefCell<Option<Overlay>> = const { RefCell::new(None) };
     }
 
-    /// Opens the overlay. It stays hidden while it has no lines.
+    /// Opens the overlay. It shows a prompt while it has no lines.
     pub fn open(settings: Settings) -> Result<(), String> {
         let anchor = settings.anchor;
         if !gtk_layer_shell::is_supported() {
@@ -94,13 +104,27 @@ mod platform {
         // again each time that it creates the surface.
         window.input_shape_combine_region(Some(&cairo::Region::create()));
 
+        let align = if anchor.is_left() {
+            gtk::Align::Start
+        } else {
+            gtk::Align::End
+        };
+        let terminal = gtk::Box::new(gtk::Orientation::Vertical, 2);
         let lines = gtk::Box::new(gtk::Orientation::Vertical, 2);
-        lines.style_context().add_class("terminal");
-        window.add(&lines);
+        let prompt = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        prompt.set_halign(align);
+        let cursor = gtk::Label::new(Some(&CURSOR.to_string()));
+        prompt.add(&gtk::Label::new(Some("> ")));
+        prompt.add(&cursor);
+        terminal.add(&lines);
+        terminal.add(&prompt);
+        window.add(&terminal);
 
         let ticker = glib::timeout_add_seconds_local(1, || {
             with(|overlay| {
-                if overlay.stream.prune(Instant::now()) {
+                overlay.seconds += 1;
+                let moved = overlay.seconds % PLACE_INTERVAL == 0 && overlay.place();
+                if overlay.stream.prune(Instant::now()) || moved {
                     overlay.render();
                 }
             });
@@ -109,19 +133,31 @@ mod platform {
 
         close();
         gtk::StyleContext::add_provider_for_screen(&screen, &style, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
-        OVERLAY.with_borrow_mut(|o| {
-            *o = Some(Overlay {
-                window,
-                lines,
-                style,
-                settings,
-                max_chars: 80,
-                stream: Stream::default(),
-                labels: Vec::new(),
-                typing: None,
-                ticker,
-            });
+        let mut overlay = Overlay {
+            window,
+            lines,
+            prompt,
+            cursor,
+            opened: Instant::now(),
+            style,
+            settings,
+            max_chars: 80,
+            stream: Stream::default(),
+            labels: Vec::new(),
+            monitor: None,
+            placed: false,
+            seconds: 0,
+            ticker,
+        };
+        overlay.place();
+        overlay.render();
+        overlay.window.show_all();
+        // The window draws a frame only when the text or the opacity of the cursor changes.
+        overlay.window.add_tick_callback(|_, _| {
+            with(Overlay::animate);
+            glib::ControlFlow::Continue
         });
+        OVERLAY.with_borrow_mut(|o| *o = Some(overlay));
         Ok(())
     }
 
@@ -167,12 +203,8 @@ mod platform {
     }
 
     impl Overlay {
-        /// Shows the lines of the stream, and hides the window when there are none.
+        /// Shows the lines of the stream above the prompt.
         fn render(&mut self) {
-            let has_lines = self.stream.lines().next().is_some();
-            if has_lines && !self.window.is_visible() {
-                self.place();
-            }
             for child in self.lines.children() {
                 self.lines.remove(&child);
             }
@@ -198,32 +230,24 @@ mod platform {
                 if notification.is_error {
                     label.style_context().add_class("error");
                 }
+                label.show();
                 self.lines.add(&label);
                 self.labels.push((label, prompt, text));
             }
-            if self.type_lines() && self.typing.is_none() {
-                self.typing = Some(self.window.add_tick_callback(|_, _| {
-                    let mut typing = false;
-                    with(|overlay| {
-                        typing = overlay.type_lines();
-                        if !typing {
-                            overlay.typing = None;
-                        }
-                    });
-                    if typing {
-                        glib::ControlFlow::Continue
-                    } else {
-                        glib::ControlFlow::Break
-                    }
-                }));
-            }
+            self.animate();
+            // The window shrinks to the size of its lines.
+            self.window.resize(1, 1);
+        }
 
-            if has_lines {
-                // The window shrinks to the size of its lines.
+        /// Types the lines. While no line types, shows the prompt, and fades its cursor in and out.
+        fn animate(&mut self) {
+            let typing = self.type_lines();
+            if self.prompt.is_visible() == typing {
+                self.prompt.set_visible(!typing);
                 self.window.resize(1, 1);
-                self.window.show_all();
-            } else {
-                self.window.hide();
+            }
+            if !typing {
+                self.cursor.set_opacity(stream::cursor_opacity(self.opened.elapsed()));
             }
         }
 
@@ -245,8 +269,9 @@ mod platform {
         }
 
         /// Puts the window on the monitor of the game, and sets the offset and the line width for that
-        /// monitor. When Custos cannot find the game window, the desktop selects the monitor.
-        fn place(&mut self) {
+        /// monitor. When Custos cannot find the game window, the desktop selects the monitor. Returns true
+        /// when the monitor changed.
+        fn place(&mut self) -> bool {
             let display = WidgetExt::display(&self.window);
             let monitors: Vec<_> = (0..display.n_monitors()).filter_map(|i| display.monitor(i)).collect();
             let rects: Vec<_> = monitors
@@ -261,15 +286,21 @@ mod platform {
                     }
                 })
                 .collect();
-            let monitor = if let Some(i) = screen::game_monitor(&rects) {
+            let found = screen::game_monitor(&rects);
+            if self.placed && (found.is_none() || found == self.monitor) {
+                return false;
+            }
+            let monitor = if let Some(i) = found {
                 tracing::debug!("the overlay shows on monitor {} of {}", i + 1, monitors.len());
                 self.window.set_monitor(&monitors[i]);
                 &monitors[i]
             } else {
                 tracing::debug!("cannot find the monitor of Foxhole. The desktop selects the monitor.");
-                let Some(first) = monitors.first() else { return };
+                let Some(first) = monitors.first() else { return false };
                 first
             };
+            self.monitor = found;
+            self.placed = true;
 
             // The offset is a share of the monitor height, so that it fits each screen size.
             let height = monitor.geometry().height();
@@ -294,6 +325,7 @@ mod platform {
                 self.max_chars,
                 char_width
             );
+            true
         }
     }
 }

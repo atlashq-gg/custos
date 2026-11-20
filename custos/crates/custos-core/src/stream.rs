@@ -15,6 +15,17 @@ pub const LIFETIME: Duration = Duration::from_secs(20);
 pub const ERROR_LIFETIME: Duration = Duration::from_secs(60);
 /// The number of characters that the overlay types in each second.
 pub const TYPING_RATE: u32 = 60;
+/// The time of one fade in and fade out of the cursor while no line types.
+pub const CURSOR_PERIOD: Duration = Duration::from_secs(2);
+
+/// The opacity of the cursor while no line types: a slow fade in and fade out, from 0 to 1. The value
+/// has 16 steps, so that the overlay draws a new frame only when the opacity changes by a step.
+#[must_use]
+pub fn cursor_opacity(elapsed: Duration) -> f64 {
+    let phase = (elapsed.as_secs_f64() / CURSOR_PERIOD.as_secs_f64()).fract();
+    let opacity = 0.5 - 0.5 * (phase * std::f64::consts::TAU).cos();
+    (opacity * 16.0).round() / 16.0
+}
 
 /// The kind of a message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -301,6 +312,14 @@ mod tests {
         );
 
         assert_eq!(stream.typed(now + Duration::from_millis(10_500)), [60, 30]);
+    }
+
+    #[test]
+    fn cursor_fades_in_and_out() {
+        assert!(cursor_opacity(Duration::ZERO) < f64::EPSILON);
+        assert!((cursor_opacity(Duration::from_millis(500)) - 0.5).abs() < f64::EPSILON);
+        assert!((cursor_opacity(Duration::from_secs(1)) - 1.0).abs() < f64::EPSILON);
+        assert!(cursor_opacity(CURSOR_PERIOD) < f64::EPSILON);
     }
 
     #[test]
