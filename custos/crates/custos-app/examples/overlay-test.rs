@@ -14,7 +14,7 @@ fn main() {
     use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
     use tauri::{WebviewUrl, WebviewWindowBuilder};
 
-    const WIDTH: i32 = 520;
+    const WIDTH: i32 = 560;
     const HEIGHT: i32 = 120;
     const MARGIN: i32 = 16;
 

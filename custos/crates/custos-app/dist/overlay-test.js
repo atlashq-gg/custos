@@ -24,7 +24,7 @@ setInterval(() => {
   count += 1;
   const long = count % 2 === 1;
   const text = long
-    ? `Line ${count}: a long line that the next short line does not cover`
+    ? `Line ${count}: this long line is wider than the next line`
     : `Line ${count}: short`;
   lines.append(line(text, long));
 }, 3000);
