@@ -26,6 +26,11 @@ impl Schedule {
         }
     }
 
+    /// Sets the interval of the configuration.
+    pub fn set_configured(&mut self, configured: Duration) {
+        self.configured = configured;
+    }
+
     /// Sets `upload_min_interval_seconds` from the discovery document.
     pub fn set_service_minimum(&mut self, minimum: Duration) {
         self.service_minimum = minimum;

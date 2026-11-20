@@ -30,13 +30,13 @@ The Windows version is experimental. CI builds and tests it, but nobody tested i
 
 1. Download the AppImage from the release.
 2. Make it executable: `chmod +x Custos_0.1.0_amd64.AppImage`.
-3. Start it one time. Custos writes a template to `~/.config/custos/config.toml` and shows a notification.
-4. Set `service_url` in the file.
-5. Start Custos again. Use **Sign in** in the tray menu.
+3. Start it. Custos writes a template to `~/.config/custos/config.toml` and shows a notification.
+4. Set `service_url` in the file, and save it. Custos applies the file at once.
+5. Use **Sign in** in the tray menu.
 
 ## Configuration
 
-The file is `~/.config/custos/config.toml` on Linux, and `%APPDATA%\custos\config.toml` on Windows. On Linux:
+The file is `~/.config/custos/config.toml` on Linux, and `%APPDATA%\custos\config.toml` on Windows. Custos applies each change of the file at once, without a restart. If the file is not valid, Custos shows the error and keeps the last valid configuration. A new `service_url` starts the engine again, because the tokens belong to the service. On Linux:
 
 ```toml
 # The URL of the service. Custos gets all other settings from its discovery document.
@@ -91,7 +91,7 @@ Custos finds the monitor of the game through the window list of XWayland. If it 
 
 The overlay takes no pointer input and no keyboard input, so the game keeps them. When Foxhole stops, the overlay closes, and Custos shows desktop notifications.
 
-The overlay needs the layer-shell protocol of Wayland. GNOME does not have it. Thus on GNOME on Wayland, Custos starts again with the X11 backend of GTK (`GDK_BACKEND=x11`). The overlay is then an X11 window of XWayland above the other windows. Custos does this only with `enabled = true` in `[overlay]`, and only when `GDK_BACKEND` is not set. The tray, the notifications, and the login link then also use X11. On another desktop without the layer-shell protocol, Custos writes `cannot open the overlay` to the log and shows desktop notifications. Windows has no overlay in this version.
+The overlay needs the layer-shell protocol of Wayland. GNOME does not have it. Thus on GNOME on Wayland, Custos starts again with the X11 backend of GTK (`GDK_BACKEND=x11`). The overlay is then an X11 window of XWayland above the other windows. Custos does this only with `enabled = true` in `[overlay]`, and only when `GDK_BACKEND` is not set. Custos decides this when it starts. Thus on GNOME, a change of `enabled` from `false` to `true` needs a restart of Custos. The tray, the notifications, and the login link then also use X11. On another desktop without the layer-shell protocol, Custos writes `cannot open the overlay` to the log and shows desktop notifications. Windows has no overlay in this version.
 
 ## Notifications
 

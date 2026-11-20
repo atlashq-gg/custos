@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Custos applies each change of the configuration file at once, without a restart. If the file is not valid, Custos shows the error and keeps the last valid configuration.
 - Overlay on Linux: the messages show as lines above the game while Foxhole runs, on the monitor of the game. A native GTK window on the overlay layer of the layer-shell protocol, for example on KDE Plasma 6 and Sway. Desktop notifications when the overlay is not open. New configuration table `[overlay]` with `enabled`, `anchor`, and `offset`.
 - Overlay style of an old terminal: green text that types out line by line, and a prompt with a cursor that fades in and out.
 - Overlay on GNOME: Custos starts again with the X11 backend of GTK, and the overlay is an X11 window above the game.

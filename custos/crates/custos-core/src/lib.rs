@@ -15,3 +15,4 @@ pub mod screen;
 pub mod stream;
 pub mod upload;
 pub mod url_rules;
+pub mod watch;
