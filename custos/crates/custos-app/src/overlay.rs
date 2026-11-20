@@ -17,44 +17,50 @@ mod platform {
     use std::time::Instant;
 
     use custos_core::screen::{self, Rect};
-    use custos_core::stream::Stream;
+    use custos_core::stream::{self, Stream};
     use gtk::prelude::*;
     use gtk::{cairo, glib, pango};
     use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 
     use super::{Notification, Reference, Settings};
 
-    /// The distance between the overlay and the edges of the screen, in pixels.
+    /// The distance from the top or bottom edge, in pixels, in addition to the offset.
     const MARGIN: i32 = 16;
+    /// The distance from the left or right edge, in pixels.
+    const SIDE_MARGIN: i32 = 8;
     /// A line wraps when it is wider than this share of the monitor width, in percent.
     const MAX_LINE_WIDTH_PERCENT: i32 = 15;
-    /// The font of the lines, as in the CSS.
-    const FONT: &str = "monospace 11";
-    /// The style of the lines. The name of the window limits it to the overlay.
-    const CSS: &str = "
-        #custos-overlay { background-color: transparent; }
-        #custos-overlay label {
-            font-family: monospace;
-            font-size: 11pt;
-            color: #f0f0f0;
-            background-color: rgba(0, 0, 0, 0.6);
-            border-left: 3px solid #4caf50;
-            padding: 2px 8px;
-            margin-bottom: 4px;
-        }
-        #custos-overlay label.error { border-left-color: #e53935; }
-    ";
+    /// The font of the lines, as in the CSS: the first modern monospace font that the computer has.
+    const FONT: &str = "JetBrains Mono,Cascadia Mono,Fira Code,Source Code Pro,Hack,Noto Sans Mono,monospace 11";
+    /// The style of the lines (GTK CSS).
+    const CSS: &str = include_str!("overlay.css");
+    /// The block cursor at the end of a line that types, and at the prompt while no line types.
+    const CURSOR: char = '\u{2588}';
+    /// The number of seconds between two searches for the monitor of the game.
+    const PLACE_INTERVAL: u32 = 5;
 
     struct Overlay {
         window: gtk::Window,
         lines: gtk::Box,
+        /// The prompt with the cursor that fades in and out while no line types.
+        prompt: gtk::Box,
+        cursor: gtk::Label,
+        opened: Instant,
         /// The style, which applies to the screen until the overlay closes.
         style: gtk::CssProvider,
         settings: Settings,
         /// The number of characters after which a line wraps.
         max_chars: i32,
         stream: Stream,
-        /// Removes the stale lines each second.
+        /// The label of each line, with its prompt and its full text.
+        labels: Vec<(gtk::Label, &'static str, String)>,
+        /// The index of the monitor of the game, when Custos found it.
+        monitor: Option<usize>,
+        /// True after the first placement.
+        placed: bool,
+        /// The number of seconds since the overlay opened.
+        seconds: u32,
+        /// Removes the stale lines, and searches for the monitor of the game.
         ticker: glib::SourceId,
     }
 
@@ -62,7 +68,7 @@ mod platform {
         static OVERLAY: RefCell<Option<Overlay>> = const { RefCell::new(None) };
     }
 
-    /// Opens the overlay. It stays hidden while it has no lines.
+    /// Opens the overlay. It shows a prompt while it has no lines.
     pub fn open(settings: Settings) -> Result<(), String> {
         let anchor = settings.anchor;
         if !gtk_layer_shell::is_supported() {
@@ -78,10 +84,10 @@ mod platform {
         window.set_keyboard_mode(KeyboardMode::None);
         let vertical = if anchor.is_top() { Edge::Top } else { Edge::Bottom };
         let horizontal = if anchor.is_left() { Edge::Left } else { Edge::Right };
-        for edge in [vertical, horizontal] {
-            window.set_anchor(edge, true);
-            window.set_layer_shell_margin(edge, MARGIN);
-        }
+        window.set_anchor(vertical, true);
+        window.set_anchor(horizontal, true);
+        window.set_layer_shell_margin(vertical, MARGIN);
+        window.set_layer_shell_margin(horizontal, SIDE_MARGIN);
 
         // A transparent window: an RGBA visual, and a clear background before GTK draws the lines.
         let screen = WidgetExt::screen(&window).ok_or("the window has no screen")?;
@@ -100,12 +106,27 @@ mod platform {
         // again each time that it creates the surface.
         window.input_shape_combine_region(Some(&cairo::Region::create()));
 
-        let lines = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        window.add(&lines);
+        let align = if anchor.is_left() {
+            gtk::Align::Start
+        } else {
+            gtk::Align::End
+        };
+        let terminal = gtk::Box::new(gtk::Orientation::Vertical, 2);
+        let lines = gtk::Box::new(gtk::Orientation::Vertical, 2);
+        let prompt = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        prompt.set_halign(align);
+        let cursor = gtk::Label::new(Some(&CURSOR.to_string()));
+        prompt.add(&gtk::Label::new(Some("> ")));
+        prompt.add(&cursor);
+        terminal.add(&lines);
+        terminal.add(&prompt);
+        window.add(&terminal);
 
         let ticker = glib::timeout_add_seconds_local(1, || {
             with(|overlay| {
-                if overlay.stream.prune(Instant::now()) {
+                overlay.seconds += 1;
+                let moved = overlay.seconds % PLACE_INTERVAL == 0 && overlay.place();
+                if overlay.stream.prune(Instant::now()) || moved {
                     overlay.render();
                 }
             });
@@ -114,17 +135,31 @@ mod platform {
 
         close();
         gtk::StyleContext::add_provider_for_screen(&screen, &style, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
-        OVERLAY.with_borrow_mut(|o| {
-            *o = Some(Overlay {
-                window,
-                lines,
-                style,
-                settings,
-                max_chars: 80,
-                stream: Stream::default(),
-                ticker,
-            });
+        let mut overlay = Overlay {
+            window,
+            lines,
+            prompt,
+            cursor,
+            opened: Instant::now(),
+            style,
+            settings,
+            max_chars: 80,
+            stream: Stream::default(),
+            labels: Vec::new(),
+            monitor: None,
+            placed: false,
+            seconds: 0,
+            ticker,
+        };
+        overlay.place();
+        overlay.render();
+        overlay.window.show_all();
+        // The window draws a frame only when the text or the opacity of the cursor changes.
+        overlay.window.add_tick_callback(|_, _| {
+            with(Overlay::animate);
+            glib::ControlFlow::Continue
         });
+        OVERLAY.with_borrow_mut(|o| *o = Some(overlay));
         Ok(())
     }
 
@@ -170,12 +205,8 @@ mod platform {
     }
 
     impl Overlay {
-        /// Shows the lines of the stream, and hides the window when there are none.
+        /// Shows the lines of the stream above the prompt.
         fn render(&mut self) {
-            let has_lines = self.stream.lines().next().is_some();
-            if has_lines && !self.window.is_visible() {
-                self.place();
-            }
             for child in self.lines.children() {
                 self.lines.remove(&child);
             }
@@ -184,35 +215,66 @@ mod platform {
             } else {
                 gtk::Align::End
             };
+            self.labels.clear();
             for notification in self.stream.lines() {
+                let prompt = if notification.is_error { "! " } else { "> " };
                 let text = notification.line();
-                let label = gtk::Label::new(Some(&text));
+                let label = gtk::Label::new(None);
                 label.set_halign(align);
                 label.set_xalign(0.0);
                 label.set_line_wrap(true);
                 // The window gets its minimum size, and the minimum width of a wrapping label is its
-                // longest word. Thus the minimum width is the text, up to the limit.
-                let chars = i32::try_from(text.chars().count()).unwrap_or(i32::MAX);
+                // longest word. Thus the minimum width is the full line with the cursor, up to the limit.
+                // The width does not change while the line types.
+                let chars = i32::try_from(prompt.len() + text.chars().count() + 1).unwrap_or(i32::MAX);
                 label.set_width_chars(chars.min(self.max_chars));
                 label.set_max_width_chars(self.max_chars);
                 if notification.is_error {
-                    label.style_context().add_class("error");
+                    // Not the class "error": a GTK theme can give it a background.
+                    label.style_context().add_class("custos-error");
                 }
+                label.show();
                 self.lines.add(&label);
+                self.labels.push((label, prompt, text));
             }
+            self.animate();
+            // The window shrinks to the size of its lines.
+            self.window.resize(1, 1);
+        }
 
-            if has_lines {
-                // The window shrinks to the size of its lines.
+        /// Types the lines. While no line types, shows the prompt, and fades its cursor in and out.
+        fn animate(&mut self) {
+            let typing = self.type_lines();
+            if self.prompt.is_visible() == typing {
+                self.prompt.set_visible(!typing);
                 self.window.resize(1, 1);
-                self.window.show_all();
-            } else {
-                self.window.hide();
+            }
+            if !typing {
+                self.cursor.set_opacity(stream::cursor_opacity(self.opened.elapsed()));
             }
         }
 
+        /// Shows the typed part of each line, with a cursor at the end of a line that types. Returns
+        /// true while a line is not complete.
+        fn type_lines(&self) -> bool {
+            let mut typing = false;
+            for ((label, prompt, text), typed) in self.labels.iter().zip(self.stream.typed(Instant::now())) {
+                let mut shown: String = prompt.chars().chain(text.chars().take(typed)).collect();
+                if typed < text.chars().count() {
+                    shown.push(CURSOR);
+                    typing = true;
+                }
+                if label.text() != shown {
+                    label.set_text(&shown);
+                }
+            }
+            typing
+        }
+
         /// Puts the window on the monitor of the game, and sets the offset and the line width for that
-        /// monitor. When Custos cannot find the game window, the desktop selects the monitor.
-        fn place(&mut self) {
+        /// monitor. When Custos cannot find the game window, the desktop selects the monitor. Returns true
+        /// when the monitor changed.
+        fn place(&mut self) -> bool {
             let display = WidgetExt::display(&self.window);
             let monitors: Vec<_> = (0..display.n_monitors()).filter_map(|i| display.monitor(i)).collect();
             let rects: Vec<_> = monitors
@@ -227,25 +289,31 @@ mod platform {
                     }
                 })
                 .collect();
-            let monitor = if let Some(i) = screen::game_monitor(&rects) {
+            let found = screen::game_monitor(&rects);
+            if self.placed && (found.is_none() || found == self.monitor) {
+                return false;
+            }
+            let monitor = if let Some(i) = found {
                 tracing::debug!("the overlay shows on monitor {} of {}", i + 1, monitors.len());
                 self.window.set_monitor(&monitors[i]);
                 &monitors[i]
             } else {
                 tracing::debug!("cannot find the monitor of Foxhole. The desktop selects the monitor.");
-                let Some(first) = monitors.first() else { return };
+                let Some(first) = monitors.first() else { return false };
                 first
             };
+            self.monitor = found;
+            self.placed = true;
 
             // The offset is a share of the monitor height, so that it fits each screen size.
             let height = monitor.geometry().height();
-            let edge = if self.settings.anchor.is_top() {
+            let vertical = if self.settings.anchor.is_top() {
                 Edge::Top
             } else {
                 Edge::Bottom
             };
             self.window
-                .set_layer_shell_margin(edge, MARGIN + height * i32::from(self.settings.offset) / 100);
+                .set_layer_shell_margin(vertical, MARGIN + height * i32::from(self.settings.offset) / 100);
 
             let font = pango::FontDescription::from_string(FONT);
             let char_width = self
@@ -260,6 +328,7 @@ mod platform {
                 self.max_chars,
                 char_width
             );
+            true
         }
     }
 }
