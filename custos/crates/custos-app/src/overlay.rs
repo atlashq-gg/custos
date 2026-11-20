@@ -24,8 +24,11 @@ mod platform {
 
     use super::{Notification, Reference, Settings};
 
-    /// The distance between the overlay and the edges of the screen, in pixels.
+    /// The distance between the overlay and the edges of the screen before the first placement, in pixels.
     const MARGIN: i32 = 16;
+    /// The distance from the left or right edge, in percent of the monitor height. It agrees with the
+    /// notifications of the game.
+    const SIDE_MARGIN_PERCENT: i32 = 4;
     /// A line wraps when it is wider than this share of the monitor width, in percent.
     const MAX_LINE_WIDTH_PERCENT: i32 = 15;
     /// The font of the lines, as in the CSS: the first modern monospace font that the computer has.
@@ -302,15 +305,15 @@ mod platform {
             self.monitor = found;
             self.placed = true;
 
-            // The offset is a share of the monitor height, so that it fits each screen size.
+            // The margins are a share of the monitor height, so that they fit each screen size.
             let height = monitor.geometry().height();
-            let edge = if self.settings.anchor.is_top() {
-                Edge::Top
-            } else {
-                Edge::Bottom
-            };
+            let anchor = self.settings.anchor;
+            let vertical = if anchor.is_top() { Edge::Top } else { Edge::Bottom };
+            let horizontal = if anchor.is_left() { Edge::Left } else { Edge::Right };
             self.window
-                .set_layer_shell_margin(edge, MARGIN + height * i32::from(self.settings.offset) / 100);
+                .set_layer_shell_margin(vertical, MARGIN + height * i32::from(self.settings.offset) / 100);
+            self.window
+                .set_layer_shell_margin(horizontal, height * SIDE_MARGIN_PERCENT / 100);
 
             let font = pango::FontDescription::from_string(FONT);
             let char_width = self
