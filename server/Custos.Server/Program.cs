@@ -3,6 +3,7 @@ using Custos.Server;
 using Custos.Server.Catalog;
 using Custos.Server.Discord;
 using Custos.Server.Endpoints;
+using Custos.Server.Mcp;
 using Custos.Server.Storage;
 using Custos.Server.Telemetry;
 
@@ -58,6 +59,7 @@ builder
     .AddCustosCatalog()
     .AddCustosDiscord()
     .AddCustosAuthentication()
+    .AddCustosMcp()
     .AddCustosRateLimiting()
     .AddCustosOpenApi();
 
@@ -75,6 +77,7 @@ app.MapUploads();
 app.MapCustosOpenApi();
 app.MapHealth();
 app.MapCustosDiscord();
+app.MapCustosMcp();
 
 LogStarting(app.Logger, ServerVersion.Value);
 

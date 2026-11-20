@@ -5,7 +5,7 @@ using NetCord.Rest;
 namespace Custos.Server.Discord;
 
 /// <summary>What Discord knows about a user in a guild.</summary>
-internal enum MemberStatus
+public enum MemberStatus
 {
     Member,
     NotMember,
@@ -14,22 +14,28 @@ internal enum MemberStatus
     BotNotInGuild,
 }
 
-internal sealed record MemberLookup(MemberStatus Status, MemberFacts? Facts = null)
+/// <summary>A guild of the bot.</summary>
+public sealed record DiscordGuild(ulong Id, string Name);
+
+public sealed record MemberLookup(MemberStatus Status, MemberFacts? Facts = null)
 {
     public static readonly MemberLookup NotMember = new(MemberStatus.NotMember);
     public static readonly MemberLookup BotNotInGuild = new(MemberStatus.BotNotInGuild);
 }
 
 /// <summary>Discord did not answer, or answered with <c>429</c> or a <c>5xx</c> status.</summary>
-internal sealed class DiscordUnavailableException(string message, Exception? inner = null)
+public sealed class DiscordUnavailableException(string message, Exception? inner = null)
     : Exception(message, inner);
 
 /// <summary>
 /// The port to Discord for access checks. The tests replace it with a fake, so that they run
 /// without Discord.
 /// </summary>
-internal interface IDiscordDirectory
+public interface IDiscordDirectory
 {
+    /// <summary>The guilds of the bot, from the gateway cache.</summary>
+    IReadOnlyList<DiscordGuild> ListGuilds();
+
     /// <summary>
     /// The member <paramref name="userId"/> of the guild <paramref name="guildId"/>, from a request
     /// to Discord. Throws <see cref="DiscordUnavailableException"/>.
@@ -48,6 +54,9 @@ internal interface IDiscordDirectory
 /// </summary>
 internal sealed class GatewayDirectory(GatewayClient client) : IDiscordDirectory
 {
+    public IReadOnlyList<DiscordGuild> ListGuilds() =>
+        [.. client.Cache.Guilds.Values.Select(g => new DiscordGuild(g.Id, g.Name))];
+
     public async Task<MemberLookup> GetMemberAsync(
         ulong guildId,
         ulong userId,

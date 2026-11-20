@@ -29,11 +29,14 @@ internal static class RateLimiting
                     CultureInfo.InvariantCulture
                 );
 
+                var mcp = context.HttpContext.Request.Path.StartsWithSegments(Mcp.McpOptions.Path);
                 await TypedResults
                     .Problem(
                         statusCode: StatusCodes.Status429TooManyRequests,
-                        title: "Too many uploads",
-                        detail: $"Send the next upload after {retryAfter} seconds."
+                        title: mcp ? "Too many requests" : "Too many uploads",
+                        detail: mcp
+                            ? $"Send the next request after {retryAfter} seconds."
+                            : $"Send the next upload after {retryAfter} seconds."
                     )
                     .ExecuteAsync(context.HttpContext);
             };
@@ -56,6 +59,23 @@ internal static class RateLimiting
                             QueueLimit = 0,
                         }
                     );
+            });
+
+            // Each MCP call can cost a request to Discord, so each caller has a limit.
+            limiter.AddPolicy(Mcp.McpSetup.RatePolicy, http =>
+            {
+                var limit = http
+                    .RequestServices.GetRequiredService<IOptions<Mcp.McpOptions>>()
+                    .Value.RequestsPerMinute;
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    http.User.FindFirst("sub")?.Value ?? "",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = limit,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }
+                );
             });
         });
 

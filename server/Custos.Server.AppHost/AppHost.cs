@@ -15,11 +15,16 @@ const int keycloakPort = 8180;
 const string tunnelHost = "aspire.dev.internal";
 var clientId = $"http://{tunnelHost}:{apiPort}/.well-known/custos-client";
 
+// The MCP endpoint, as a harness on this machine reaches it. A token for MCP has it in aud. The
+// server maps the endpoint only with the Discord connection on.
+var mcpResource = $"http://localhost:{apiPort}/mcp";
+
 // No volume: Keycloak imports the realm on every start. What the console changes lasts one run.
 var keycloak = builder
     .AddKeycloak("keycloak", keycloakPort)
     .WithImageTag("26.8.2")
-    .WithArgs("--features=cimd")
+    .WithArgs("--features=cimd,resource-indicators")
+    .WithEnvironment("CUSTOS_MCP_RESOURCE", mcpResource)
     .WithRealmImport(Path.Combine(builder.AppHostDirectory, "keycloak", "custos-realm.json"))
     .WithoutHttpsCertificate();
 
@@ -32,6 +37,8 @@ var database = builder.AddPostgres("postgres").WithImageTag("18").AddDatabase("c
 var api = builder
     .AddProject<Projects.Custos_Server>("api")
     .WithEnvironment("Custos__ClientId", clientId)
+    .WithEnvironment("Mcp__Enabled", "true")
+    .WithEnvironment("Mcp__Resource", mcpResource)
     .WithReference(database)
     .WaitFor(database)
     .WithHttpHealthCheck("/health/ready");
