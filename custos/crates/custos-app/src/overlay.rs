@@ -28,22 +28,12 @@ mod platform {
     const MARGIN: i32 = 16;
     /// A line wraps when it is wider than this share of the monitor width, in percent.
     const MAX_LINE_WIDTH_PERCENT: i32 = 15;
-    /// The font of the lines, as in the CSS.
-    const FONT: &str = "monospace 11";
-    /// The style of the lines. The name of the window limits it to the overlay.
-    const CSS: &str = "
-        #custos-overlay { background-color: transparent; }
-        #custos-overlay label {
-            font-family: monospace;
-            font-size: 11pt;
-            color: #f0f0f0;
-            background-color: rgba(0, 0, 0, 0.6);
-            border-left: 3px solid #4caf50;
-            padding: 2px 8px;
-            margin-bottom: 4px;
-        }
-        #custos-overlay label.error { border-left-color: #e53935; }
-    ";
+    /// The font of the lines, as in the CSS: the first modern monospace font that the computer has.
+    const FONT: &str = "JetBrains Mono,Cascadia Mono,Fira Code,Source Code Pro,Hack,Noto Sans Mono,monospace 11";
+    /// The style of the lines (GTK CSS).
+    const CSS: &str = include_str!("overlay.css");
+    /// The block cursor at the end of a line that types.
+    const CURSOR: char = '\u{2588}';
 
     struct Overlay {
         window: gtk::Window,
@@ -54,6 +44,10 @@ mod platform {
         /// The number of characters after which a line wraps.
         max_chars: i32,
         stream: Stream,
+        /// The label of each line, with its prompt and its full text.
+        labels: Vec<(gtk::Label, &'static str, String)>,
+        /// Types the lines at each frame while a line is not complete.
+        typing: Option<gtk::TickCallbackId>,
         /// Removes the stale lines each second.
         ticker: glib::SourceId,
     }
@@ -100,7 +94,8 @@ mod platform {
         // again each time that it creates the surface.
         window.input_shape_combine_region(Some(&cairo::Region::create()));
 
-        let lines = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        let lines = gtk::Box::new(gtk::Orientation::Vertical, 2);
+        lines.style_context().add_class("terminal");
         window.add(&lines);
 
         let ticker = glib::timeout_add_seconds_local(1, || {
@@ -122,6 +117,8 @@ mod platform {
                 settings,
                 max_chars: 80,
                 stream: Stream::default(),
+                labels: Vec::new(),
+                typing: None,
                 ticker,
             });
         });
@@ -184,21 +181,41 @@ mod platform {
             } else {
                 gtk::Align::End
             };
+            self.labels.clear();
             for notification in self.stream.lines() {
+                let prompt = if notification.is_error { "! " } else { "> " };
                 let text = notification.line();
-                let label = gtk::Label::new(Some(&text));
+                let label = gtk::Label::new(None);
                 label.set_halign(align);
                 label.set_xalign(0.0);
                 label.set_line_wrap(true);
                 // The window gets its minimum size, and the minimum width of a wrapping label is its
-                // longest word. Thus the minimum width is the text, up to the limit.
-                let chars = i32::try_from(text.chars().count()).unwrap_or(i32::MAX);
+                // longest word. Thus the minimum width is the full line with the cursor, up to the limit.
+                // The width does not change while the line types.
+                let chars = i32::try_from(prompt.len() + text.chars().count() + 1).unwrap_or(i32::MAX);
                 label.set_width_chars(chars.min(self.max_chars));
                 label.set_max_width_chars(self.max_chars);
                 if notification.is_error {
                     label.style_context().add_class("error");
                 }
                 self.lines.add(&label);
+                self.labels.push((label, prompt, text));
+            }
+            if self.type_lines() && self.typing.is_none() {
+                self.typing = Some(self.window.add_tick_callback(|_, _| {
+                    let mut typing = false;
+                    with(|overlay| {
+                        typing = overlay.type_lines();
+                        if !typing {
+                            overlay.typing = None;
+                        }
+                    });
+                    if typing {
+                        glib::ControlFlow::Continue
+                    } else {
+                        glib::ControlFlow::Break
+                    }
+                }));
             }
 
             if has_lines {
@@ -208,6 +225,23 @@ mod platform {
             } else {
                 self.window.hide();
             }
+        }
+
+        /// Shows the typed part of each line, with a cursor at the end of a line that types. Returns
+        /// true while a line is not complete.
+        fn type_lines(&self) -> bool {
+            let mut typing = false;
+            for ((label, prompt, text), typed) in self.labels.iter().zip(self.stream.typed(Instant::now())) {
+                let mut shown: String = prompt.chars().chain(text.chars().take(typed)).collect();
+                if typed < text.chars().count() {
+                    shown.push(CURSOR);
+                    typing = true;
+                }
+                if label.text() != shown {
+                    label.set_text(&shown);
+                }
+            }
+            typing
         }
 
         /// Puts the window on the monitor of the game, and sets the offset and the line width for that

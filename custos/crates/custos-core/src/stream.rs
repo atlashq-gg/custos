@@ -13,6 +13,8 @@ pub const MAX_LINES: usize = 6;
 pub const LIFETIME: Duration = Duration::from_secs(20);
 /// The time that an error line stays.
 pub const ERROR_LIFETIME: Duration = Duration::from_secs(60);
+/// The number of characters that the overlay types in each second.
+pub const TYPING_RATE: u32 = 60;
 
 /// The kind of a message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -113,6 +115,8 @@ impl Notification {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Line {
     notification: Notification,
+    /// The time when the line arrived.
+    since: Instant,
     until: Instant,
 }
 
@@ -135,6 +139,7 @@ impl Stream {
         };
         self.lines.push(Line {
             notification,
+            since: now,
             until: now + lifetime,
         });
         let excess = self.lines.len().saturating_sub(MAX_LINES);
@@ -158,6 +163,24 @@ impl Stream {
     /// The lines, the oldest first. Call [`Stream::prune`] before, to remove the stale lines.
     pub fn lines(&self) -> impl Iterator<Item = &Notification> {
         self.lines.iter().map(|l| &l.notification)
+    }
+
+    /// The number of typed characters of the text of each line, the oldest line first. A line starts
+    /// when it arrives, but not before the line above it is complete, as on a ticker tape.
+    #[must_use]
+    pub fn typed(&self, now: Instant) -> Vec<usize> {
+        let mut free = None;
+        self.lines
+            .iter()
+            .map(|line| {
+                let length = line.notification.line().chars().count();
+                let start = free.map_or(line.since, |free: Instant| free.max(line.since));
+                let millis = u64::try_from(length).unwrap_or(u64::MAX).saturating_mul(1000) / u64::from(TYPING_RATE);
+                free = Some(start + Duration::from_millis(millis));
+                let typed = now.saturating_duration_since(start).as_millis() * u128::from(TYPING_RATE) / 1000;
+                usize::try_from(typed).unwrap_or(usize::MAX).min(length)
+            })
+            .collect()
     }
 
     /// The time when the next line becomes stale.
@@ -251,6 +274,33 @@ mod tests {
         stream.put(message(Kind::ServiceError, "new", true), now + LIFETIME);
 
         assert_eq!(bodies(&stream), ["new"]);
+    }
+
+    #[test]
+    fn lines_type_one_after_the_other() {
+        let now = Instant::now();
+        let mut stream = Stream::default();
+        // 60 characters each: one second at the typing rate.
+        stream.put(message(Kind::Upload, &"a".repeat(60), true), now);
+        stream.put(message(Kind::ServiceError, &"b".repeat(60), true), now);
+
+        assert_eq!(stream.typed(now), [0, 0]);
+        assert_eq!(stream.typed(now + Duration::from_millis(500)), [30, 0]);
+        assert_eq!(stream.typed(now + Duration::from_millis(1500)), [60, 30]);
+        assert_eq!(stream.typed(now + Duration::from_secs(5)), [60, 60]);
+    }
+
+    #[test]
+    fn line_that_arrives_later_starts_at_its_arrival() {
+        let now = Instant::now();
+        let mut stream = Stream::default();
+        stream.put(message(Kind::Upload, &"a".repeat(60), true), now);
+        stream.put(
+            message(Kind::ServiceError, &"b".repeat(60), true),
+            now + Duration::from_secs(10),
+        );
+
+        assert_eq!(stream.typed(now + Duration::from_millis(10_500)), [60, 30]);
     }
 
     #[test]
