@@ -1,7 +1,8 @@
 //! The overlay: the lines of the message [`Stream`] in a window above the game.
 //!
-//! On Linux, the window is a native GTK window on the overlay layer of the layer-shell protocol. The
-//! defect test of the transparent webview failed on Linux (#16), so the overlay does not use it there.
+//! On Linux, the window is a native GTK window on the overlay layer of the layer-shell protocol. On
+//! GNOME, which has no layer-shell protocol, it is an X11 window above the other windows. The defect
+//! test of the transparent webview failed on Linux (#16), so the overlay does not use it there.
 //! Other platforms have no overlay yet, and Custos shows desktop notifications.
 //!
 //! Call each function on the main thread.
@@ -19,7 +20,7 @@ mod platform {
     use custos_core::screen::{self, Rect};
     use custos_core::stream::{self, Stream};
     use gtk::prelude::*;
-    use gtk::{cairo, glib, pango};
+    use gtk::{cairo, gdk, glib, pango};
     use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 
     use super::{Notification, Reference, Settings};
@@ -41,6 +42,8 @@ mod platform {
 
     struct Overlay {
         window: gtk::Window,
+        /// True for a layer surface, false for an X11 window.
+        layer_shell: bool,
         lines: gtk::Box,
         /// The prompt with the cursor that fades in and out while no line types.
         prompt: gtk::Box,
@@ -71,23 +74,43 @@ mod platform {
     /// Opens the overlay. It shows a prompt while it has no lines.
     pub fn open(settings: Settings) -> Result<(), String> {
         let anchor = settings.anchor;
-        if !gtk_layer_shell::is_supported() {
-            return Err("the desktop does not support the layer-shell protocol".into());
-        }
-
         let window = gtk::Window::new(gtk::WindowType::Toplevel);
         window.set_widget_name("custos-overlay");
-        window.init_layer_shell();
-        window.set_namespace("custos-overlay");
-        window.set_layer(Layer::Overlay);
-        // The game keeps the keyboard. The mode Exclusive makes a game leave fullscreen.
-        window.set_keyboard_mode(KeyboardMode::None);
-        let vertical = if anchor.is_top() { Edge::Top } else { Edge::Bottom };
-        let horizontal = if anchor.is_left() { Edge::Left } else { Edge::Right };
-        window.set_anchor(vertical, true);
-        window.set_anchor(horizontal, true);
-        window.set_layer_shell_margin(vertical, MARGIN);
-        window.set_layer_shell_margin(horizontal, SIDE_MARGIN);
+        let layer_shell = gtk_layer_shell::is_supported();
+        if layer_shell {
+            window.init_layer_shell();
+            window.set_namespace("custos-overlay");
+            window.set_layer(Layer::Overlay);
+            // The game keeps the keyboard. The mode Exclusive makes a game leave fullscreen.
+            window.set_keyboard_mode(KeyboardMode::None);
+            let vertical = if anchor.is_top() { Edge::Top } else { Edge::Bottom };
+            let horizontal = if anchor.is_left() { Edge::Left } else { Edge::Right };
+            window.set_anchor(vertical, true);
+            window.set_anchor(horizontal, true);
+            window.set_layer_shell_margin(vertical, MARGIN);
+            window.set_layer_shell_margin(horizontal, SIDE_MARGIN);
+        } else if WidgetExt::display(&window).type_().name() == "GdkX11Display" {
+            // The X11 path, for GNOME (see `restart_with_x11` in main.rs). A window of the type
+            // notification, above the other windows, with no frame, no taskbar entry, and no focus.
+            window.set_decorated(false);
+            window.set_skip_taskbar_hint(true);
+            window.set_skip_pager_hint(true);
+            window.set_accept_focus(false);
+            window.set_focus_on_map(false);
+            window.set_resizable(false);
+            window.set_type_hint(gdk::WindowTypeHint::Notification);
+            window.set_keep_above(true);
+            // The corner of the window that stays at its position when the lines change.
+            window.set_gravity(match (anchor.is_top(), anchor.is_left()) {
+                (true, true) => gdk::Gravity::NorthWest,
+                (true, false) => gdk::Gravity::NorthEast,
+                (false, true) => gdk::Gravity::SouthWest,
+                (false, false) => gdk::Gravity::SouthEast,
+            });
+        } else {
+            window.close();
+            return Err("the desktop does not support the layer-shell protocol".into());
+        }
 
         // A transparent window: an RGBA visual, and a clear background before GTK draws the lines.
         let screen = WidgetExt::screen(&window).ok_or("the window has no screen")?;
@@ -137,6 +160,7 @@ mod platform {
         gtk::StyleContext::add_provider_for_screen(&screen, &style, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
         let mut overlay = Overlay {
             window,
+            layer_shell,
             lines,
             prompt,
             cursor,
@@ -295,7 +319,9 @@ mod platform {
             }
             let monitor = if let Some(i) = found {
                 tracing::debug!("the overlay shows on monitor {} of {}", i + 1, monitors.len());
-                self.window.set_monitor(&monitors[i]);
+                if self.layer_shell {
+                    self.window.set_monitor(&monitors[i]);
+                }
                 &monitors[i]
             } else {
                 tracing::debug!("cannot find the monitor of Foxhole. The desktop selects the monitor.");
@@ -306,14 +332,27 @@ mod platform {
             self.placed = true;
 
             // The offset is a share of the monitor height, so that it fits each screen size.
-            let height = monitor.geometry().height();
-            let vertical = if self.settings.anchor.is_top() {
-                Edge::Top
+            let area = monitor.geometry();
+            let anchor = self.settings.anchor;
+            let offset = MARGIN + area.height() * i32::from(self.settings.offset) / 100;
+            if self.layer_shell {
+                let edge = if anchor.is_top() { Edge::Top } else { Edge::Bottom };
+                self.window.set_layer_shell_margin(edge, offset);
             } else {
-                Edge::Bottom
-            };
-            self.window
-                .set_layer_shell_margin(vertical, MARGIN + height * i32::from(self.settings.offset) / 100);
+                // On X11, GDK and the X server use the same coordinates. The gravity of the window
+                // makes this point its anchor corner.
+                let x = if anchor.is_left() {
+                    area.x() + SIDE_MARGIN
+                } else {
+                    area.x() + area.width() - SIDE_MARGIN
+                };
+                let y = if anchor.is_top() {
+                    area.y() + offset
+                } else {
+                    area.y() + area.height() - offset
+                };
+                self.window.move_(x, y);
+            }
 
             let font = pango::FontDescription::from_string(FONT);
             let char_width = self

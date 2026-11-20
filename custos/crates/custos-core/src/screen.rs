@@ -1,4 +1,5 @@
-//! Finds the monitor that shows Foxhole, so that the overlay shows on the same monitor.
+//! Finds the monitor that shows Foxhole, so that the overlay shows on the same monitor. Also decides
+//! when Custos needs the X11 backend for its overlay.
 //!
 //! Foxhole runs in Proton as an X11 window of `XWayland`. Custos reads the window list, the class and the
 //! position of the windows, and the monitors of the X server. It reads no content of a window.
@@ -10,6 +11,22 @@ use x11rb::rust_connection::RustConnection;
 
 use crate::locate::APP_ID;
 use crate::process::EXECUTABLE;
+
+/// The variable that marks a process that Custos started again with the X11 backend of GDK.
+pub const X11_MARKER: &str = "CUSTOS_X11_RESTART";
+
+/// True when Custos must start again with the X11 backend of GDK, before the application starts.
+///
+/// GNOME on Wayland has no layer-shell protocol. Through `XWayland`, the overlay can be an X11 window
+/// above the game. `env` gives the value of an environment variable. A set `GDK_BACKEND` wins, and
+/// the marker prevents a second start.
+pub fn needs_x11_restart(env: impl Fn(&str) -> Option<String>, overlay_enabled: bool) -> bool {
+    overlay_enabled
+        && env(X11_MARKER).is_none()
+        && env("GDK_BACKEND").is_none()
+        && env("XDG_SESSION_TYPE").as_deref() == Some("wayland")
+        && env("XDG_CURRENT_DESKTOP").is_some_and(|desktop| desktop.split(':').any(|d| d.eq_ignore_ascii_case("gnome")))
+}
 
 /// A rectangle on the desktop, in pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -107,6 +124,36 @@ fn is_game(conn: &RustConnection, window: Window) -> Result<bool, Box<dyn std::e
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn env<'a>(vars: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
+        move |name| vars.iter().find(|(k, _)| *k == name).map(|(_, v)| (*v).to_owned())
+    }
+
+    const GNOME: [(&str, &str); 2] = [("XDG_SESSION_TYPE", "wayland"), ("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")];
+
+    #[test]
+    fn gnome_on_wayland_with_the_overlay_starts_again() {
+        assert!(needs_x11_restart(env(&GNOME), true));
+        assert!(!needs_x11_restart(env(&GNOME), false));
+    }
+
+    #[test]
+    fn other_desktops_do_not_start_again() {
+        for desktop in ["KDE", "sway"] {
+            let vars = [("XDG_SESSION_TYPE", "wayland"), ("XDG_CURRENT_DESKTOP", desktop)];
+            assert!(!needs_x11_restart(env(&vars), true), "{desktop}");
+        }
+        let x11 = [("XDG_SESSION_TYPE", "x11"), ("XDG_CURRENT_DESKTOP", "GNOME")];
+        assert!(!needs_x11_restart(env(&x11), true));
+    }
+
+    #[test]
+    fn marker_or_a_set_backend_prevents_a_restart() {
+        for extra in [(X11_MARKER, "1"), ("GDK_BACKEND", "wayland")] {
+            let vars = [GNOME[0], GNOME[1], extra];
+            assert!(!needs_x11_restart(env(&vars), true), "{}", extra.0);
+        }
+    }
 
     fn rect(x: i32, y: i32, width: i32, height: i32) -> Rect {
         Rect { x, y, width, height }
