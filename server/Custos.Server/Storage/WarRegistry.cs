@@ -86,6 +86,18 @@ public sealed class WarRegistry(
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    /// <summary>The war of the shard with the number <paramref name="warNumber"/>.</summary>
+    public Task<War?> FindAsync(int warNumber, CancellationToken cancellationToken)
+    {
+        var shard = options.Value.Shard;
+        return db
+            .Wars.AsNoTracking()
+            .FirstOrDefaultAsync(
+                w => w.Shard == shard && w.WarNumber == warNumber,
+                cancellationToken
+            );
+    }
+
     private static string PartitionName(string table, int warNumber) =>
         string.Create(CultureInfo.InvariantCulture, $"{table}_w{warNumber}");
 
