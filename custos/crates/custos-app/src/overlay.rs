@@ -187,12 +187,14 @@ mod platform {
             glib::Propagation::Proceed
         });
 
-        // An empty input region: the pointer and its clicks go through the window to the game. A new
-        // surface has no input region, and the layer-shell library makes a new surface, for example when
-        // the overlay moves to the monitor of the game. Thus set the region again at each map.
+        // An empty input region: the pointer and its clicks go through the window to the game. GTK does
+        // not keep it: a new surface has no input region, and when the window changes size, GTK sends
+        // no region, which takes all input (WAYLAND_DEBUG showed `set_input_region(nil)`). Thus set
+        // the region again at each map and after each new size.
         let pass_through = |window: &gtk::Window| window.input_shape_combine_region(Some(&cairo::Region::create()));
         pass_through(window);
         window.connect_map(pass_through);
+        window.connect_size_allocate(move |window, _| pass_through(window));
     }
 
     /// Closes the overlay, if it is open.
