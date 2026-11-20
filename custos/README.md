@@ -25,15 +25,31 @@ On Windows:
 - Foxhole in Steam.
 - For the overlay: Foxhole in the mode "Windowed Fullscreen" or in a windowed mode.
 
-The Windows version is experimental. CI builds and tests it, but nobody tested it with the game. This version has no Windows installer: build Custos from the source (see [Build](#build)). The Tauri documentation says that desktop notifications on Windows work only for an installed application. Thus a build from the source can show no notifications.
+The Windows version is experimental. CI builds and tests it, but nobody tested it with the game. The Windows installer is not signed (see [Install](#install)). The Tauri documentation says that desktop notifications on Windows work only for an installed application. Thus a build from the source can show no notifications.
 
 ## Install
 
-1. Download the AppImage from the release.
-2. Make it executable: `chmod +x Custos_0.1.0_amd64.AppImage`.
-3. Start it. Custos writes a template to `~/.config/custos/config.toml` and shows a notification.
+Each [release](https://github.com/atlashq-gg/custos/releases/latest) has the AppImage, the installer script `install.sh`, and the Windows installer. CI attests each file. To make sure that the CI of this repository built a file, run `gh attestation verify <file> --repo atlashq-gg/custos`. The command needs a GitHub login.
+
+### Linux
+
+1. Download `install.sh` from the release.
+2. Run `sh install.sh`. The script downloads the AppImage of the same release, and makes sure that its SHA-256 digest is correct. It installs the AppImage as `~/.local/bin/custos`, and adds Custos to the launcher. It needs no root rights.
+3. Start Custos from the launcher. Custos writes a template to `~/.config/custos/config.toml` and shows a notification.
 4. Set `service_url` in the file, and save it. Custos applies the file at once.
 5. Use **Sign in** in the tray menu.
+
+To update Custos, run the `install.sh` of the new release. If Custos runs, quit it and start it again. To remove Custos, run `sh install.sh --uninstall`. The configuration and the tokens stay. To install an AppImage that you downloaded, run `sh install.sh <AppImage>`.
+
+The AppImage also runs without the script: make it executable with `chmod +x`, and start it. Custos then has no launcher entry.
+
+### Windows
+
+1. Download `Custos_<version>_x64-setup.exe` from the release.
+2. Start the installer. It is not signed, so Windows shows "Windows protected your PC". Select **More info**, then **Run anyway**. If Smart App Control is on, Windows blocks the installer.
+3. The installer installs Custos for the current user, with no administrator rights. If the computer has no WebView2 runtime, the installer downloads it.
+4. Start Custos from the Start menu. Custos writes a template to `%APPDATA%\custos\config.toml` and shows a notification.
+5. Set `service_url` in the file, save it, and use **Sign in** in the tray menu.
 
 ## Configuration
 
@@ -138,7 +154,8 @@ cargo install tauri-cli --version "^2" --locked
 ```sh
 cargo test -p custos-core                  # The engine. Needs no GUI libraries.
 cargo run -p custos-app                    # The tray application.
-cargo tauri build --bundles appimage       # Run in crates/custos-app.
+cargo tauri build --bundles appimage       # Linux. Run in crates/custos-app.
+cargo tauri build --bundles nsis           # Windows. Run in crates/custos-app.
 ```
 
 Set `RUST_LOG=debug` for more log output.
@@ -168,7 +185,8 @@ Notes:
 
 ## Layout
 
-| Crate | Content |
+| Folder | Content |
 |---|---|
 | [crates/custos-core](crates/custos-core) | The engine: configuration, discovery, login, save-file location, process detection, upload, the interval rule, and the message stream of the overlay. |
 | [crates/custos-app](crates/custos-app) | The Tauri tray application: menu, overlay window, notifications, and the deep link. |
+| [packaging](packaging) | The installer script for Linux, and its test. |

@@ -39,6 +39,16 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
 
+  # The installer script of the Linux release, with a fake AppImage. The release workflow tests it
+  # with the real AppImage.
+  installer-script:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - run: shellcheck packaging/*.sh
+      - run: sh packaging/test-install.sh
+
   # The first Windows build. The MSVC toolchain is the default of rustup on this runner.
   windows:
     runs-on: windows-latest

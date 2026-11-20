@@ -15,7 +15,7 @@ path = "src/main.rs"
 workspace = true
 
 [dependencies]
-custos-core = { version = "0.1.0", path = "../custos-core" }
+custos-core = { version = "0.2.0", path = "../custos-core" }
 serde_json = "1.0.154"
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-deep-link = "2"

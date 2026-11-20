@@ -1,18 +1,57 @@
 name: release-custos
 
-# Builds the AppImage for a tag custos/vX.Y.Z and attaches it to a GitHub release. The description
-# of the release is the section of the version in custos/CHANGELOG.md.
+# A tag custos/vX.Y.Z builds the AppImage, the installer script, and the Windows installer. It attests
+# the three files and attaches them to a GitHub release. The description of the release is the
+# section of the version in custos/CHANGELOG.md. A pull request that changes the packages builds and
+# tests them, with no attestation and no release.
 on:
   push:
     tags: ["custos/v*"]
+  pull_request:
+    paths:
+      - ".github/workflows/release-custos.yml"
+      - "custos/packaging/**"
+      - "custos/crates/custos-app/tauri.conf.json"
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # tauri-cli 2.12.6 has tauri-bundler 2.10.6. Before tauri-bundler 2.10.0, the AppImage sets
+  # GDK_BACKEND=x11, and the overlay has no layer shell (tauri#15781).
+  TAURI_CLI_VERSION: "2.12.6"
 
 jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the version
+        id: version
+        run: |
+          version=$(grep -m1 '^version' custos/Cargo.toml | cut -d'"' -f2)
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "${GITHUB_REF_NAME#custos/v}" != "$version" ]; then
+            echo "The tag $GITHUB_REF_NAME is not the version $version in custos/Cargo.toml."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # A missing section in custos/CHANGELOG.md stops the release before the build.
+      - name: Make sure that the changelog has the version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: .github/scripts/release-notes.sh custos/CHANGELOG.md "$VERSION" "$RUNNER_TEMP/notes.md"
+
   appimage:
+    needs: version
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    env:
+      APPIMAGE: custos/target/release/bundle/appimage/Custos_${{ needs.version.outputs.version }}_amd64.AppImage
     steps:
       - uses: actions/checkout@v7
 
@@ -28,34 +67,110 @@ jobs:
         with:
           workspaces: custos
 
-      - name: Check the version
-        id: version
-        run: |
-          tag="${GITHUB_REF_NAME#custos/v}"
-          version=$(grep -m1 '^version' custos/Cargo.toml | cut -d'"' -f2)
-          if [ "$tag" != "$version" ]; then
-            echo "The tag $tag is not the version $version in custos/Cargo.toml."
-            exit 1
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - run: cargo install tauri-cli --version "$TAURI_CLI_VERSION" --locked
 
-      # The release description is the section of the version in custos/CHANGELOG.md. A missing
-      # section stops the release before the build.
-      - name: Extract the release notes
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          .github/scripts/release-notes.sh custos/CHANGELOG.md "$VERSION" \
-            "$RUNNER_TEMP/release-notes.md"
-
-      - run: cargo install tauri-cli --version "^2" --locked
-
+      # The overlay needs the layer-shell library. A Wayland library in the AppImage fails with the
+      # Mesa of newer distributions (tauri#15976). linuxdeploy excludes libwayland-client, but not
+      # the other Wayland libraries. Each desktop has them.
       - name: Build the AppImage
         working-directory: custos/crates/custos-app
+        env:
+          LINUXDEPLOY_EXCLUDED_LIBRARIES: "libwayland-*"
         run: cargo tauri build --bundles appimage
+
+      - name: Make sure that the AppImage holds the layer-shell library and no Wayland library
+        run: |
+          appimage=$(realpath "$APPIMAGE")
+          cd "$RUNNER_TEMP"
+          "$appimage" --appimage-extract >/dev/null
+          find squashfs-root -name '*.so*' | sort
+          if ! find squashfs-root -name 'libgtk-layer-shell.so.0*' | grep -q .; then
+            echo "The AppImage has no libgtk-layer-shell.so.0."
+            exit 1
+          fi
+          if find squashfs-root -name 'libwayland-*' | grep .; then
+            echo "The AppImage holds a Wayland library."
+            exit 1
+          fi
+
+      - name: Test the installer script with the AppImage
+        run: |
+          shellcheck custos/packaging/*.sh
+          sh custos/packaging/test-install.sh "$APPIMAGE"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: appimage
+          path: ${{ env.APPIMAGE }}
+          if-no-files-found: error
+
+  nsis:
+    needs: version
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: custos
+
+      - run: cargo install tauri-cli --version "$env:TAURI_CLI_VERSION" --locked
+
+      # The bundler downloads NSIS when the runner does not have it.
+      - name: Build the installer
+        working-directory: custos/crates/custos-app
+        run: cargo tauri build --bundles nsis
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nsis
+          path: custos/target/release/bundle/nsis/Custos_${{ needs.version.outputs.version }}_x64-setup.exe
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: [version, appimage, nsis]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      # The script then downloads this AppImage and examines its digest.
+      - name: Write the version and the digest of the AppImage into the installer script
+        run: |
+          digest=$(sha256sum "dist/Custos_${VERSION}_amd64.AppImage" | cut -d ' ' -f 1)
+          sed -e "s/^VERSION=\"@VERSION@\"$/VERSION=\"$VERSION\"/" \
+            -e "s/^SHA256=\"@SHA256@\"$/SHA256=\"$digest\"/" \
+            custos/packaging/install.sh > dist/install.sh
+          if grep -q '@VERSION@\|@SHA256@' dist/install.sh; then
+            echo "The installer script has no version or no digest."
+            exit 1
+          fi
+          ls -l dist
+
+      - name: Extract the release notes
+        run: .github/scripts/release-notes.sh custos/CHANGELOG.md "$VERSION" "$RUNNER_TEMP/notes.md"
+
+      # A user examines a download with: gh attestation verify <file> --repo atlashq-gg/custos
+      - uses: actions/attest@v4
+        with:
+          subject-path: dist/*
 
       - uses: softprops/action-gh-release@v3
         with:
-          name: Custos ${{ steps.version.outputs.version }}
-          body_path: ${{ runner.temp }}/release-notes.md
-          files: custos/target/release/bundle/appimage/*.AppImage
+          name: Custos ${{ env.VERSION }}
+          body_path: ${{ runner.temp }}/notes.md
+          files: dist/*
