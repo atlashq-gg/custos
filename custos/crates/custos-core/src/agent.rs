@@ -24,6 +24,11 @@ use crate::watch;
 const ERROR_REPEAT: Duration = Duration::from_secs(15 * 60);
 /// The wait before Custos gets the discovery document again after a failure.
 const DISCOVERY_RETRY: Duration = Duration::from_secs(60);
+/// The message when Custos has no valid token.
+const SIGN_IN_REQUIRED: &str = "Sign in to send stockpile data. Use the Custos menu in the tray.";
+/// The longest wait for a connection to the service. Without it, a host that does not answer blocks
+/// Custos until the timeout of the request.
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
@@ -156,6 +161,7 @@ impl Agent {
             events,
             http: reqwest::Client::builder()
                 .user_agent(concat!("Custos/", env!("CARGO_PKG_VERSION")))
+                .connect_timeout(CONNECT_TIMEOUT)
                 .timeout(Duration::from_secs(60))
                 .build()
                 .unwrap_or_default(),
@@ -224,6 +230,7 @@ impl Agent {
                 self.game_running = running;
                 self.emit(Event::GameRunning(running));
                 if running {
+                    self.announce_problems();
                     self.start_watching();
                 } else {
                     self.stop_watching();
@@ -253,10 +260,7 @@ impl Agent {
 
         if self.state.as_ref() != Some(&state) {
             if state == State::SignedOut && self.state.is_some() {
-                self.notify_error(
-                    Kind::SignInRequired,
-                    "Sign in to send stockpile data. Use the Custos menu in the tray.",
-                );
+                self.notify_error(Kind::SignInRequired, SIGN_IN_REQUIRED);
             }
             self.state = Some(state.clone());
             self.emit(Event::State(state));
@@ -278,6 +282,18 @@ impl Agent {
         }
     }
 
+    /// Shows the problems that are still current when the game starts, because the overlay opens then.
+    /// An error that showed before, for example as a desktop notification, shows again: the repeat rule
+    /// starts again, and Custos tries the discovery again at once.
+    fn announce_problems(&mut self) {
+        self.shown_errors.clear();
+        if self.service.is_none() {
+            self.last_discovery_attempt = None;
+        } else if self.tokens.is_none() {
+            self.notify_error(Kind::SignInRequired, SIGN_IN_REQUIRED);
+        }
+    }
+
     async fn fetch_discovery(&mut self, now: Instant) {
         self.last_discovery_attempt = Some(now);
         match discovery::fetch(&self.http, &self.settings.config.service_url).await {
@@ -285,8 +301,17 @@ impl Agent {
                 self.schedule
                     .set_service_minimum(Duration::from_secs(service.discovery.upload_min_interval_seconds));
                 self.service = Some(service);
+                // The service is available again, so an error about it is no longer correct.
+                self.expire(Kind::ServiceError);
             }
-            Err(e) => self.notify_error(Kind::ServiceError, &e.to_string()),
+            Err(e) => self.notify_error(
+                Kind::ServiceError,
+                &format!(
+                    "The service at {} is not available: {}. Custos tries again in 1 minute.",
+                    self.settings.config.service_url,
+                    root_cause(&e)
+                ),
+            ),
         }
     }
 
@@ -397,7 +422,11 @@ impl Agent {
             Err(e) => {
                 self.notify_error(
                     Kind::ServiceError,
-                    &format!("cannot reach {}: {e}", service.discovery.service_name),
+                    &format!(
+                        "Cannot reach {}: {}. Custos tries again later.",
+                        service.discovery.service_name,
+                        root_cause(&e)
+                    ),
                 );
                 None
             }
@@ -547,6 +576,16 @@ impl Agent {
         // The receiver is gone only when the application stops.
         let _ = self.events.send(event);
     }
+}
+
+/// The innermost cause of an error, for example "Connection refused (os error 111)". The outer errors
+/// of an HTTP request only repeat the URL.
+fn root_cause(error: &dyn std::error::Error) -> String {
+    let mut cause = error;
+    while let Some(source) = cause.source() {
+        cause = source;
+    }
+    cause.to_string()
 }
 
 fn accepted_notification(service: &str, result: &UploadResult) -> Notification {
@@ -742,6 +781,66 @@ mod tests {
         .unwrap();
         f.commands.send(Command::Reconfigure(Box::new(config))).unwrap();
         f.next(is_notification).await;
+    }
+
+    #[tokio::test]
+    async fn unreachable_service_shows_an_error_with_the_cause() {
+        // Nothing listens on port 1, so the connection fails at once.
+        let config: Config = toml::from_str("service_url = \"http://localhost:1\"").unwrap();
+        let game = Arc::new(AtomicBool::new(false));
+        let settings = Settings {
+            config,
+            store: Arc::new(MemoryStore::default()),
+            is_game_running: Box::new({
+                let game = game.clone();
+                move || game.load(Ordering::Relaxed)
+            }),
+            steam_roots: vec![],
+            tick: Duration::from_millis(20),
+            process_poll: Duration::from_millis(20),
+        };
+        let (event_tx, mut events) = mpsc::unbounded_channel();
+        let (_commands, command_rx) = mpsc::unbounded_channel();
+        tokio::spawn(Agent::new(settings, event_tx).run(command_rx));
+
+        let notification = tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if let Some(Event::Notify(n)) = events.recv().await {
+                    return n;
+                }
+            }
+        })
+        .await
+        .expect("the error did not arrive");
+        assert!(notification.is_error);
+        assert!(
+            notification
+                .body
+                .starts_with("The service at http://localhost:1/ is not available: "),
+            "{}",
+            notification.body
+        );
+        assert!(
+            !notification.body.contains("error sending request"),
+            "{}",
+            notification.body
+        );
+
+        // The overlay opens when the game starts, so the error shows again at once.
+        game.store(true, Ordering::Relaxed);
+        let again = tokio::time::timeout(Duration::from_secs(5), async {
+            let mut started = false;
+            loop {
+                match events.recv().await {
+                    Some(Event::GameRunning(true)) => started = true,
+                    Some(Event::Notify(n)) if started && n.reference == Kind::ServiceError.into() => return n,
+                    _ => {}
+                }
+            }
+        })
+        .await
+        .expect("the error did not show again");
+        assert_eq!(again.body, notification.body);
     }
 
     #[tokio::test]

@@ -85,7 +85,7 @@ Custos keeps the tokens in the Secret Service on Linux, and in the Credential Ma
 
 ## Overlay
 
-While Foxhole runs, Custos shows its messages as lines in a corner of the monitor that shows the game. The newest line is at the bottom. A line wraps when it is wider than 15 % of the monitor width. In the top left corner, the default `offset` of 28 % puts the lines below the notifications of the game. The distance from the side of the monitor is 8 pixels. The overlay looks like an old terminal: green text with a glow, and no background. Each new line types out after the line above it, as on a ticker tape. While no line types, a prompt shows at the bottom, and its cursor fades in and out. An error line is red. The font is the first of these that the computer has: JetBrains Mono, Cascadia Mono, Fira Code, Source Code Pro, Hack, and Noto Sans Mono. Without them, it is the default monospace font. The overlay shows at most 6 lines. A line goes after 20 seconds, and an error line after 60 seconds. A new message of the same kind replaces the old line. A completed login removes the line that asks for the login. An accepted upload removes the error lines of the upload and of the service.
+While Foxhole runs, Custos shows its messages as lines in a corner of the monitor that shows the game. The newest line is at the bottom. A line wraps when it is wider than 15 % of the monitor width. In the top left corner, the default `offset` of 28 % puts the lines below the notifications of the game. The distance from the side of the monitor is 8 pixels. The overlay looks like an old terminal: green text with a glow, and no background. Each new line types out after the line above it, as on a ticker tape. While no line types, a prompt shows at the bottom, and its cursor fades in and out. An error line is red. The font is the first of these that the computer has: JetBrains Mono, Cascadia Mono, Fira Code, Source Code Pro, Hack, and Noto Sans Mono. Without them, it is the default monospace font. The overlay shows at most 6 lines. A line goes after 20 seconds, and an error line after 60 seconds. A new message of the same kind replaces the old line. A completed login removes the line that asks for the login. An accepted upload removes the error lines of the upload and of the service. When the game starts, the overlay shows the problems that are still current. Examples are a service that is not available, and a necessary sign-in. Such an error can show as a desktop notification before.
 
 Custos finds the monitor of the game through the window list of XWayland. If it cannot find the game window, the desktop selects the monitor.
 
@@ -102,7 +102,10 @@ Custos shows these messages in the overlay while it is open, and as desktop noti
 | Stockpile data sent | The service accepted the file. The text shows the size and the war. |
 | Signed in | The login is complete. |
 | Sign in to send stockpile data | Custos has no valid token. Use **Sign in**. |
-| An error from the service | The service refused the file, or it failed. Custos shows the same error at most one time in 15 minutes. |
+| The service at … is not available | Custos cannot reach the service URL, or the service gave an error. The text gives the cause, for example `Connection refused`. Custos tries again each minute. When the service is available again, the message goes. |
+| An error from the service | The service refused the file, or it failed. |
+
+Custos shows the same error at most one time in 15 minutes.
 
 ## Build
 
