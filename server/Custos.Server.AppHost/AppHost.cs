@@ -36,6 +36,11 @@ var api = builder
     .WaitFor(database)
     .WithHttpHealthCheck("/health/ready");
 
+// The bot token is optional. Without it, the Discord connection of the server is off. Set it in the
+// user secrets of this project: dotnet user-secrets set Parameters:discord-token <token>
+if (!string.IsNullOrEmpty(builder.Configuration["Parameters:discord-token"]))
+    api.WithEnvironment("Discord__Token", builder.AddParameter("discord-token", secret: true));
+
 // The tunnel serves only an endpoint that a container references. This reference also gives the
 // realm the host name of the server as Keycloak sees it (aspire.dev.internal). The server does not
 // wait for Keycloak: Keycloak needs the address of the server first, and the server gets the

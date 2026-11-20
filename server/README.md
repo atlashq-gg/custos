@@ -60,11 +60,58 @@ The server is multi-tenant. A tenant is a Discord guild. The access token names 
 
 An upload without a valid `active_guild` gets `403`. In the environment `Development`, `DevelopmentGuildId` supplies the guild when the claim is absent. For production, see [The claim `active_guild`](#the-claim-active_guild).
 
+## Discord
+
+The server connects to Discord as a bot when the configuration has `Discord:Token` (`Discord__Token`). Without the token, the connection is off, and the server writes a warning to the log when it starts. An upload then works as in 0.1.0.
+
+- The bot uses the gateway with the intent `Guilds` only. It needs no privileged intent.
+- In development, set the token in the user secrets of the AppHost: `dotnet user-secrets set Parameters:discord-token <token> --project Custos.Server.AppHost`.
+
+### Guild settings
+
+A guild administrator configures the guild with `/custosadmin settings`. The two commands need the Administrator permission. Each reply is ephemeral.
+
+| Command | Content |
+|---|---|
+| `/custosadmin settings view` | Shows the settings document, and attaches it as a file. |
+| `/custosadmin settings update` | Replaces the full document. With the option `file`, from a JSON file. Without it, from a form that shows the current document. |
+
+The document:
+
+```json
+{
+  "SchemaVersion": 1,
+  "Access": {
+    "ReportRoleIds": [],
+    "ReadRoleIds": ["111111111111111111"],
+    "LabelRoleIds": ["222222222222222222"]
+  },
+  "Sharing": {
+    "ReadGuildIds": ["333333333333333333"]
+  }
+}
+```
+
+| Member | Content |
+|---|---|
+| `Access.ReportRoleIds` | The roles that can upload. Empty: each member of the guild. |
+| `Access.ReadRoleIds` | The roles that can read the records of the guild. Empty: an administrator only. |
+| `Access.LabelRoleIds` | The roles that can change the label of a structure. Empty: an administrator only. |
+| `Sharing.ReadGuildIds` | The other guilds that can read the records of this guild. |
+
+- An administrator is the guild owner, or a member with the Administrator permission. An administrator has each kind of access.
+- Each ID is a string. The server refuses a document with a `SchemaVersion` other than `1`, an unknown member, an ID that is not a snowflake, this guild in `ReadGuildIds`, or more than 25 entries in one list.
+- The server accepts a role that the guild does not have, and names it in the reply.
+- A guild without settings has the document with empty lists.
+- The server writes one audit line to the log for each change, with the guild and the user.
+- The server reads the roles of a member from Discord for each request, and keeps no cache. Thus a role change applies to the next request.
+
 ## Storage
 
 The server keeps the parsed data in PostgreSQL. It applies its migrations when it starts. Issue #1 holds the design ("Extension: guild storage in `server/`").
 
-- `guild_id`, then `war_id`, start the key of each table of guild data. `wars` is the only table without `guild_id`.
+- `guild_id`, then `war_id`, start the key of each table of guild data. `wars` and `guild_settings` are the tables without `war_id`. `wars` is the only table without `guild_id`.
+- `guild_settings` holds the settings document of each guild as `jsonb` ([Guild settings](#guild-settings)).
 - The current state is in `structures`, `stockpiles`, and `stockpile_entries`. The history is in `structure_changes` and `stockpile_changes`. The history keeps a change, not a sighting: for equal content, the server only moves `last_seen_at`. Data that is not newer than the last sighting changes nothing.
 - The ID of a structure is a UUID version 5 of the shard, the war, the region, and the coordinates as exact float32. The ID of a stockpile is a UUID version 5 of the structure and the name. Thus each guild calculates the same IDs ([EntityIds.cs](Custos.Server/Storage/EntityIds.cs)).
 - The server keeps a public stockpile only when it has entries, or when the server already knows it.
@@ -108,6 +155,7 @@ The server sends traces, metrics, and logs through OpenTelemetry. It exports the
 |---|---|---|
 | `custos.uploads` | `{upload}` | The uploads that reached the handler, with the tag `outcome`: `accepted`, `forbidden`, `too_large`, `not_map_data`, `unavailable`, or `error`. A refusal before the handler (`401`, `415`, `429`) is only in the metrics of ASP.NET Core. |
 | `custos.upload.parse.duration` | `s` | The time to parse the map data file. |
+| `custos.discord.request.duration` | `s` | The requests of the bot to the REST API of Discord, with the tag `outcome`: `ok`, `client_error`, `rate_limited` (`429`), `server_error` (`5xx`), or `error` (no answer). |
 | `custos.war_api.answers` | `{answer}` | The requests to the war API, with the tag `outcome`: `fresh`, `stale` (the server used the last answer), or `none`. |
 
 The health checks have tags. `/health/alive` runs the checks with the tag `live`, and `/health/ready` the checks with the tag `ready`. `ready` holds the database only.

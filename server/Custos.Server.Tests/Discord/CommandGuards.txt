@@ -1,0 +1,20 @@
+# Each command and component handler of the server, with its guards.
+#
+# A snapshot, not configuration. Nothing reads it at runtime. CommandGuardTests compares it with
+# the assembly, because a guard that someone removes gives no build error and no start error.
+#
+# One line for each handler:   surface | Type.Method | guards
+#
+# The guards are the precondition attributes of the handler and of the modules around it, and
+# DefaultGuildPermissions. DefaultGuildPermissions is not a guard alone, because a guild
+# administrator can change it.
+#
+# A handler without a guard on the user needs a comment directly above its line:
+#   # open by design: <why>
+#   # inline: <what the handler examines>
+#
+# A change of a guard is a change of this file. Blank lines and # comments do not count.
+
+/custosadmin settings update | AdminCommands.SettingsCommands.UpdateAsync | DefaultGuildPermissions(Administrator); RequireUserPermissions(Administrator)
+/custosadmin settings view | AdminCommands.SettingsCommands.ViewAsync | DefaultGuildPermissions(Administrator); RequireUserPermissions(Administrator)
+modal custos-settings | SettingsModal.SubmitAsync | RequireUserPermissions(Administrator)

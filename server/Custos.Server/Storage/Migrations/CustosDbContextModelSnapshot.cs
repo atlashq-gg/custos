@@ -22,6 +22,37 @@ namespace Custos.Server.Storage.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Custos.Server.Storage.GuildSettingsRow", b =>
+                {
+                    b.Property<long>("GuildId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("guild_id");
+
+                    b.Property<string>("Document")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("document");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("GuildId")
+                        .HasName("pk_guild_settings");
+
+                    b.HasIndex("Document")
+                        .HasDatabaseName("ix_guild_settings_document");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Document"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Document"), new[] { "jsonb_path_ops" });
+
+                    b.ToTable("guild_settings", (string)null);
+                });
+
             modelBuilder.Entity("Custos.Server.Storage.Stockpile", b =>
                 {
                     b.Property<long>("GuildId")

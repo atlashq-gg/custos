@@ -19,6 +19,7 @@
       LinkBase="spec"
       CopyToOutputDirectory="PreserveNewest"
     />
+    <None Include="Discord\CommandGuards.txt" CopyToOutputDirectory="PreserveNewest" />
     <None
       Include="..\Custos.Server.AppHost\keycloak\custos-realm.json"
       Link="keycloak\custos-realm.json"
