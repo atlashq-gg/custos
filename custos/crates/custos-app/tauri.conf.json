@@ -20,7 +20,13 @@
     "shortDescription": "Sends Foxhole stockpile data to a Custos service.",
     "copyright": "The Custos contributors",
     "license": "MIT",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.png"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
     "linux": {
       "appimage": {
         "bundleMediaFramework": false

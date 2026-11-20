@@ -1,4 +1,5 @@
-//! Finds the map data file of Foxhole in the Proton prefix of Steam.
+//! Finds the map data file of Foxhole: on Linux in the Proton prefix of Steam, on Windows in the local
+//! application data of the user.
 //!
 //! The save folder holds `UserData.sav`, which names the Steam ID of the player, and `<id>_MapData.sav`.
 //! The Steam ID is used only to build the file name. It never leaves the computer.
@@ -17,7 +18,7 @@ const MAP_DATA_SUFFIX: &str = "_MapData.sav";
 
 #[derive(Debug, thiserror::Error)]
 pub enum LocateError {
-    #[error("cannot find the Foxhole save folder in a Steam library. Set save_dir in the configuration.")]
+    #[error("cannot find the Foxhole save folder. Set save_dir in the configuration.")]
     NoSaveDir,
     #[error("cannot find a map data file in {0}. Start Foxhole one time, or set save_dir.")]
     NoMapData(PathBuf),
@@ -34,6 +35,12 @@ pub fn default_steam_roots(home: &Path) -> Vec<PathBuf> {
     .iter()
     .map(|relative| home.join(relative))
     .collect()
+}
+
+/// The save folder on Windows: `%LOCALAPPDATA%\Foxhole\Saved\SaveGames`.
+#[must_use]
+pub fn windows_save_dir() -> Option<PathBuf> {
+    dirs::data_local_dir().map(|dir| dir.join("Foxhole").join("Saved").join("SaveGames"))
 }
 
 /// Finds the save folder. `save_dir` from the configuration wins. Else each Steam root and each of its
@@ -173,7 +180,11 @@ mod tests {
         std::fs::create_dir_all(root.join("steamapps")).unwrap();
         std::fs::write(
             root.join("steamapps/libraryfolders.vdf"),
-            format!(r#""libraryfolders" {{ "1" {{ "path" "{}" }} }}"#, library.display()),
+            // The VDF format escapes a backslash, which a path on Windows holds.
+            format!(
+                r#""libraryfolders" {{ "1" {{ "path" "{}" }} }}"#,
+                library.display().to_string().replace('\\', "\\\\")
+            ),
         )
         .unwrap();
         std::fs::create_dir_all(library.join(SAVE_DIR_IN_LIBRARY)).unwrap();

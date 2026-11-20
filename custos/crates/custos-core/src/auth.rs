@@ -217,7 +217,34 @@ pub trait TokenStore: Send + Sync {
     fn clear(&self) -> Result<(), StoreError>;
 }
 
-/// The credential store of the desktop (Secret Service on Linux). One entry for each service URL.
+/// The largest secret of one credential in the Windows Credential Manager. Custos uses this limit on
+/// each platform.
+const MAX_SECRET_BYTES: usize = 2560;
+
+/// The bytes that the credential store keeps: the tokens as JSON. Above [`MAX_SECRET_BYTES`], the
+/// access token stays out, and Custos gets a new one with the refresh token before the next upload.
+fn secret(tokens: &Tokens) -> Result<Vec<u8>, StoreError> {
+    let to_json = |tokens: &Tokens| serde_json::to_vec(tokens).map_err(|e| StoreError(e.to_string()));
+    let json = to_json(tokens)?;
+    if json.len() <= MAX_SECRET_BYTES {
+        return Ok(json);
+    }
+    let json = to_json(&Tokens {
+        access_token: String::new(),
+        refresh_token: tokens.refresh_token.clone(),
+        expires_at: Some(0),
+    })?;
+    if tokens.refresh_token.is_some() && json.len() <= MAX_SECRET_BYTES {
+        Ok(json)
+    } else {
+        Err(StoreError(format!(
+            "the tokens are larger than {MAX_SECRET_BYTES} bytes. Sign in again after the next start."
+        )))
+    }
+}
+
+/// The credential store of the desktop: the Secret Service on Linux, and the Credential Manager on
+/// Windows. One entry for each service URL.
 ///
 /// The calls block. Call them from a blocking thread, for example with `tokio::task::spawn_blocking`.
 pub struct KeyringStore {
@@ -241,16 +268,18 @@ impl KeyringStore {
 
 impl TokenStore for KeyringStore {
     fn load(&self) -> Result<Option<Tokens>, StoreError> {
-        match self.entry()?.get_password() {
-            Ok(json) => Ok(serde_json::from_str(&json).ok()),
+        // A secret of Custos 0.1.0 is the same JSON, stored as a password, which is UTF-8 on Linux.
+        match self.entry()?.get_secret() {
+            Ok(json) => Ok(serde_json::from_slice(&json).ok()),
             Err(keyring::Error::NoEntry) => Ok(None),
             Err(e) => Err(StoreError(e.to_string())),
         }
     }
 
     fn save(&self, tokens: &Tokens) -> Result<(), StoreError> {
-        let json = serde_json::to_string(tokens).map_err(|e| StoreError(e.to_string()))?;
-        self.entry()?.set_password(&json).map_err(|e| StoreError(e.to_string()))
+        self.entry()?
+            .set_secret(&secret(tokens)?)
+            .map_err(|e| StoreError(e.to_string()))
     }
 
     fn clear(&self) -> Result<(), StoreError> {
@@ -293,6 +322,34 @@ mod tests {
 
     fn param(url: &Url, name: &str) -> String {
         url.query_pairs().find(|(k, _)| k == name).unwrap().1.into_owned()
+    }
+
+    #[test]
+    fn large_tokens_are_stored_without_the_access_token() {
+        let small = Tokens {
+            access_token: "a".repeat(1000),
+            refresh_token: Some("r".repeat(1000)),
+            expires_at: Some(100),
+        };
+        assert_eq!(
+            serde_json::from_slice::<Tokens>(&secret(&small).unwrap()).unwrap(),
+            small
+        );
+
+        let large = Tokens {
+            access_token: "a".repeat(2000),
+            ..small.clone()
+        };
+        let stored: Tokens = serde_json::from_slice(&secret(&large).unwrap()).unwrap();
+        assert_eq!(stored.refresh_token, large.refresh_token);
+        assert!(stored.is_expiring(unix_now()));
+
+        let no_refresh = Tokens {
+            access_token: "a".repeat(3000),
+            refresh_token: None,
+            expires_at: None,
+        };
+        assert!(secret(&no_refresh).is_err());
     }
 
     #[test]

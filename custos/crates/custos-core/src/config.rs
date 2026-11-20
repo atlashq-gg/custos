@@ -1,4 +1,5 @@
-//! The configuration file, `$XDG_CONFIG_HOME/custos/config.toml`.
+//! The configuration file: `$XDG_CONFIG_HOME/custos/config.toml` on Linux, and
+//! `%APPDATA%\custos\config.toml` on Windows.
 
 use std::path::{Path, PathBuf};
 
@@ -8,21 +9,42 @@ use url::Url;
 /// The interval between two uploads when the file does not set one.
 pub const DEFAULT_UPLOAD_INTERVAL_SECONDS: u64 = 300;
 
+// The lines of the template that depend on the platform. A path in single quotes is a literal
+// string, so the backslashes of Windows need no escape.
+#[cfg(not(windows))]
+macro_rules! platform_template {
+    () => {
+        r#"
+# The folder that holds the save files of Foxhole. Custos finds it in the Proton prefix when this is not set.
+# save_dir = "/home/user/.local/share/Steam/steamapps/compatdata/505460/pfx/drive_c/users/steamuser/AppData/Local/Foxhole/Saved/SaveGames"
+
+# The Steam folder. Custos tries the usual locations when this is not set.
+# steam_root = "/home/user/.local/share/Steam"
+"#
+    };
+}
+#[cfg(windows)]
+macro_rules! platform_template {
+    () => {
+        r#"
+# The folder that holds the save files of Foxhole. Default: %LOCALAPPDATA%\Foxhole\Saved\SaveGames.
+# save_dir = 'C:\Users\user\AppData\Local\Foxhole\Saved\SaveGames'
+"#
+    };
+}
+
 /// The content of a new configuration file. Custos writes it when no file exists.
-pub const TEMPLATE: &str = r#"# Custos configuration.
+pub const TEMPLATE: &str = concat!(
+    r#"# Custos configuration.
 
 # The URL of the service. Custos gets all other settings from its discovery document.
 # service_url = "https://example.com"
 
 # The shortest time between two uploads, in seconds. The service can set a longer time.
 # upload_interval_seconds = 300
-
-# The folder that holds the save files of Foxhole. Custos finds it in the Proton prefix when this is not set.
-# save_dir = "/home/user/.local/share/Steam/steamapps/compatdata/505460/pfx/drive_c/users/steamuser/AppData/Local/Foxhole/Saved/SaveGames"
-
-# The Steam folder. Custos tries the usual locations when this is not set.
-# steam_root = "/home/user/.local/share/Steam"
-"#;
+"#,
+    platform_template!()
+);
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -31,6 +53,7 @@ pub struct Config {
     #[serde(default = "default_interval")]
     pub upload_interval_seconds: u64,
     pub save_dir: Option<PathBuf>,
+    /// Linux only.
     pub steam_root: Option<PathBuf>,
 }
 
@@ -165,6 +188,15 @@ mod tests {
         assert!(matches!(load(&path), Err(ConfigError::Created(_))));
         assert_eq!(std::fs::read_to_string(&path).unwrap(), TEMPLATE);
         assert!(matches!(load(&path), Err(ConfigError::Incomplete { .. })));
+    }
+
+    #[test]
+    fn template_examples_are_valid() {
+        let text: Vec<_> = TEMPLATE
+            .lines()
+            .map(|line| line.strip_prefix("# ").filter(|l| l.contains(" = ")).unwrap_or(line))
+            .collect();
+        assert!(parse(&text.join("\n")).is_ok());
     }
 
     #[test]

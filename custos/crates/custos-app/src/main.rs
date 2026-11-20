@@ -1,6 +1,9 @@
 //! The tray application of Custos. It has no window: a tray menu, desktop notifications, and the deep link
 //! `custos://oauth2callback` for the login. The work happens in [`custos_core::agent::Agent`].
 
+// A release build on Windows opens no console window.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use std::sync::Mutex;
 
 use custos_core::agent::{Agent, Command, Event, Settings, State};

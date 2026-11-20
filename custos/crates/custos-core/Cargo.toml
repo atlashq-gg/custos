@@ -14,7 +14,6 @@ workspace = true
 base64 = "0.23.1"
 dirs = "7.0.0"
 hex = "0.4.3"
-keyring = { version = "3", features = ["async-secret-service", "tokio", "crypto-rust"] }
 notify = "8"
 rand = "0.10.4"
 reqwest = { version = "0.13.5", features = ["form", "json"] }
@@ -26,6 +25,13 @@ tokio = { version = "1.54.1", features = ["rt", "macros", "time", "sync", "fs"] 
 toml = "1.2.1"
 tracing = "0.1.44"
 url = { version = "2.5.8", features = ["serde"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["async-secret-service", "tokio", "crypto-rust"] }
+
+[target.'cfg(windows)'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 
 [dev-dependencies]
 tempfile = "3.27.0"
