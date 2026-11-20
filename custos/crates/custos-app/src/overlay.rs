@@ -184,10 +184,15 @@ mod platform {
                 gtk::Align::End
             };
             for notification in self.stream.lines() {
-                let label = gtk::Label::new(Some(&notification.line()));
+                let text = notification.line();
+                let label = gtk::Label::new(Some(&text));
                 label.set_halign(align);
                 label.set_xalign(0.0);
                 label.set_line_wrap(true);
+                // The window gets its minimum size, and the minimum width of a wrapping label is its
+                // longest word. Thus the minimum width is the text, up to the limit.
+                let chars = i32::try_from(text.chars().count()).unwrap_or(i32::MAX);
+                label.set_width_chars(chars.min(self.max_chars));
                 label.set_max_width_chars(self.max_chars);
                 if notification.is_error {
                     label.style_context().add_class("error");
@@ -239,6 +244,11 @@ mod platform {
                 .approximate_char_width()
                 / pango::SCALE;
             self.max_chars = (monitor.geometry().width() * MAX_LINE_WIDTH_PERCENT / 100 / char_width.max(1)).max(1);
+            tracing::debug!(
+                "a line wraps after {} characters ({} pixels for each character)",
+                self.max_chars,
+                char_width
+            );
         }
     }
 }
