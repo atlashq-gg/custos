@@ -1,7 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
+The overlay above the game, and the first Windows version.
+
+- Installer script for Linux, `install.sh`. It installs the AppImage as `~/.local/bin/custos` with a launcher entry and icons, and replaces an installed version. `--uninstall` removes Custos and keeps the configuration and the tokens.
+- Windows installer (NSIS) for the current user, not signed. It downloads the WebView2 runtime when the computer does not have it.
+- Build provenance attestation for the AppImage, the installer script, and the Windows installer.
 - Custos applies each change of the configuration file at once, without a restart. If the file is not valid, Custos shows the error and keeps the last valid configuration.
 - A clear message when the service is not available, with the cause, for example `Connection refused`. The message shows within 10 seconds when the host does not answer. Before, it showed after 60 seconds.
 - Overlay on Linux: the messages show as lines above the game while Foxhole runs, on the monitor of the game. A native GTK window on the overlay layer of the layer-shell protocol, for example on KDE Plasma 6 and Sway. Desktop notifications when the overlay is not open. New configuration table `[overlay]` with `enabled`, `anchor`, and `offset`.
