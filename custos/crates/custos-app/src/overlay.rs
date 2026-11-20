@@ -230,7 +230,8 @@ mod platform {
                 label.set_width_chars(chars.min(self.max_chars));
                 label.set_max_width_chars(self.max_chars);
                 if notification.is_error {
-                    label.style_context().add_class("error");
+                    // Not the class "error": a GTK theme can give it a background.
+                    label.style_context().add_class("custos-error");
                 }
                 label.show();
                 self.lines.add(&label);

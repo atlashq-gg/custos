@@ -6,10 +6,14 @@
     font-family: "JetBrains Mono", "Cascadia Mono", "Fira Code", "Source Code Pro", "Hack",
         "Noto Sans Mono", monospace;
     font-size: 11pt;
+    /* No background, border, or shadow from the GTK theme. */
+    background: none;
+    border: none;
+    box-shadow: none;
     color: #00ff41;
     text-shadow: 0 0 4px rgba(0, 255, 65, 0.7), 1px 1px 2px rgba(0, 0, 0, 0.9);
 }
-#custos-overlay label.error {
+#custos-overlay label.custos-error {
     color: #ff4141;
     text-shadow: 0 0 4px rgba(255, 65, 65, 0.7), 1px 1px 2px rgba(0, 0, 0, 0.9);
 }
