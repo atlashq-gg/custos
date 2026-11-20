@@ -17,7 +17,7 @@ Custos is a tray application for Linux and Windows. It watches the map data file
 - Linux with a desktop that shows tray icons through StatusNotifierItem. KDE Plasma does. GNOME needs an extension, for example AppIndicator and KStatusNotifierItem Support.
 - A Secret Service for the tokens, for example GNOME Keyring or KWallet.
 - Foxhole in Steam with Proton.
-- For the overlay: a Wayland desktop with the layer-shell protocol, for example KDE Plasma 6 or Sway. On GNOME, Custos shows desktop notifications.
+- For the overlay: a Wayland desktop with the layer-shell protocol, for example KDE Plasma 6 or Sway, or GNOME through XWayland.
 
 On Windows:
 
@@ -91,7 +91,7 @@ Custos finds the monitor of the game through the window list of XWayland. If it 
 
 The overlay takes no pointer input and no keyboard input, so the game keeps them. When Foxhole stops, the overlay closes, and Custos shows desktop notifications.
 
-The overlay needs the layer-shell protocol of Wayland. If the desktop does not have it, Custos writes `cannot open the overlay` to the log and shows desktop notifications. Windows has no overlay in this version.
+The overlay needs the layer-shell protocol of Wayland. GNOME does not have it. Thus on GNOME on Wayland, Custos starts again with the X11 backend of GTK (`GDK_BACKEND=x11`). The overlay is then an X11 window of XWayland above the other windows. Custos does this only with `enabled = true` in `[overlay]`, and only when `GDK_BACKEND` is not set. The tray, the notifications, and the login link then also use X11. On another desktop without the layer-shell protocol, Custos writes `cannot open the overlay` to the log and shows desktop notifications. Windows has no overlay in this version.
 
 ## Notifications
 

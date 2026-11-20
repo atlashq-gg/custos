@@ -45,6 +45,12 @@ fn main() {
         )
         .init();
 
+    let loaded = config::default_path().and_then(|path| config::load(&path));
+    #[cfg(target_os = "linux")]
+    if let Ok(config) = &loaded {
+        restart_with_x11(config.overlay.enabled);
+    }
+
     // The single-instance plugin is first: a second start, for example from the login link, gives its
     // arguments to the first instance, and the deep-link plugin reads the link from them.
     let app = tauri::Builder::default()
@@ -53,7 +59,7 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            setup(app.handle())?;
+            setup(app.handle(), loaded)?;
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -69,7 +75,35 @@ fn main() {
     });
 }
 
-fn setup(app: &AppHandle) -> tauri::Result<()> {
+/// On GNOME on Wayland, starts Custos again with the X11 backend of GDK, so that the overlay can be an
+/// X11 window above the game. The new process replaces this one, so no second instance exists. Returns
+/// only when no restart is necessary or the restart fails.
+#[cfg(target_os = "linux")]
+fn restart_with_x11(overlay_enabled: bool) {
+    use std::os::unix::process::CommandExt;
+
+    use custos_core::screen::{X11_MARKER, needs_x11_restart};
+
+    if !needs_x11_restart(|name| std::env::var(name).ok(), overlay_enabled) {
+        return;
+    }
+    // In an AppImage, the executable is in a temporary mount. The AppImage file starts it again.
+    let Some(program) = std::env::var_os("APPIMAGE")
+        .map(std::path::PathBuf::from)
+        .or_else(|| std::env::current_exe().ok())
+    else {
+        return;
+    };
+    tracing::info!("GNOME has no layer-shell protocol. Custos starts again with the X11 backend.");
+    let error = std::process::Command::new(program)
+        .args(std::env::args_os().skip(1))
+        .env("GDK_BACKEND", "x11")
+        .env(X11_MARKER, "1")
+        .exec();
+    tracing::warn!("cannot start Custos again with the X11 backend: {error}");
+}
+
+fn setup(app: &AppHandle, loaded: Result<config::Config, config::ConfigError>) -> tauri::Result<()> {
     // An AppImage or a development build has no installed desktop file. This registers the scheme for
     // the current binary.
     if let Err(e) = app.deep_link().register_all() {
@@ -102,7 +136,7 @@ fn setup(app: &AppHandle) -> tauri::Result<()> {
         .on_menu_event(|app, event| on_menu_event(app, &event))
         .build(app)?;
 
-    let commands = match config::default_path().and_then(|path| config::load(&path)) {
+    let commands = match loaded {
         Ok(config) => Some(start_agent(app, config)),
         Err(e) => {
             status.set_text("Not configured")?;
