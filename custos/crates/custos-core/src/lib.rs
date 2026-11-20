@@ -7,6 +7,7 @@ pub mod agent;
 pub mod auth;
 pub mod config;
 pub mod discovery;
+pub mod layout;
 pub mod locate;
 pub mod process;
 pub mod schedule;

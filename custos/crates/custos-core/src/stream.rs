@@ -111,7 +111,18 @@ pub struct Notification {
     pub is_error: bool,
 }
 
+/// The prompt of a line, and of the overlay while no line types.
+pub const PROMPT: &str = "> ";
+/// The prompt of an error line.
+pub const ERROR_PROMPT: &str = "! ";
+
 impl Notification {
+    /// The prompt in front of the line.
+    #[must_use]
+    pub fn prompt(&self) -> &'static str {
+        if self.is_error { ERROR_PROMPT } else { PROMPT }
+    }
+
     /// The text of the overlay line. The title of an error says nothing, so the line is the body only.
     #[must_use]
     pub fn line(&self) -> String {
