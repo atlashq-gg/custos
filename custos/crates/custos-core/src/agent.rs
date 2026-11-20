@@ -581,12 +581,15 @@ mod tests {
 
     impl Fixture {
         async fn start(tokens: Option<Tokens>) -> Self {
+            Self::start_with(tokens, Arc::new(AtomicBool::new(false))).await
+        }
+
+        async fn start_with(tokens: Option<Tokens>, game: Arc<AtomicBool>) -> Self {
             let server =
                 crate::discovery::tests::mock_service(|d| d["upload_min_interval_seconds"] = 0.into(), |_| {}).await;
 
             let save_dir = tempfile::tempdir().unwrap();
             std::fs::write(save_dir.path().join("1_MapData.sav"), b"GVAS0001").unwrap();
-            let game = Arc::new(AtomicBool::new(false));
             let store = Arc::new(MemoryStore::default());
             if let Some(tokens) = &tokens {
                 store.save(tokens).unwrap();
@@ -693,6 +696,19 @@ mod tests {
         f.next(|e| *e == Event::GameRunning(false)).await;
         f.next(is_state(State::Idle)).await;
         // The same file is not sent again: wiremock checks expect(1) when the server drops.
+    }
+
+    #[tokio::test]
+    async fn game_that_runs_before_the_start_opens_the_overlay() {
+        let game = Arc::new(AtomicBool::new(true));
+        let mut f = Fixture::start_with(Some(tokens("a1")), game).await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(RESULT, "application/json"))
+            .mount(&f.server)
+            .await;
+
+        f.next(|e| *e == Event::GameRunning(true)).await;
+        f.next(is_notification).await;
     }
 
     #[tokio::test]

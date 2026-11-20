@@ -1,8 +1,11 @@
-//! The tray application of Custos. It has no window: a tray menu, desktop notifications, and the deep link
-//! `custos://oauth2callback` for the login. The work happens in [`custos_core::agent::Agent`].
+//! The tray application of Custos: a tray menu, the overlay while Foxhole runs, desktop notifications,
+//! and the deep link `custos://oauth2callback` for the login. The work happens in
+//! [`custos_core::agent::Agent`].
 
 // A release build on Windows opens no console window.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+mod overlay;
 
 use std::sync::Mutex;
 
@@ -135,13 +138,14 @@ fn setup(app: &AppHandle) -> tauri::Result<()> {
 fn start_agent(app: &AppHandle, config: config::Config) -> mpsc::UnboundedSender<Command> {
     let (commands, command_rx) = mpsc::unbounded_channel();
     let (event_tx, mut events) = mpsc::unbounded_channel();
+    let overlay = config.overlay;
 
     tauri::async_runtime::spawn(Agent::new(Settings::desktop(config), event_tx).run(command_rx));
 
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(event) = events.recv().await {
-            if let Err(e) = on_agent_event(&app, event) {
+            if let Err(e) = on_agent_event(&app, overlay, event) {
                 tracing::warn!("cannot show an event: {e}");
             }
         }
@@ -150,7 +154,7 @@ fn start_agent(app: &AppHandle, config: config::Config) -> mpsc::UnboundedSender
     commands
 }
 
-fn on_agent_event(app: &AppHandle, event: Event) -> tauri::Result<()> {
+fn on_agent_event(app: &AppHandle, overlay: config::Overlay, event: Event) -> tauri::Result<()> {
     match event {
         Event::State(state) => {
             let tray = app.state::<Tray>();
@@ -169,9 +173,23 @@ fn on_agent_event(app: &AppHandle, event: Event) -> tauri::Result<()> {
             }
             *tray.state.lock().expect("the state lock is not poisoned") = Some(state);
         }
-        Event::Notify(n) => notify(app, &n.title, &n.body),
-        // The desktop route has nothing to remove. The overlay uses these events.
-        Event::GameRunning(_) | Event::Expire(_) => {}
+        // The overlay is open while Foxhole runs. If it does not open, Custos shows desktop notifications.
+        Event::GameRunning(true) if overlay.enabled => app.run_on_main_thread(move || {
+            if let Err(e) = overlay::open(overlay) {
+                tracing::warn!("cannot open the overlay: {e}. Custos shows desktop notifications.");
+            }
+        })?,
+        Event::GameRunning(_) => app.run_on_main_thread(overlay::close)?,
+        // A message goes to the overlay when it is open, else to a desktop notification.
+        Event::Notify(n) => {
+            let app = app.clone();
+            app.clone().run_on_main_thread(move || {
+                if let Some(n) = overlay::put(n) {
+                    notify(&app, &n.title, &n.body);
+                }
+            })?;
+        }
+        Event::Expire(reference) => app.run_on_main_thread(move || overlay::expire(&reference))?,
         Event::OpenUrl(url) => {
             if let Err(e) = app.opener().open_url(url.as_str(), None::<&str>) {
                 notify(

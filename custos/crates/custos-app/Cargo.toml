@@ -26,5 +26,10 @@ tokio = { version = "1.54.1", features = ["sync"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 
+# The overlay window on Linux.
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
+gtk-layer-shell = { version = "0.8", features = ["v0_6"] }
+
 [build-dependencies]
 tauri-build = "2"

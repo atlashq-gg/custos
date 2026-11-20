@@ -43,7 +43,18 @@ pub const TEMPLATE: &str = concat!(
 # The shortest time between two uploads, in seconds. The service can set a longer time.
 # upload_interval_seconds = 300
 "#,
-    platform_template!()
+    platform_template!(),
+    r#"
+# The overlay shows the messages above the game while Foxhole runs. Without it, Custos shows
+# desktop notifications.
+# [overlay]
+# enabled = true
+# The corner of the screen: "top-left", "top-right", "bottom-left", or "bottom-right".
+# anchor = "top-left"
+# The distance from the top or bottom edge, in percent of the monitor height, from 0 to 90. In the
+# top left corner, the default puts the overlay below the notifications of the game.
+# offset = 28
+"#
 );
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -55,6 +66,53 @@ pub struct Config {
     pub save_dir: Option<PathBuf>,
     /// Linux only.
     pub steam_root: Option<PathBuf>,
+    #[serde(default)]
+    pub overlay: Overlay,
+}
+
+/// The `[overlay]` table.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Overlay {
+    pub enabled: bool,
+    pub anchor: Anchor,
+    /// The distance from the top or bottom edge, in percent of the monitor height.
+    pub offset: u8,
+}
+
+/// The largest value of [`Overlay::offset`].
+pub const MAX_OVERLAY_OFFSET: u8 = 90;
+
+impl Default for Overlay {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            anchor: Anchor::TopLeft,
+            offset: 28,
+        }
+    }
+}
+
+/// The corner of the screen where the overlay shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Anchor {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+impl Anchor {
+    #[must_use]
+    pub fn is_top(self) -> bool {
+        matches!(self, Anchor::TopLeft | Anchor::TopRight)
+    }
+
+    #[must_use]
+    pub fn is_left(self) -> bool {
+        matches!(self, Anchor::TopLeft | Anchor::BottomLeft)
+    }
 }
 
 fn default_interval() -> u64 {
@@ -75,6 +133,8 @@ pub enum ConfigError {
     Insecure(Url),
     #[error("the service URL must not have a query or a fragment: {0}")]
     QueryOrFragment(Url),
+    #[error("overlay.offset must be at most {MAX_OVERLAY_OFFSET}: {0}")]
+    OverlayOffset(u8),
     #[error("cannot find the configuration folder of this user")]
     NoConfigDir,
 }
@@ -132,6 +192,9 @@ fn parse(text: &str) -> Result<Config, ParseError> {
     if config.service_url.query().is_some() || config.service_url.fragment().is_some() {
         return Err(ParseError::Rule(ConfigError::QueryOrFragment(config.service_url)));
     }
+    if config.overlay.offset > MAX_OVERLAY_OFFSET {
+        return Err(ParseError::Rule(ConfigError::OverlayOffset(config.overlay.offset)));
+    }
 
     Ok(config)
 }
@@ -154,6 +217,7 @@ mod tests {
         };
         assert_eq!(config.upload_interval_seconds, DEFAULT_UPLOAD_INTERVAL_SECONDS);
         assert_eq!(config.save_dir, None);
+        assert_eq!(config.overlay, Overlay::default());
     }
 
     #[test]
@@ -164,11 +228,24 @@ mod tests {
             upload_interval_seconds = 30
             save_dir = "/tmp/saves"
             steam_root = "/tmp/steam"
+
+            [overlay]
+            enabled = false
+            anchor = "bottom-right"
+            offset = 0
             "#,
         ) else {
             panic!()
         };
         assert_eq!(config.upload_interval_seconds, 30);
+        assert_eq!(
+            config.overlay,
+            Overlay {
+                enabled: false,
+                anchor: Anchor::BottomRight,
+                offset: 0,
+            }
+        );
         assert_eq!(config.save_dir.as_deref(), Some(Path::new("/tmp/saves")));
     }
 
@@ -177,6 +254,14 @@ mod tests {
         assert!(matches!(
             parse(r#"service_url = "http://example.com""#),
             Err(ParseError::Rule(ConfigError::Insecure(_)))
+        ));
+    }
+
+    #[test]
+    fn overlay_offset_above_the_limit_is_refused() {
+        assert!(matches!(
+            parse("service_url = \"https://example.com\"\n[overlay]\noffset = 91"),
+            Err(ParseError::Rule(ConfigError::OverlayOffset(91)))
         ));
     }
 
@@ -194,7 +279,11 @@ mod tests {
     fn template_examples_are_valid() {
         let text: Vec<_> = TEMPLATE
             .lines()
-            .map(|line| line.strip_prefix("# ").filter(|l| l.contains(" = ")).unwrap_or(line))
+            .map(|line| {
+                line.strip_prefix("# ")
+                    .filter(|l| l.contains(" = ") || l.starts_with('['))
+                    .unwrap_or(line)
+            })
             .collect();
         assert!(parse(&text.join("\n")).is_ok());
     }
