@@ -53,6 +53,7 @@ internal static partial class DiscordSetup
         builder.Services.AddScoped<IDiscordDirectory, GatewayDirectory>();
         builder.Services.AddScoped<GuildAccessEvaluator>();
         builder.Services.AddHttpClient<SettingsAttachmentReader>();
+        builder.Services.AddTransient<StructureAutocomplete>();
         return builder;
     }
 

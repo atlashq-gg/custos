@@ -59,6 +59,16 @@ public sealed class Structure
     /// <summary>The structure type. A player can upgrade a structure, so it can change.</summary>
     public required string CodeName { get; set; }
 
+    /// <summary>
+    /// The label that the server generates for a new structure. It never changes. Null only for a
+    /// row of 0.1.0 until <see cref="LabelBackfill"/> generates it.
+    /// </summary>
+    public string? GeneratedLabel { get; set; }
+
+    /// <summary>The label that a user set. The label that shows is this label, or <see
+    /// cref="GeneratedLabel"/> when it is null.</summary>
+    public string? Label { get; set; }
+
     /// <summary><c>LastUpdated</c> of the state in this row.</summary>
     public required DateTimeOffset ObservedAt { get; set; }
 
@@ -154,4 +164,44 @@ public sealed class GuildSettingsRow
 
     /// <summary>The Discord user ID of the last change.</summary>
     public required long UpdatedBy { get; set; }
+}
+
+/// <summary>Reference data: the map data of a region for one war, from the war API.</summary>
+public sealed class MapRegion
+{
+    public required Guid WarId { get; init; }
+    public required string Region { get; init; }
+
+    /// <summary>The <c>ETag</c> of the static map data, for <c>If-None-Match</c> in the next
+    /// war.</summary>
+    public string? StaticEtag { get; init; }
+
+    public required DateTimeOffset FetchedAt { get; init; }
+}
+
+/// <summary>A place name of a region: an entry of <c>mapTextItems</c> of the static map
+/// data.</summary>
+public sealed class MapPlace
+{
+    public required Guid WarId { get; init; }
+    public required string Region { get; init; }
+    public required int PlaceIndex { get; init; }
+    public required string Name { get; init; }
+    public required float X { get; init; }
+    public required float Y { get; init; }
+
+    /// <summary><c>mapMarkerType</c> is <c>Major</c>.</summary>
+    public required bool Major { get; init; }
+}
+
+/// <summary>A map item of a region: an entry of <c>mapItems</c> of the public dynamic map data. A
+/// structure at its coordinates is a world structure.</summary>
+public sealed class MapItem
+{
+    public required Guid WarId { get; init; }
+    public required string Region { get; init; }
+    public required int ItemIndex { get; init; }
+    public required int IconType { get; init; }
+    public required float X { get; init; }
+    public required float Y { get; init; }
 }

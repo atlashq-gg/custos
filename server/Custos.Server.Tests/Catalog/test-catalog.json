@@ -1,0 +1,41 @@
+{
+  "source": "Written for the tests. The display names are not from the game.",
+  "retrieved_at": "2026-11-20",
+  "entries": [
+    {
+      "code_name": "FortBaseT2",
+      "display_name": "Test Base (Tier 2)",
+      "kind": "structure",
+      "category": "Test Bases",
+      "faction": "both"
+    },
+    {
+      "code_name": "Seaport",
+      "display_name": "Test Port",
+      "kind": "structure",
+      "category": "Test Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "StorageFacility",
+      "display_name": "Test Depot",
+      "kind": "structure",
+      "category": "Test Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "RifleC",
+      "display_name": "Test Rifle",
+      "kind": "item",
+      "category": "Test Arms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TruckC",
+      "display_name": "Test Truck",
+      "kind": "vehicle",
+      "category": "Test Trucks",
+      "faction": "colonial"
+    }
+  ]
+}

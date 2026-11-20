@@ -10,7 +10,7 @@ namespace Custos.Server.Storage;
 /// the history tables, and ends the earlier wars of the shard: the war API reports a new war only
 /// when the earlier war ended.
 /// </summary>
-internal sealed class WarRegistry(
+public sealed class WarRegistry(
     CustosDbContext db,
     IMemoryCache cache,
     IOptions<CustosOptions> options,
@@ -75,6 +75,17 @@ internal sealed class WarRegistry(
     /// The partition of one war, for example <c>stockpile_changes_w142</c>. War numbers repeat
     /// across shards, but the server supports one shard.
     /// </summary>
+    /// <summary>The current war of the shard: the latest war without an end.</summary>
+    public Task<War?> CurrentAsync(CancellationToken cancellationToken)
+    {
+        var shard = options.Value.Shard;
+        return db
+            .Wars.AsNoTracking()
+            .Where(w => w.Shard == shard && w.EndedAt == null)
+            .OrderByDescending(w => w.WarNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     private static string PartitionName(string table, int warNumber) =>
         string.Create(CultureInfo.InvariantCulture, $"{table}_w{warNumber}");
 

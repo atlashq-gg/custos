@@ -64,6 +64,10 @@ internal sealed class CustosFactory(
         builder.UseSetting("Custos:DevelopmentDiscordUserId", DevelopmentDiscordUserId.ToString());
         builder.UseSetting("Custos:WarPollIntervalSeconds", "0");
         builder.UseSetting(
+            "Custos:CatalogPath",
+            Path.Combine(AppContext.BaseDirectory, "Catalog", "test-catalog.json")
+        );
+        builder.UseSetting(
             $"ConnectionStrings:{CustosDbContext.ConnectionName}",
             _connectionString
         );
@@ -154,11 +158,22 @@ internal sealed class FakeWarApi : HttpMessageHandler
     public int Calls { get; private set; }
     public Uri? LastRequest { get; private set; }
 
+    /// <summary>The map data of each region: the place names, the map items, and the ETag of the
+    /// static data.</summary>
+    public Dictionary<string, FakeMap> Maps { get; } = [];
+
+    /// <summary>The requests for static map data that got <c>304</c>.</summary>
+    public int NotModified { get; private set; }
+
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken
     )
     {
+        var path = request.RequestUri!.AbsolutePath;
+        if (path.StartsWith(WarApiClient.MapsPath, StringComparison.Ordinal))
+            return Task.FromResult(MapAnswer(request, path[WarApiClient.MapsPath.Length..]));
+
         Calls++;
         LastRequest = request.RequestUri;
         var fail = Fail || Failures-- > 0;
@@ -179,4 +194,57 @@ internal sealed class FakeWarApi : HttpMessageHandler
                 }
         );
     }
+
+    private HttpResponseMessage MapAnswer(HttpRequestMessage request, string path)
+    {
+        if (path is "" or "/")
+            return Json(Maps.Keys.ToArray());
+
+        var parts = path.Trim('/').Split('/');
+        if (!Maps.TryGetValue(parts[0], out var map))
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+
+        if (parts[1] == "static")
+        {
+            if (request.Headers.IfNoneMatch.ToString() == map.ETag)
+            {
+                NotModified++;
+                return new HttpResponseMessage(HttpStatusCode.NotModified);
+            }
+            var answer = Json(
+                new
+                {
+                    mapTextItems = map.Places.Select(p => new
+                    {
+                        text = p.Text,
+                        x = p.X,
+                        y = p.Y,
+                        mapMarkerType = p.Major ? "Major" : "Minor",
+                    }),
+                }
+            );
+            answer.Headers.TryAddWithoutValidation("ETag", map.ETag);
+            return answer;
+        }
+
+        return Json(
+            new
+            {
+                mapItems = map.Items.Select(i => new
+                {
+                    teamId = "NONE",
+                    iconType = i.IconType,
+                    x = i.X,
+                    y = i.Y,
+                    flags = 0,
+                }),
+            }
+        );
+    }
+
+    private static HttpResponseMessage Json<T>(T value) =>
+        new(HttpStatusCode.OK) { Content = JsonContent.Create(value) };
 }
+
+/// <summary>The map data of one region in <see cref="FakeWarApi"/>.</summary>
+internal sealed record FakeMap(MapText[] Places, MapIcon[] Items, string ETag = "\"1\"");

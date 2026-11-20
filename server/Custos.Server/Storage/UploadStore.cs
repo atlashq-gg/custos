@@ -13,7 +13,11 @@ namespace Custos.Server.Storage;
 /// sighting: if the content of an entity is equal to its current state, the store only moves
 /// <c>last_seen_at</c>.
 /// </summary>
-internal sealed class UploadStore(CustosDbContext db, IOptions<CustosOptions> options)
+internal sealed class UploadStore(
+    CustosDbContext db,
+    StructureLabels labels,
+    IOptions<CustosOptions> options
+)
 {
     private enum Observation
     {
@@ -117,6 +121,14 @@ internal sealed class UploadStore(CustosDbContext db, IOptions<CustosOptions> op
                 );
             }
         }
+
+        // Each new structure gets its generated label under the lock of the guild.
+        var created = db
+            .ChangeTracker.Entries<Structure>()
+            .Where(e => e.State == EntityState.Added)
+            .Select(e => e.Entity)
+            .ToList();
+        await labels.GenerateAsync(guildId, warId, created, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
