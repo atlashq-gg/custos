@@ -112,22 +112,10 @@ mod platform {
             return Err("the desktop does not support the layer-shell protocol".into());
         }
 
-        // A transparent window: an RGBA visual, and a clear background before GTK draws the lines.
         let screen = WidgetExt::screen(&window).ok_or("the window has no screen")?;
-        window.set_visual(screen.rgba_visual().as_ref());
-        window.set_app_paintable(true);
-        window.connect_draw(|_, cr| {
-            cr.set_operator(cairo::Operator::Source);
-            cr.set_source_rgba(0.0, 0.0, 0.0, 0.0);
-            let _ = cr.paint();
-            glib::Propagation::Proceed
-        });
+        make_transparent(&window, &screen);
         let style = gtk::CssProvider::new();
         style.load_from_data(CSS.as_bytes()).map_err(|e| e.to_string())?;
-
-        // An empty input region: the pointer goes through the window to the game. GTK sets the region
-        // again each time that it creates the surface.
-        window.input_shape_combine_region(Some(&cairo::Region::create()));
 
         let align = if anchor.is_left() {
             gtk::Align::Start
@@ -185,6 +173,28 @@ mod platform {
         });
         OVERLAY.with_borrow_mut(|o| *o = Some(overlay));
         Ok(())
+    }
+
+    /// Makes the window transparent to the eye and to the pointer.
+    fn make_transparent(window: &gtk::Window, screen: &gdk::Screen) {
+        // An RGBA visual, and a clear background before GTK draws the lines.
+        window.set_visual(screen.rgba_visual().as_ref());
+        window.set_app_paintable(true);
+        window.connect_draw(|_, cr| {
+            cr.set_operator(cairo::Operator::Source);
+            cr.set_source_rgba(0.0, 0.0, 0.0, 0.0);
+            let _ = cr.paint();
+            glib::Propagation::Proceed
+        });
+
+        // An empty input region: the pointer and its clicks go through the window to the game. GTK does
+        // not keep it: a new surface has no input region, and when the window changes size, GTK sends
+        // no region, which takes all input (WAYLAND_DEBUG showed `set_input_region(nil)`). Thus set
+        // the region again at each map and after each new size.
+        let pass_through = |window: &gtk::Window| window.input_shape_combine_region(Some(&cairo::Region::create()));
+        pass_through(window);
+        window.connect_map(pass_through);
+        window.connect_size_allocate(move |window, _| pass_through(window));
     }
 
     /// Closes the overlay, if it is open.
