@@ -204,6 +204,7 @@ mod platform {
 
     pub fn close() {}
 
+    #[expect(clippy::unnecessary_wraps, reason = "the same signature as on Linux")]
     pub fn put(notification: Notification) -> Option<Notification> {
         Some(notification)
     }
