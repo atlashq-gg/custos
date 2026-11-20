@@ -51,6 +51,9 @@ pub const TEMPLATE: &str = concat!(
 # enabled = true
 # The corner of the screen: "top-left", "top-right", "bottom-left", or "bottom-right".
 # anchor = "top-left"
+# The distance from the top or bottom edge, in percent of the monitor height, from 0 to 90. In the
+# top left corner, the default puts the overlay below the notifications of the game.
+# offset = 36
 "#
 );
 
@@ -73,13 +76,19 @@ pub struct Config {
 pub struct Overlay {
     pub enabled: bool,
     pub anchor: Anchor,
+    /// The distance from the top or bottom edge, in percent of the monitor height.
+    pub offset: u8,
 }
+
+/// The largest value of [`Overlay::offset`].
+pub const MAX_OVERLAY_OFFSET: u8 = 90;
 
 impl Default for Overlay {
     fn default() -> Self {
         Self {
             enabled: true,
             anchor: Anchor::TopLeft,
+            offset: 36,
         }
     }
 }
@@ -124,6 +133,8 @@ pub enum ConfigError {
     Insecure(Url),
     #[error("the service URL must not have a query or a fragment: {0}")]
     QueryOrFragment(Url),
+    #[error("overlay.offset must be at most {MAX_OVERLAY_OFFSET}: {0}")]
+    OverlayOffset(u8),
     #[error("cannot find the configuration folder of this user")]
     NoConfigDir,
 }
@@ -181,6 +192,9 @@ fn parse(text: &str) -> Result<Config, ParseError> {
     if config.service_url.query().is_some() || config.service_url.fragment().is_some() {
         return Err(ParseError::Rule(ConfigError::QueryOrFragment(config.service_url)));
     }
+    if config.overlay.offset > MAX_OVERLAY_OFFSET {
+        return Err(ParseError::Rule(ConfigError::OverlayOffset(config.overlay.offset)));
+    }
 
     Ok(config)
 }
@@ -218,6 +232,7 @@ mod tests {
             [overlay]
             enabled = false
             anchor = "bottom-right"
+            offset = 0
             "#,
         ) else {
             panic!()
@@ -227,7 +242,8 @@ mod tests {
             config.overlay,
             Overlay {
                 enabled: false,
-                anchor: Anchor::BottomRight
+                anchor: Anchor::BottomRight,
+                offset: 0,
             }
         );
         assert_eq!(config.save_dir.as_deref(), Some(Path::new("/tmp/saves")));
@@ -238,6 +254,14 @@ mod tests {
         assert!(matches!(
             parse(r#"service_url = "http://example.com""#),
             Err(ParseError::Rule(ConfigError::Insecure(_)))
+        ));
+    }
+
+    #[test]
+    fn overlay_offset_above_the_limit_is_refused() {
+        assert!(matches!(
+            parse("service_url = \"https://example.com\"\n[overlay]\noffset = 91"),
+            Err(ParseError::Rule(ConfigError::OverlayOffset(91)))
         ));
     }
 

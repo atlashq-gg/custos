@@ -6,7 +6,7 @@
 //!
 //! Call each function on the main thread.
 
-use custos_core::config::Anchor;
+use custos_core::config::Overlay as Settings;
 use custos_core::stream::{Notification, Reference};
 
 pub use platform::{close, expire, open, put};
@@ -22,7 +22,7 @@ mod platform {
     use gtk::{cairo, glib, pango};
     use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 
-    use super::{Anchor, Notification, Reference};
+    use super::{Notification, Reference, Settings};
 
     /// The distance between the overlay and the edges of the screen, in pixels.
     const MARGIN: i32 = 16;
@@ -50,7 +50,7 @@ mod platform {
         lines: gtk::Box,
         /// The style, which applies to the screen until the overlay closes.
         style: gtk::CssProvider,
-        anchor: Anchor,
+        settings: Settings,
         /// The number of characters after which a line wraps.
         max_chars: i32,
         stream: Stream,
@@ -63,7 +63,8 @@ mod platform {
     }
 
     /// Opens the overlay. It stays hidden while it has no lines.
-    pub fn open(anchor: Anchor) -> Result<(), String> {
+    pub fn open(settings: Settings) -> Result<(), String> {
+        let anchor = settings.anchor;
         if !gtk_layer_shell::is_supported() {
             return Err("the desktop does not support the layer-shell protocol".into());
         }
@@ -118,7 +119,7 @@ mod platform {
                 window,
                 lines,
                 style,
-                anchor,
+                settings,
                 max_chars: 80,
                 stream: Stream::default(),
                 ticker,
@@ -178,7 +179,7 @@ mod platform {
             for child in self.lines.children() {
                 self.lines.remove(&child);
             }
-            let align = if self.anchor.is_left() {
+            let align = if self.settings.anchor.is_left() {
                 gtk::Align::Start
             } else {
                 gtk::Align::End
@@ -209,8 +210,8 @@ mod platform {
             }
         }
 
-        /// Puts the window on the monitor of the game, and sets the line width for that monitor. When
-        /// Custos cannot find the game window, the desktop selects the monitor.
+        /// Puts the window on the monitor of the game, and sets the offset and the line width for that
+        /// monitor. When Custos cannot find the game window, the desktop selects the monitor.
         fn place(&mut self) {
             let display = WidgetExt::display(&self.window);
             let monitors: Vec<_> = (0..display.n_monitors()).filter_map(|i| display.monitor(i)).collect();
@@ -236,6 +237,16 @@ mod platform {
                 first
             };
 
+            // The offset is a share of the monitor height, so that it fits each screen size.
+            let height = monitor.geometry().height();
+            let edge = if self.settings.anchor.is_top() {
+                Edge::Top
+            } else {
+                Edge::Bottom
+            };
+            self.window
+                .set_layer_shell_margin(edge, MARGIN + height * i32::from(self.settings.offset) / 100);
+
             let font = pango::FontDescription::from_string(FONT);
             let char_width = self
                 .window
@@ -255,9 +266,9 @@ mod platform {
 
 #[cfg(not(target_os = "linux"))]
 mod platform {
-    use super::{Anchor, Notification, Reference};
+    use super::{Notification, Reference, Settings};
 
-    pub fn open(_anchor: Anchor) -> Result<(), String> {
+    pub fn open(_settings: Settings) -> Result<(), String> {
         Err("this version has no overlay on this platform".into())
     }
 

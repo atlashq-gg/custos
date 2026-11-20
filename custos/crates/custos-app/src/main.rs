@@ -175,7 +175,7 @@ fn on_agent_event(app: &AppHandle, overlay: config::Overlay, event: Event) -> ta
         }
         // The overlay is open while Foxhole runs. If it does not open, Custos shows desktop notifications.
         Event::GameRunning(true) if overlay.enabled => app.run_on_main_thread(move || {
-            if let Err(e) = overlay::open(overlay.anchor) {
+            if let Err(e) = overlay::open(overlay) {
                 tracing::warn!("cannot open the overlay: {e}. Custos shows desktop notifications.");
             }
         })?,
