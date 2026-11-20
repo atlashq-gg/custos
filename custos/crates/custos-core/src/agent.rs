@@ -24,6 +24,8 @@ use crate::watch;
 const ERROR_REPEAT: Duration = Duration::from_secs(15 * 60);
 /// The wait before Custos gets the discovery document again after a failure.
 const DISCOVERY_RETRY: Duration = Duration::from_secs(60);
+/// The message when Custos has no valid token.
+const SIGN_IN_REQUIRED: &str = "Sign in to send stockpile data. Use the Custos menu in the tray.";
 /// The longest wait for a connection to the service. Without it, a host that does not answer blocks
 /// Custos until the timeout of the request.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -228,6 +230,7 @@ impl Agent {
                 self.game_running = running;
                 self.emit(Event::GameRunning(running));
                 if running {
+                    self.announce_problems();
                     self.start_watching();
                 } else {
                     self.stop_watching();
@@ -257,10 +260,7 @@ impl Agent {
 
         if self.state.as_ref() != Some(&state) {
             if state == State::SignedOut && self.state.is_some() {
-                self.notify_error(
-                    Kind::SignInRequired,
-                    "Sign in to send stockpile data. Use the Custos menu in the tray.",
-                );
+                self.notify_error(Kind::SignInRequired, SIGN_IN_REQUIRED);
             }
             self.state = Some(state.clone());
             self.emit(Event::State(state));
@@ -279,6 +279,18 @@ impl Agent {
         if moved && self.game_running {
             self.stop_watching();
             self.start_watching();
+        }
+    }
+
+    /// Shows the problems that are still current when the game starts, because the overlay opens then.
+    /// An error that showed before, for example as a desktop notification, shows again: the repeat rule
+    /// starts again, and Custos tries the discovery again at once.
+    fn announce_problems(&mut self) {
+        self.shown_errors.clear();
+        if self.service.is_none() {
+            self.last_discovery_attempt = None;
+        } else if self.tokens.is_none() {
+            self.notify_error(Kind::SignInRequired, SIGN_IN_REQUIRED);
         }
     }
 
@@ -775,10 +787,14 @@ mod tests {
     async fn unreachable_service_shows_an_error_with_the_cause() {
         // Nothing listens on port 1, so the connection fails at once.
         let config: Config = toml::from_str("service_url = \"http://localhost:1\"").unwrap();
+        let game = Arc::new(AtomicBool::new(false));
         let settings = Settings {
             config,
             store: Arc::new(MemoryStore::default()),
-            is_game_running: Box::new(|| false),
+            is_game_running: Box::new({
+                let game = game.clone();
+                move || game.load(Ordering::Relaxed)
+            }),
             steam_roots: vec![],
             tick: Duration::from_millis(20),
             process_poll: Duration::from_millis(20),
@@ -809,6 +825,22 @@ mod tests {
             "{}",
             notification.body
         );
+
+        // The overlay opens when the game starts, so the error shows again at once.
+        game.store(true, Ordering::Relaxed);
+        let again = tokio::time::timeout(Duration::from_secs(5), async {
+            let mut started = false;
+            loop {
+                match events.recv().await {
+                    Some(Event::GameRunning(true)) => started = true,
+                    Some(Event::Notify(n)) if started && n.reference == Kind::ServiceError.into() => return n,
+                    _ => {}
+                }
+            }
+        })
+        .await
+        .expect("the error did not show again");
+        assert_eq!(again.body, notification.body);
     }
 
     #[tokio::test]
