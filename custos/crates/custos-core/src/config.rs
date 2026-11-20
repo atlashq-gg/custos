@@ -2,8 +2,10 @@
 //! `%APPDATA%\custos\config.toml` on Windows.
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use serde::Deserialize;
+use tokio::sync::mpsc;
 use url::Url;
 
 /// The interval between two uploads when the file does not set one.
@@ -123,7 +125,7 @@ fn default_interval() -> u64 {
 pub enum ConfigError {
     #[error("no configuration file at {0}. Custos created a template: set service_url in it.")]
     Created(PathBuf),
-    #[error("the configuration file {path} has no service_url. Set it, then restart Custos.")]
+    #[error("the configuration file {path} has no service_url. Set it in the file.")]
     Incomplete { path: PathBuf },
     #[error("cannot read {path}: {source}")]
     Io { path: PathBuf, source: std::io::Error },
@@ -146,25 +148,52 @@ pub fn default_path() -> Result<PathBuf, ConfigError> {
         .ok_or(ConfigError::NoConfigDir)
 }
 
+/// The time that Custos waits after a change of the file, because an editor can write a file in
+/// several steps.
+const SETTLE: Duration = Duration::from_millis(500);
+
 /// Reads the configuration. If the file does not exist, writes [`TEMPLATE`] and returns
 /// [`ConfigError::Created`].
 pub fn load(path: &Path) -> Result<Config, ConfigError> {
-    let text = match std::fs::read_to_string(path) {
-        Ok(text) => text,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+    match read(path) {
+        Err(ConfigError::Io { source, .. }) if source.kind() == std::io::ErrorKind::NotFound => {
             write_template(path).map_err(|source| ConfigError::Io {
                 path: path.into(),
                 source,
             })?;
-            return Err(ConfigError::Created(path.into()));
+            Err(ConfigError::Created(path.into()))
         }
-        Err(source) => {
-            return Err(ConfigError::Io {
-                path: path.into(),
-                source,
-            });
-        }
+        result => result,
+    }
+}
+
+/// Watches the configuration file. After each change, sends the configuration, or the error when the
+/// file is not valid. A missing file sends nothing. Runs until the receiver closes.
+pub async fn follow(path: PathBuf, changes: mpsc::UnboundedSender<Result<Config, ConfigError>>) {
+    let (sender, mut file_events) = mpsc::unbounded_channel();
+    let _watcher = match crate::watch::file(&path, sender) {
+        Ok(watcher) => watcher,
+        Err(e) => return tracing::warn!("cannot watch {}: {e}", path.display()),
     };
+    while file_events.recv().await.is_some() {
+        tokio::time::sleep(SETTLE).await;
+        while file_events.try_recv().is_ok() {}
+        let result = read(&path);
+        if matches!(&result, Err(ConfigError::Io { source, .. }) if source.kind() == std::io::ErrorKind::NotFound) {
+            continue;
+        }
+        if changes.send(result).is_err() {
+            return;
+        }
+    }
+}
+
+/// Reads the configuration.
+fn read(path: &Path) -> Result<Config, ConfigError> {
+    let text = std::fs::read_to_string(path).map_err(|source| ConfigError::Io {
+        path: path.into(),
+        source,
+    })?;
 
     parse(&text).map_err(|e| match e {
         ParseError::Toml(source) if source.message().contains("service_url") => {
@@ -263,6 +292,33 @@ mod tests {
             parse("service_url = \"https://example.com\"\n[overlay]\noffset = 91"),
             Err(ParseError::Rule(ConfigError::OverlayOffset(91)))
         ));
+    }
+
+    #[tokio::test]
+    async fn changes_of_the_file_are_sent() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        std::fs::write(&path, "service_url = \"https://example.com\"").unwrap();
+        let (changes, mut received) = mpsc::unbounded_channel();
+        tokio::spawn(follow(path.clone(), changes));
+        // The watch starts in the task.
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let mut next = async || {
+            tokio::time::timeout(Duration::from_secs(5), received.recv())
+                .await
+                .expect("the change did not arrive")
+                .unwrap()
+        };
+        std::fs::write(
+            &path,
+            "service_url = \"https://example.com\"\nupload_interval_seconds = 60",
+        )
+        .unwrap();
+        assert_eq!(next().await.unwrap().upload_interval_seconds, 60);
+
+        std::fs::write(&path, "service_url = 1").unwrap();
+        assert!(matches!(next().await, Err(ConfigError::Parse { .. })));
     }
 
     #[test]

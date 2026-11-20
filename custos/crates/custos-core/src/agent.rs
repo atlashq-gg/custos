@@ -2,11 +2,11 @@
 //! application sends [`Command`]s and shows the [`Event`]s.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use notify::RecommendedWatcher;
 use sha2::{Digest, Sha256};
 use tokio::sync::mpsc;
 
@@ -18,6 +18,7 @@ use crate::process;
 use crate::schedule::Schedule;
 use crate::stream::{Kind, Notification, Reference};
 use crate::upload::{self, Outcome, UploadResult};
+use crate::watch;
 
 /// An identical error notification is shown at most one time in this period.
 const ERROR_REPEAT: Duration = Duration::from_secs(15 * 60);
@@ -33,6 +34,9 @@ pub enum Command {
     SignOut,
     /// A deep link that the desktop gave to Custos.
     Link(String),
+    /// A new configuration with the same service URL. A new service URL needs a new agent, because
+    /// the tokens belong to the service.
+    Reconfigure(Box<Config>),
     Shutdown,
 }
 
@@ -95,16 +99,7 @@ impl Settings {
     /// Windows, the save folder of Foxhole is the default.
     #[must_use]
     pub fn desktop(mut config: Config) -> Self {
-        let steam_roots = if cfg!(windows) {
-            config.save_dir = config.save_dir.or_else(locate::windows_save_dir);
-            Vec::new()
-        } else {
-            let home = dirs::home_dir().unwrap_or_default();
-            config
-                .steam_root
-                .clone()
-                .map_or_else(|| locate::default_steam_roots(&home), |root| vec![root])
-        };
+        let steam_roots = search_roots(&mut config);
         Self {
             store: Arc::new(auth::KeyringStore::new(&config.service_url)),
             config,
@@ -113,6 +108,21 @@ impl Settings {
             tick: Duration::from_secs(1),
             process_poll: Duration::from_secs(10),
         }
+    }
+}
+
+/// The Steam folders where Custos searches the save folder. On Windows, sets the default save folder
+/// instead.
+fn search_roots(config: &mut Config) -> Vec<PathBuf> {
+    if cfg!(windows) {
+        config.save_dir = config.save_dir.take().or_else(locate::windows_save_dir);
+        Vec::new()
+    } else {
+        let home = dirs::home_dir().unwrap_or_default();
+        config
+            .steam_root
+            .clone()
+            .map_or_else(|| locate::default_steam_roots(&home), |root| vec![root])
     }
 }
 
@@ -191,6 +201,7 @@ impl Agent {
             Command::SignIn => self.sign_in(),
             Command::SignOut => self.sign_out().await,
             Command::Link(link) => self.complete_sign_in(&link).await,
+            Command::Reconfigure(config) => self.reconfigure(*config),
             Command::Shutdown => {}
         }
         self.update_state();
@@ -252,6 +263,21 @@ impl Agent {
         }
     }
 
+    /// Applies the interval and the location of the save folder. The record of the sent files stays, so
+    /// Custos does not send the same file again.
+    fn reconfigure(&mut self, mut config: Config) {
+        let steam_roots = search_roots(&mut config);
+        let moved = config.save_dir != self.settings.config.save_dir || steam_roots != self.settings.steam_roots;
+        self.schedule
+            .set_configured(Duration::from_secs(config.upload_interval_seconds));
+        self.settings.config = config;
+        self.settings.steam_roots = steam_roots;
+        if moved && self.game_running {
+            self.stop_watching();
+            self.start_watching();
+        }
+    }
+
     async fn fetch_discovery(&mut self, now: Instant) {
         self.last_discovery_attempt = Some(now);
         match discovery::fetch(&self.http, &self.settings.config.service_url).await {
@@ -272,7 +298,7 @@ impl Agent {
             Err(e) => return self.notify_error(Kind::SaveFile, &e.to_string()),
         };
 
-        match watch(&dir, &file, self.file_events.0.clone()) {
+        match watch::file(&file, self.file_events.0.clone()) {
             Ok(watcher) => self.watcher = Some(watcher),
             Err(e) => self.notify_error(Kind::SaveFile, &format!("cannot watch {}: {e}", dir.display())),
         }
@@ -523,22 +549,6 @@ impl Agent {
     }
 }
 
-/// Watches the save folder. A change to the map data file sends `()`. The folder is watched, not the
-/// file, because a game can replace the file with a new one.
-fn watch(dir: &Path, file: &Path, changed: mpsc::UnboundedSender<()>) -> notify::Result<RecommendedWatcher> {
-    let name = file.file_name().map(ToOwned::to_owned);
-    let mut watcher = notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
-        if let Ok(event) = event
-            && !event.kind.is_access()
-            && event.paths.iter().any(|p| p.file_name() == name.as_deref())
-        {
-            let _ = changed.send(());
-        }
-    })?;
-    watcher.watch(dir, RecursiveMode::NonRecursive)?;
-    Ok(watcher)
-}
-
 fn accepted_notification(service: &str, result: &UploadResult) -> Notification {
     use std::fmt::Write;
 
@@ -708,6 +718,29 @@ mod tests {
             .await;
 
         f.next(|e| *e == Event::GameRunning(true)).await;
+        f.next(is_notification).await;
+    }
+
+    #[tokio::test]
+    async fn new_save_folder_applies_without_a_restart() {
+        let mut f = Fixture::start(Some(tokens("a1"))).await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(RESULT, "application/json"))
+            .expect(2)
+            .mount(&f.server)
+            .await;
+        f.start_game();
+        f.next(is_notification).await;
+
+        let other = tempfile::tempdir().unwrap();
+        std::fs::write(other.path().join("1_MapData.sav"), b"GVAS0003").unwrap();
+        let config: Config = toml::from_str(&format!(
+            "service_url = \"{}\"\nupload_interval_seconds = 0\nsave_dir = '{}'",
+            f.server.uri(),
+            other.path().display()
+        ))
+        .unwrap();
+        f.commands.send(Command::Reconfigure(Box::new(config))).unwrap();
         f.next(is_notification).await;
     }
 

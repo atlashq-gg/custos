@@ -8,6 +8,7 @@
 mod overlay;
 
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use custos_core::agent::{Agent, Command, Event, Settings, State};
 use custos_core::config;
@@ -21,20 +22,32 @@ use tokio::sync::mpsc;
 
 const TRAY_ID: &str = "custos";
 
-/// The menu items that change, the last state of the agent, and the channel to it.
+/// The menu items that change, the last state of the agent, and the agent.
 struct Tray {
     status: MenuItem<Wry>,
     pause: MenuItem<Wry>,
     sign: MenuItem<Wry>,
-    commands: Option<mpsc::UnboundedSender<Command>>,
+    /// The channel to the agent, and the configuration that it runs with. `None` until the
+    /// configuration is valid.
+    agent: Mutex<Option<(mpsc::UnboundedSender<Command>, config::Config)>>,
     state: Mutex<Option<State>>,
+    game_running: AtomicBool,
 }
 
 impl Tray {
     fn send(&self, command: Command) {
-        if let Some(commands) = &self.commands {
+        if let Some((commands, _)) = &*self.agent.lock().expect("the agent lock is not poisoned") {
             let _ = commands.send(command);
         }
+    }
+
+    fn overlay(&self) -> config::Overlay {
+        self.agent
+            .lock()
+            .expect("the agent lock is not poisoned")
+            .as_ref()
+            .map(|(_, config)| config.overlay)
+            .unwrap_or_default()
     }
 }
 
@@ -136,22 +149,25 @@ fn setup(app: &AppHandle, loaded: Result<config::Config, config::ConfigError>) -
         .on_menu_event(|app, event| on_menu_event(app, &event))
         .build(app)?;
 
-    let commands = match loaded {
-        Ok(config) => Some(start_agent(app, config)),
-        Err(e) => {
-            status.set_text("Not configured")?;
-            notify(app, "Custos", &e.to_string());
-            None
-        }
-    };
-
     app.manage(Tray {
         status,
         pause,
         sign,
-        commands,
+        agent: Mutex::new(None),
         state: Mutex::new(None),
+        game_running: AtomicBool::new(false),
     });
+
+    match loaded {
+        Ok(config) => apply(app, config),
+        Err(e) => {
+            app.state::<Tray>().status.set_text("Not configured")?;
+            notify(app, "Custos", &e.to_string());
+        }
+    }
+    if let Ok(path) = config::default_path() {
+        follow_configuration(app, path);
+    }
 
     // A login link that started Custos itself, and links that arrive later.
     let handle = app.clone();
@@ -169,17 +185,64 @@ fn setup(app: &AppHandle, loaded: Result<config::Config, config::ConfigError>) -
     Ok(())
 }
 
+/// Applies each change of the configuration file. Custos keeps the last valid configuration when the
+/// file is not valid.
+fn follow_configuration(app: &AppHandle, path: std::path::PathBuf) {
+    let (changes, mut received) = mpsc::unbounded_channel();
+    tauri::async_runtime::spawn(config::follow(path, changes));
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        while let Some(result) = received.recv().await {
+            match result {
+                Ok(config) => apply(&app, config),
+                Err(e) => notify(&app, "Custos", &e.to_string()),
+            }
+        }
+    });
+}
+
+/// Applies a configuration. The first configuration and a new service URL start a new agent, because
+/// the tokens belong to the service. Other changes go to the running agent.
+fn apply(app: &AppHandle, config: config::Config) {
+    let tray = app.state::<Tray>();
+    let mut agent = tray.agent.lock().expect("the agent lock is not poisoned");
+    let old = agent.take();
+    if old.as_ref().is_some_and(|(_, old)| *old == config) {
+        *agent = old;
+        return;
+    }
+    let overlay_changed = old.as_ref().is_some_and(|(_, old)| old.overlay != config.overlay);
+    let commands = match old {
+        Some((commands, old)) if old.service_url == config.service_url => {
+            let _ = commands.send(Command::Reconfigure(Box::new(config.clone())));
+            commands
+        }
+        old => {
+            if let Some((commands, _)) = old {
+                let _ = commands.send(Command::Shutdown);
+            }
+            start_agent(app, config.clone())
+        }
+    };
+    tracing::info!("applied the configuration");
+    *agent = Some((commands, config));
+    drop(agent);
+
+    if overlay_changed && let Err(e) = update_overlay(app, tray.game_running.load(Ordering::Relaxed)) {
+        tracing::warn!("cannot update the overlay: {e}");
+    }
+}
+
 fn start_agent(app: &AppHandle, config: config::Config) -> mpsc::UnboundedSender<Command> {
     let (commands, command_rx) = mpsc::unbounded_channel();
     let (event_tx, mut events) = mpsc::unbounded_channel();
-    let overlay = config.overlay;
 
     tauri::async_runtime::spawn(Agent::new(Settings::desktop(config), event_tx).run(command_rx));
 
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(event) = events.recv().await {
-            if let Err(e) = on_agent_event(&app, overlay, event) {
+            if let Err(e) = on_agent_event(&app, event) {
                 tracing::warn!("cannot show an event: {e}");
             }
         }
@@ -188,7 +251,20 @@ fn start_agent(app: &AppHandle, config: config::Config) -> mpsc::UnboundedSender
     commands
 }
 
-fn on_agent_event(app: &AppHandle, overlay: config::Overlay, event: Event) -> tauri::Result<()> {
+/// The overlay is open while Foxhole runs and the configuration enables it. If it does not open,
+/// Custos shows desktop notifications.
+fn update_overlay(app: &AppHandle, game_running: bool) -> tauri::Result<()> {
+    let settings = app.state::<Tray>().overlay();
+    app.run_on_main_thread(move || {
+        if !game_running || !settings.enabled {
+            overlay::close();
+        } else if let Err(e) = overlay::open(settings) {
+            tracing::warn!("cannot open the overlay: {e}. Custos shows desktop notifications.");
+        }
+    })
+}
+
+fn on_agent_event(app: &AppHandle, event: Event) -> tauri::Result<()> {
     match event {
         Event::State(state) => {
             let tray = app.state::<Tray>();
@@ -207,13 +283,10 @@ fn on_agent_event(app: &AppHandle, overlay: config::Overlay, event: Event) -> ta
             }
             *tray.state.lock().expect("the state lock is not poisoned") = Some(state);
         }
-        // The overlay is open while Foxhole runs. If it does not open, Custos shows desktop notifications.
-        Event::GameRunning(true) if overlay.enabled => app.run_on_main_thread(move || {
-            if let Err(e) = overlay::open(overlay) {
-                tracing::warn!("cannot open the overlay: {e}. Custos shows desktop notifications.");
-            }
-        })?,
-        Event::GameRunning(_) => app.run_on_main_thread(overlay::close)?,
+        Event::GameRunning(running) => {
+            app.state::<Tray>().game_running.store(running, Ordering::Relaxed);
+            update_overlay(app, running)?;
+        }
         // A message goes to the overlay when it is open, else to a desktop notification.
         Event::Notify(n) => {
             let app = app.clone();
