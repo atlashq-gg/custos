@@ -163,6 +163,19 @@ public sealed partial class StructureLabels(
         return new LabelChange(oldLabel, shown, null);
     }
 
+    /// <summary>The war of a structure in the records of a guild, or <c>null</c>. The structure ID
+    /// includes the war.</summary>
+    public Task<Guid?> FindWarAsync(
+        long guildId,
+        Guid structureId,
+        CancellationToken cancellationToken
+    ) =>
+        db
+            .Structures.AsNoTracking()
+            .Where(s => s.GuildId == guildId && s.StructureId == structureId)
+            .Select(s => (Guid?)s.WarId)
+            .FirstOrDefaultAsync(cancellationToken);
+
     /// <summary>The structures of a guild in a war whose label contains <paramref
     /// name="text"/>.</summary>
     public async Task<IReadOnlyList<LabeledStructure>> SearchAsync(
