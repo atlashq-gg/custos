@@ -1,0 +1,28 @@
+/* The window and the page are transparent. Only the lines have a background. */
+html, body {
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+#lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: 15px/1.4 monospace;
+  color: #f0f0f0;
+}
+
+#lines li {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.6);
+  border-left: 3px solid #4caf50;
+  clear: both;
+  float: left;
+}
+
+#lines li.error {
+  border-left-color: #e53935;
+}

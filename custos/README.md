@@ -89,13 +89,13 @@ Requirements: Rust 1.88 or later, and the system packages for your distribution.
 Ubuntu or Debian:
 
 ```sh
-sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev build-essential
+sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev libgtk-layer-shell-dev build-essential
 ```
 
 Fedora:
 
 ```sh
-sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel openssl-devel libxdo-devel
+sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel openssl-devel libxdo-devel gtk-layer-shell-devel
 sudo dnf group install c-development
 ```
 
