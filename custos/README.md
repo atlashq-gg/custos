@@ -83,7 +83,9 @@ Custos keeps the tokens in the Secret Service on Linux, and in the Credential Ma
 
 ## Overlay
 
-While Foxhole runs, Custos shows its messages as lines in a corner of the screen, above the game. The newest line is at the bottom. The overlay shows at most 6 lines. A line goes after 20 seconds, and an error line after 60 seconds. A new message of the same kind replaces the old line. A completed login removes the line that asks for the login. An accepted upload removes the error lines of the upload and of the service.
+While Foxhole runs, Custos shows its messages as lines in a corner of the monitor that shows the game. The newest line is at the bottom. A line wraps when it is wider than 15 % of the monitor width. The overlay shows at most 6 lines. A line goes after 20 seconds, and an error line after 60 seconds. A new message of the same kind replaces the old line. A completed login removes the line that asks for the login. An accepted upload removes the error lines of the upload and of the service.
+
+Custos finds the monitor of the game through the window list of XWayland. If it cannot find the game window, the desktop selects the monitor.
 
 The overlay takes no pointer input and no keyboard input, so the game keeps them. While the overlay has no lines, it does not show. When Foxhole stops, the overlay closes, and Custos shows desktop notifications.
 

@@ -16,15 +16,20 @@ mod platform {
     use std::cell::RefCell;
     use std::time::Instant;
 
+    use custos_core::screen::{self, Rect};
     use custos_core::stream::Stream;
     use gtk::prelude::*;
-    use gtk::{cairo, glib};
+    use gtk::{cairo, glib, pango};
     use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 
     use super::{Anchor, Notification, Reference};
 
     /// The distance between the overlay and the edges of the screen, in pixels.
     const MARGIN: i32 = 16;
+    /// A line wraps when it is wider than this share of the monitor width, in percent.
+    const MAX_LINE_WIDTH_PERCENT: i32 = 15;
+    /// The font of the lines, as in the CSS.
+    const FONT: &str = "monospace 11";
     /// The style of the lines. The name of the window limits it to the overlay.
     const CSS: &str = "
         #custos-overlay { background-color: transparent; }
@@ -46,6 +51,8 @@ mod platform {
         /// The style, which applies to the screen until the overlay closes.
         style: gtk::CssProvider,
         anchor: Anchor,
+        /// The number of characters after which a line wraps.
+        max_chars: i32,
         stream: Stream,
         /// Removes the stale lines each second.
         ticker: glib::SourceId,
@@ -112,6 +119,7 @@ mod platform {
                 lines,
                 style,
                 anchor,
+                max_chars: 80,
                 stream: Stream::default(),
                 ticker,
             });
@@ -162,7 +170,11 @@ mod platform {
 
     impl Overlay {
         /// Shows the lines of the stream, and hides the window when there are none.
-        fn render(&self) {
+        fn render(&mut self) {
+            let has_lines = self.stream.lines().next().is_some();
+            if has_lines && !self.window.is_visible() {
+                self.place();
+            }
             for child in self.lines.children() {
                 self.lines.remove(&child);
             }
@@ -176,20 +188,57 @@ mod platform {
                 label.set_halign(align);
                 label.set_xalign(0.0);
                 label.set_line_wrap(true);
-                label.set_max_width_chars(80);
+                label.set_max_width_chars(self.max_chars);
                 if notification.is_error {
                     label.style_context().add_class("error");
                 }
                 self.lines.add(&label);
             }
 
-            if self.stream.lines().next().is_none() {
-                self.window.hide();
-            } else {
+            if has_lines {
                 // The window shrinks to the size of its lines.
                 self.window.resize(1, 1);
                 self.window.show_all();
+            } else {
+                self.window.hide();
             }
+        }
+
+        /// Puts the window on the monitor of the game, and sets the line width for that monitor. When
+        /// Custos cannot find the game window, the desktop selects the monitor.
+        fn place(&mut self) {
+            let display = WidgetExt::display(&self.window);
+            let monitors: Vec<_> = (0..display.n_monitors()).filter_map(|i| display.monitor(i)).collect();
+            let rects: Vec<_> = monitors
+                .iter()
+                .map(|m| {
+                    let g = m.geometry();
+                    Rect {
+                        x: g.x(),
+                        y: g.y(),
+                        width: g.width(),
+                        height: g.height(),
+                    }
+                })
+                .collect();
+            let monitor = if let Some(i) = screen::game_monitor(&rects) {
+                tracing::debug!("the overlay shows on monitor {} of {}", i + 1, monitors.len());
+                self.window.set_monitor(&monitors[i]);
+                &monitors[i]
+            } else {
+                tracing::debug!("cannot find the monitor of Foxhole. The desktop selects the monitor.");
+                let Some(first) = monitors.first() else { return };
+                first
+            };
+
+            let font = pango::FontDescription::from_string(FONT);
+            let char_width = self
+                .window
+                .pango_context()
+                .metrics(Some(&font), None)
+                .approximate_char_width()
+                / pango::SCALE;
+            self.max_chars = (monitor.geometry().width() * MAX_LINE_WIDTH_PERCENT / 100 / char_width.max(1)).max(1);
         }
     }
 }

@@ -28,6 +28,7 @@ url = { version = "2.5.8", features = ["serde"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { version = "3", features = ["async-secret-service", "tokio", "crypto-rust"] }
+x11rb = { version = "0.14", features = ["randr"] }
 
 [target.'cfg(windows)'.dependencies]
 keyring = { version = "3", features = ["windows-native"] }
