@@ -102,7 +102,10 @@ Custos shows these messages in the overlay while it is open, and as desktop noti
 | Stockpile data sent | The service accepted the file. The text shows the size and the war. |
 | Signed in | The login is complete. |
 | Sign in to send stockpile data | Custos has no valid token. Use **Sign in**. |
-| An error from the service | The service refused the file, or it failed. Custos shows the same error at most one time in 15 minutes. |
+| The service at … is not available | Custos cannot reach the service URL, or the service gave an error. The text gives the cause, for example `Connection refused`. Custos tries again each minute. When the service is available again, the message goes. |
+| An error from the service | The service refused the file, or it failed. |
+
+Custos shows the same error at most one time in 15 minutes.
 
 ## Build
 
