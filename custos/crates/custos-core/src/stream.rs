@@ -98,6 +98,18 @@ pub struct Notification {
     pub is_error: bool,
 }
 
+impl Notification {
+    /// The text of the overlay line. The title of an error says nothing, so the line is the body only.
+    #[must_use]
+    pub fn line(&self) -> String {
+        if self.is_error {
+            self.body.clone()
+        } else {
+            format!("{}. {}", self.title, self.body)
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Line {
     notification: Notification,
@@ -178,6 +190,15 @@ mod tests {
         assert_eq!(Reference::of(Kind::Upload, "w1").to_string(), "upload:w1");
         assert_eq!(Reference::of(Kind::Upload, "w1"), Reference::of(Kind::Upload, "w1"));
         assert_ne!(Reference::of(Kind::Upload, "w1"), Reference::new(Kind::Upload));
+    }
+
+    #[test]
+    fn line_has_the_title_except_for_an_error() {
+        let mut n = message(Kind::Upload, "Sent 8 KB.", false);
+        n.title = "Stockpile data sent".into();
+        assert_eq!(n.line(), "Stockpile data sent. Sent 8 KB.");
+        n.is_error = true;
+        assert_eq!(n.line(), "Sent 8 KB.");
     }
 
     #[test]

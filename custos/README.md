@@ -2,7 +2,7 @@
 
 Version 0.1.0. Contract version `v0`. License: MIT ([LICENSE](LICENSE)), except the icons. The icons come from the Foxhole War API of Siege Camp and are under CC BY-NC 4.0 ([icons/LICENSE.md](crates/custos-app/icons/LICENSE.md)). Thus the AppImage must not be sold or used for a commercial purpose.
 
-Custos is a tray application for Linux and Windows. It watches the map data file of Foxhole and sends it to a service that conforms to the [Custos specification](../spec/README.md). It shows the results as desktop notifications. It has no window.
+Custos is a tray application for Linux and Windows. It watches the map data file of Foxhole and sends it to a service that conforms to the [Custos specification](../spec/README.md). It shows the results in an overlay above the game, or as desktop notifications.
 
 ## Behavior
 
@@ -17,6 +17,7 @@ Custos is a tray application for Linux and Windows. It watches the map data file
 - Linux with a desktop that shows tray icons through StatusNotifierItem. KDE Plasma does. GNOME needs an extension, for example AppIndicator and KStatusNotifierItem Support.
 - A Secret Service for the tokens, for example GNOME Keyring or KWallet.
 - Foxhole in Steam with Proton.
+- For the overlay: a Wayland desktop with the layer-shell protocol, for example KDE Plasma 6 or Sway. On GNOME, Custos shows desktop notifications.
 
 On Windows:
 
@@ -49,6 +50,13 @@ upload_interval_seconds = 300
 
 # Optional. The Steam folder.
 # steam_root = "/home/user/.local/share/Steam"
+
+# Optional. The overlay above the game.
+[overlay]
+# Default: true. With false, Custos shows desktop notifications.
+enabled = true
+# The corner of the screen: "top-left", "top-right", "bottom-left", or "bottom-right". Default: "top-left".
+anchor = "top-left"
 ```
 
 On Windows, the template has no `steam_root`, and the default `save_dir` is `%LOCALAPPDATA%\Foxhole\Saved\SaveGames`. Write a Windows path in single quotes, so that TOML reads the backslashes as text:
@@ -73,7 +81,17 @@ In each library, the save folder is `steamapps/compatdata/505460/pfx/drive_c/use
 
 Custos keeps the tokens in the Secret Service on Linux, and in the Credential Manager on Windows. It keeps one entry for each service URL. **Sign out** deletes them. An entry holds at most 2,560 bytes. If the tokens are larger, Custos keeps only the refresh token, and gets a new access token before the next upload.
 
+## Overlay
+
+While Foxhole runs, Custos shows its messages as lines in a corner of the screen, above the game. The newest line is at the bottom. The overlay shows at most 6 lines. A line goes after 20 seconds, and an error line after 60 seconds. A new message of the same kind replaces the old line. A completed login removes the line that asks for the login. An accepted upload removes the error lines of the upload and of the service.
+
+The overlay takes no pointer input and no keyboard input, so the game keeps them. While the overlay has no lines, it does not show. When Foxhole stops, the overlay closes, and Custos shows desktop notifications.
+
+The overlay needs the layer-shell protocol of Wayland. If the desktop does not have it, Custos writes `cannot open the overlay` to the log and shows desktop notifications. Windows has no overlay in this version.
+
 ## Notifications
+
+Custos shows these messages in the overlay while it is open, and as desktop notifications at other times.
 
 | Notification | Meaning |
 |---|---|
@@ -89,13 +107,13 @@ Requirements: Rust 1.88 or later, and the system packages for your distribution.
 Ubuntu or Debian:
 
 ```sh
-sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev build-essential
+sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev libgtk-layer-shell-dev build-essential
 ```
 
 Fedora:
 
 ```sh
-sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel openssl-devel libxdo-devel
+sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel openssl-devel libxdo-devel gtk-layer-shell-devel
 sudo dnf group install c-development
 ```
 
@@ -143,4 +161,4 @@ Notes:
 | Crate | Content |
 |---|---|
 | [crates/custos-core](crates/custos-core) | The engine: configuration, discovery, login, save-file location, process detection, upload, the interval rule, and the message stream of the overlay. |
-| [crates/custos-app](crates/custos-app) | The Tauri tray application: menu, notifications, and the deep link. |
+| [crates/custos-app](crates/custos-app) | The Tauri tray application: menu, overlay window, notifications, and the deep link. |
