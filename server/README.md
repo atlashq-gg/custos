@@ -110,7 +110,9 @@ The server connects to Discord as a bot when the configuration has `Discord:Toke
    https://discord.com/oauth2/authorize?client_id=<application ID>&scope=bot%20applications.commands&permissions=0
    ```
 
-The bot sends no message to a channel, so the link asks for no permission. The server registers the commands `/custosadmin` and `/custos` when it starts. NOTE: Version 0.2.0 was not tested with a live Discord guild.
+The bot sends no message to a channel, so the link asks for no permission. The server registers the commands `/custosadmin` and `/custos` when it starts.
+
+NOTE: Version 0.2.0 was tested on 2026-11-20 in one guild where the bot has a role with the Administrator permission: the commands, the access rule for uploads, and the MCP tools. A guild where the bot has no permission was not tested.
 
 ### Guild settings
 
