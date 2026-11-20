@@ -2,7 +2,7 @@
 
 Version 0.1.0. Contract version `v0`. License: MIT ([LICENSE](LICENSE)), except the icons. The icons come from the Foxhole War API of Siege Camp and are under CC BY-NC 4.0 ([icons/LICENSE.md](crates/custos-app/icons/LICENSE.md)). Thus the AppImage must not be sold or used for a commercial purpose.
 
-Custos is a tray application for Linux. It watches the map data file of Foxhole and sends it to a service that conforms to the [Custos specification](../spec/README.md). It shows the results as desktop notifications. It has no window.
+Custos is a tray application for Linux and Windows. It watches the map data file of Foxhole and sends it to a service that conforms to the [Custos specification](../spec/README.md). It shows the results as desktop notifications. It has no window.
 
 ## Behavior
 
@@ -16,7 +16,14 @@ Custos is a tray application for Linux. It watches the map data file of Foxhole 
 
 - Linux with a desktop that shows tray icons through StatusNotifierItem. KDE Plasma does. GNOME needs an extension, for example AppIndicator and KStatusNotifierItem Support.
 - A Secret Service for the tokens, for example GNOME Keyring or KWallet.
-- Foxhole in Steam with Proton. Windows is not supported in this version.
+- Foxhole in Steam with Proton.
+
+On Windows:
+
+- Windows 10 or 11, with the WebView2 runtime. Windows 11 holds it.
+- Foxhole in Steam.
+
+The Windows version is experimental. CI builds and tests it, but nobody tested it with the game. This version has no Windows installer: build Custos from the source (see [Build](#build)). The Tauri documentation says that desktop notifications on Windows work only for an installed application. Thus a build from the source can show no notifications.
 
 ## Install
 
@@ -28,7 +35,7 @@ Custos is a tray application for Linux. It watches the map data file of Foxhole 
 
 ## Configuration
 
-`~/.config/custos/config.toml`:
+The file is `~/.config/custos/config.toml` on Linux, and `%APPDATA%\custos\config.toml` on Windows. On Linux:
 
 ```toml
 # The URL of the service. Custos gets all other settings from its discovery document.
@@ -44,9 +51,15 @@ upload_interval_seconds = 300
 # steam_root = "/home/user/.local/share/Steam"
 ```
 
+On Windows, the template has no `steam_root`, and the default `save_dir` is `%LOCALAPPDATA%\Foxhole\Saved\SaveGames`. Write a Windows path in single quotes, so that TOML reads the backslashes as text:
+
+```toml
+save_dir = 'D:\Games\Foxhole\SaveGames'
+```
+
 The service URL must use HTTPS. Custos accepts HTTP only for `localhost`.
 
-Without `save_dir`, Custos searches these Steam folders and each library in their `libraryfolders.vdf`:
+On Linux without `save_dir`, Custos searches `steam_root`, or else these Steam folders, and each library in their `libraryfolders.vdf`:
 
 - `~/.steam/steam`
 - `~/.local/share/Steam`
@@ -58,7 +71,7 @@ In each library, the save folder is `steamapps/compatdata/505460/pfx/drive_c/use
 
 **Sign in** opens the login page of the service in the browser. After the login, the browser opens `custos://oauth2callback`, and the desktop gives the link to Custos. The browser can ask before it opens Custos.
 
-Custos keeps the tokens in the Secret Service, one entry for each service URL. **Sign out** deletes them.
+Custos keeps the tokens in the Secret Service on Linux, and in the Credential Manager on Windows. It keeps one entry for each service URL. **Sign out** deletes them. An entry holds at most 2,560 bytes. If the tokens are larger, Custos keeps only the refresh token, and gets a new access token before the next upload.
 
 ## Notifications
 
@@ -85,6 +98,8 @@ Fedora:
 sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel openssl-devel libxdo-devel
 sudo dnf group install c-development
 ```
+
+Windows: the Visual Studio Build Tools with the workload "Desktop development with C++". This gives the MSVC toolchain, which is the default of `rustup` on Windows. The build links the Visual C++ runtime statically (`.cargo/config.toml`), so the user does not need the Visual C++ Redistributable.
 
 Then install the Tauri command line tool:
 
