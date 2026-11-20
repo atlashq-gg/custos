@@ -69,12 +69,15 @@ jobs:
 
       - run: cargo install tauri-cli --version "$TAURI_CLI_VERSION" --locked
 
+      # The overlay needs the layer-shell library. A Wayland library in the AppImage fails with the
+      # Mesa of newer distributions (tauri#15976). linuxdeploy excludes libwayland-client, but not
+      # the other Wayland libraries. Each desktop has them.
       - name: Build the AppImage
         working-directory: custos/crates/custos-app
+        env:
+          LINUXDEPLOY_EXCLUDED_LIBRARIES: "libwayland-*"
         run: cargo tauri build --bundles appimage
 
-      # The overlay needs the layer-shell library. A Wayland library in the AppImage fails with the
-      # Mesa of newer distributions (tauri#15976).
       - name: Make sure that the AppImage holds the layer-shell library and no Wayland library
         run: |
           appimage=$(realpath "$APPIMAGE")
