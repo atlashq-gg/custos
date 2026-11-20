@@ -42,3 +42,5 @@ LABEL org.opencontainers.image.source="${SOURCE_REPO}" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
 
 ENTRYPOINT ["dotnet", "Custos.Server.dll"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD ["dotnet", "Custos.Server.dll", "--healthcheck"]

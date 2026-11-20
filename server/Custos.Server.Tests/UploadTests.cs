@@ -94,11 +94,27 @@ public sealed class UploadTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(_factory.WarApi.Calls, Is.EqualTo(2));
+            // One request for the first upload, and three attempts for the second.
+            Assert.That(_factory.WarApi.Calls, Is.EqualTo(4));
             Assert.That(
                 result.GetProperty("war").GetProperty("war_number").GetInt32(),
                 Is.EqualTo(142)
             );
+        }
+    }
+
+    [Test]
+    public async Task War_api_request_is_tried_again_after_a_failure()
+    {
+        _factory.WarApi.Failures = 1;
+        using var client = _factory.CreateAuthorizedClient();
+
+        using var response = await client.PostAsync(Path, Body(SaveFile));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(_factory.WarApi.Calls, Is.EqualTo(2));
         }
     }
 

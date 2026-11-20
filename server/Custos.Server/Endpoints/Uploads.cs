@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using Custos.Server.MapData;
 using Custos.Server.Storage;
+using Custos.Server.Telemetry;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;
@@ -44,9 +46,33 @@ internal static class Uploads
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .RequireAuthorization(Authentication.CustosPolicy)
-            .RequireRateLimiting(RateLimiting.UploadPolicy);
+            .RequireRateLimiting(RateLimiting.UploadPolicy)
+            .AddEndpointFilter(CountAsync);
 
         return app;
+    }
+
+    /// <summary>Counts each upload that the handler answers, by outcome.</summary>
+    private static async ValueTask<object?> CountAsync(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next
+    )
+    {
+        var metrics = context.HttpContext.RequestServices.GetRequiredService<ServerMetrics>();
+        try
+        {
+            var result = await next(context);
+            var status = (result as INestedHttpResult)?.Result ?? result;
+            metrics.Upload(
+                (status as IStatusCodeHttpResult)?.StatusCode ?? StatusCodes.Status200OK
+            );
+            return result;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            metrics.Upload(StatusCodes.Status500InternalServerError);
+            throw;
+        }
     }
 
     private static async Task<Results<Ok<UploadResult>, ProblemHttpResult>> PostAsync(
@@ -57,6 +83,8 @@ internal static class Uploads
         WarRegistry wars,
         UploadStore store,
         TimeProvider time,
+        ActivitySource activities,
+        ServerMetrics metrics,
         CancellationToken cancellationToken
     )
     {
@@ -111,17 +139,27 @@ internal static class Uploads
 
         var bytes = body.GetBuffer().AsMemory(0, (int)body.Length);
         IReadOnlyList<PinnedItem> items;
-        try
+        using (var activity = activities.StartActivity("Parse map data"))
         {
-            items = MapDataFile.Parse(bytes);
-        }
-        catch (GvasFormatException e)
-        {
-            return Problem(
-                StatusCodes.Status422UnprocessableEntity,
-                "Not a map data file",
-                e.Message
-            );
+            var started = time.GetTimestamp();
+            try
+            {
+                items = MapDataFile.Parse(bytes);
+                activity?.SetTag("custos.pinned_items", items.Count);
+            }
+            catch (GvasFormatException e)
+            {
+                activity?.SetStatus(ActivityStatusCode.Error, e.Message);
+                return Problem(
+                    StatusCodes.Status422UnprocessableEntity,
+                    "Not a map data file",
+                    e.Message
+                );
+            }
+            finally
+            {
+                metrics.UploadParsed(time.GetElapsedTime(started));
+            }
         }
 
         // The key of an entity needs the war, and the server does not keep the file. Thus Custos

@@ -2,7 +2,10 @@ using System.Text.Json;
 using Custos.Server;
 using Custos.Server.Endpoints;
 using Custos.Server.Storage;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Custos.Server.Telemetry;
+
+if (await CommandLine.RunAsync(args, Console.Out) is { } exitCode)
+    return exitCode;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,15 +23,22 @@ builder.Services.ConfigureHttpJsonOptions(json =>
 
 builder.Services.AddProblemDetails();
 builder.Services.AddMemoryCache();
-builder.Services.AddHealthChecks();
-builder.Services.AddHttpClient<WarApiClient>(http => http.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddCustosHealthChecks();
+builder
+    .Services.AddHttpClient<WarApiClient>()
+    .AddStandardResilienceHandler(WarApiClient.Resilience);
 builder.Services.AddSingleton(TimeProvider.System);
 
 // No retries: a retrying execution strategy refuses the transactions that the server opens itself.
-// Custos sends the file again at the next interval after a 5xx.
+// Custos sends the file again at the next interval after a 5xx. The health check of the database
+// is in AddCustosHealthChecks, with its tag.
 builder.AddNpgsqlDbContext<CustosDbContext>(
     CustosDbContext.ConnectionName,
-    settings => settings.DisableRetry = true,
+    settings =>
+    {
+        settings.DisableRetry = true;
+        settings.DisableHealthChecks = true;
+    },
     CustosDbContext.Configure
 );
 builder.Services.AddScoped<WarRegistry>();
@@ -38,7 +48,7 @@ builder.Services.AddScoped<UploadStore>();
 builder.Services.AddHostedService<DatabaseMigrator>();
 builder.Services.AddHostedService<WarMonitor>();
 
-builder.AddCustosAuthentication().AddCustosRateLimiting().AddCustosOpenApi();
+builder.AddCustosTelemetry().AddCustosAuthentication().AddCustosRateLimiting().AddCustosOpenApi();
 
 var app = builder.Build();
 
@@ -52,14 +62,16 @@ app.MapDiscovery();
 app.MapClientMetadata();
 app.MapUploads();
 app.MapCustosOpenApi();
+app.MapHealth();
 
-// Liveness does not depend on the database. Readiness runs all checks, the database too.
-app.MapHealthChecks("/health/alive", new HealthCheckOptions { Predicate = _ => false });
-app.MapHealthChecks("/health/ready");
+LogStarting(app.Logger, ServerVersion.Value);
 
-app.Logger.LogInformation("Custos reference server {Version}", ServerVersion.Value);
-
-app.Run();
+await app.RunAsync();
+return 0;
 
 /// <summary>The entry point. Public for the tests.</summary>
-public partial class Program;
+public partial class Program
+{
+    [LoggerMessage(Level = LogLevel.Information, Message = "Custos reference server {Version}")]
+    private static partial void LogStarting(ILogger logger, string version);
+}
