@@ -1,28 +1,15 @@
 using System.Diagnostics.Metrics;
-using System.Net.Http.Headers;
 using Custos.Server.Telemetry;
 using Custos.Server.Tests.Infrastructure;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.Metrics.Testing;
+using static Custos.Server.Tests.Infrastructure.UploadRequests;
 
 namespace Custos.Server.Tests;
 
 public sealed class TelemetryTests
 {
-    private const string Path = "/api/v1/uploads";
-    private static readonly byte[] SaveFile = MapDataWriter.File(
-        new Pinned(
-            "OriginHex",
-            0.25f,
-            0.75f,
-            "StorageFacility",
-            FakeWarApi.War142.StartedAt!.Value.AddDays(1),
-            [("ItemCrates", "RifleC", 20)],
-            []
-        )
-    );
-
     private CustosFactory _factory = null!;
 
     /// <summary>The meter of the server. The container disposes it.</summary>
@@ -54,13 +41,10 @@ public sealed class TelemetryTests
         );
         using var client = _factory.CreateAuthorizedClient();
 
-        (await client.PostAsync(Path, Body(SaveFile, "application/octet-stream"))).Dispose();
-        (await client.PostAsync(Path, Body([0x47], "application/octet-stream"))).Dispose();
+        (await client.PostAsync(UploadPath, Body(SaveFile))).Dispose();
+        (await client.PostAsync(UploadPath, Body([0x47]))).Dispose();
         (
-            await client.PostAsync(
-                Path,
-                Body(new byte[CustosFactory.UploadMaxBytes + 1], "application/octet-stream")
-            )
+            await client.PostAsync(UploadPath, Body(new byte[CustosFactory.UploadMaxBytes + 1]))
         ).Dispose();
 
         Assert.That(
@@ -90,12 +74,5 @@ public sealed class TelemetryTests
             answers.GetMeasurementSnapshot().Select(m => m.Tags[ServerMetrics.OutcomeTag]),
             Is.EqualTo(new[] { "none", "fresh", "stale" })
         );
-    }
-
-    private static ByteArrayContent Body(byte[] bytes, string mediaType)
-    {
-        var content = new ByteArrayContent(bytes);
-        content.Headers.ContentType = new MediaTypeHeaderValue(mediaType);
-        return content;
     }
 }

@@ -26,6 +26,7 @@ public sealed partial class KeycloakLoginTests
 {
     private const string Realm = "custos";
     private const string ContainerHost = "host.testcontainers.internal";
+    private const string DevDiscordId = "123456789012345678";
 
     private int _serverPort;
     private IContainer _keycloak = null!;
@@ -46,6 +47,8 @@ public sealed partial class KeycloakLoginTests
                 DirectoryPath.Of("/opt/keycloak/data/import/")
             )
             .WithEnvironment("CUSTOS_CIMD_HOST", ContainerHost)
+            .WithEnvironment("KC_BOOTSTRAP_ADMIN_USERNAME", "admin")
+            .WithEnvironment("KC_BOOTSTRAP_ADMIN_PASSWORD", "admin")
             .WithPortBinding(8080, assignRandomHostPort: true)
             .WithWaitStrategy(
                 Wait.ForUnixContainer()
@@ -53,6 +56,7 @@ public sealed partial class KeycloakLoginTests
             )
             .Build();
         await _keycloak.StartAsync();
+        await SetDiscordIdAsync("dev", DevDiscordId);
 
         _server = new KestrelFactory(
             port: _serverPort,
@@ -133,6 +137,15 @@ public sealed partial class KeycloakLoginTests
         var token = await tokenResponse.Content.ReadFromJsonAsync<JsonElement>();
         Assert.That(token.TryGetProperty("refresh_token", out _), Is.True, token.ToString());
 
+        // The default client scopes of the realm give the CIMD client the claims of the server.
+        var claims = Payload(token.GetProperty("access_token").GetString()!);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(claims.TryGetProperty("sub", out _), Is.True, claims.ToString());
+            Assert.That(claims.TryGetProperty("discord_id", out var discordId), Is.True);
+            Assert.That(discordId.GetString(), Is.EqualTo(DevDiscordId));
+        }
+
         // The body is not a save file. 422 shows that the server accepted the token and read the
         // body.
         var upload = new ByteArrayContent([.. "GVAS"u8, 0, 0, 0, 0]);
@@ -153,6 +166,60 @@ public sealed partial class KeycloakLoginTests
             await response.Content.ReadAsStringAsync()
         );
     }
+
+    /// <summary>
+    /// Sets the user attribute <c>discord_id</c> through the admin API. Keycloak keeps the
+    /// attribute only because the user profile of the realm declares it.
+    /// </summary>
+    private async Task SetDiscordIdAsync(string username, string discordId)
+    {
+        var origin = $"http://localhost:{_keycloak.GetMappedPublicPort(8080)}";
+        using var http = new HttpClient();
+        using var login = await http.PostAsync(
+            $"{origin}/realms/master/protocol/openid-connect/token",
+            new FormUrlEncodedContent(
+                new Dictionary<string, string>
+                {
+                    ["grant_type"] = "password",
+                    ["client_id"] = "admin-cli",
+                    ["username"] = "admin",
+                    ["password"] = "admin",
+                }
+            )
+        );
+        var admin = await login.Content.ReadFromJsonAsync<JsonElement>();
+        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            admin.GetProperty("access_token").GetString()
+        );
+
+        var users = $"{origin}/admin/realms/{Realm}/users";
+        var user = (
+            await http.GetFromJsonAsync<JsonElement[]>($"{users}?username={username}&exact=true")
+        )!.Single();
+        var changed = System.Text.Json.Nodes.JsonNode.Parse(user.GetRawText())!;
+        changed["attributes"] = new System.Text.Json.Nodes.JsonObject
+        {
+            ["discord_id"] = new System.Text.Json.Nodes.JsonArray(discordId),
+        };
+        using var update = await http.PutAsJsonAsync(
+            $"{users}/{user.GetProperty("id").GetString()}",
+            changed
+        );
+        Assert.That(update.IsSuccessStatusCode, Is.True, await update.Content.ReadAsStringAsync());
+    }
+
+    private static JsonElement Payload(string jwt) =>
+        JsonDocument
+            .Parse(
+                Convert.FromBase64String(
+                    jwt.Split('.')[1]
+                        .Replace('-', '+')
+                        .Replace('_', '/')
+                        .PadRight((jwt.Split('.')[1].Length + 3) / 4 * 4, '=')
+                )
+            )
+            .RootElement;
 
     private static async Task<string> PostFormAsync(
         HttpClient http,

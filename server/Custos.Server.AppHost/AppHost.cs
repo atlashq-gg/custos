@@ -38,8 +38,16 @@ var api = builder
 
 // The bot token is optional. Without it, the Discord connection of the server is off. Set it in the
 // user secrets of this project: dotnet user-secrets set Parameters:discord-token <token>
+// discord-user-id is the Discord user ID of the user dev, for a token without the claim discord_id.
 if (!string.IsNullOrEmpty(builder.Configuration["Parameters:discord-token"]))
     api.WithEnvironment("Discord__Token", builder.AddParameter("discord-token", secret: true));
+if (!string.IsNullOrEmpty(builder.Configuration["Parameters:discord-user-id"]))
+{
+    api.WithEnvironment(
+        "Custos__DevelopmentDiscordUserId",
+        builder.AddParameter("discord-user-id")
+    );
+}
 
 // The tunnel serves only an endpoint that a container references. This reference also gives the
 // realm the host name of the server as Keycloak sees it (aspire.dev.internal). The server does not
