@@ -26,8 +26,8 @@ mod platform {
 
     /// The distance from the top or bottom edge, in pixels, in addition to the offset.
     const MARGIN: i32 = 16;
-    /// The distance from the left or right edge, in pixels. It agrees with the notifications of the game.
-    const SIDE_MARGIN: i32 = 56;
+    /// The distance from the left or right edge, in pixels.
+    const SIDE_MARGIN: i32 = 8;
     /// A line wraps when it is wider than this share of the monitor width, in percent.
     const MAX_LINE_WIDTH_PERCENT: i32 = 15;
     /// The font of the lines, as in the CSS: the first modern monospace font that the computer has.
