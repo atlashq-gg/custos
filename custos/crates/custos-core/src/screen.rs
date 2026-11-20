@@ -9,6 +9,7 @@ use x11rb::protocol::randr::ConnectionExt as _;
 use x11rb::protocol::xproto::{AtomEnum, ConnectionExt as _, Window};
 use x11rb::rust_connection::RustConnection;
 
+use crate::layout::Rect;
 use crate::locate::APP_ID;
 use crate::process::EXECUTABLE;
 
@@ -28,20 +29,9 @@ pub fn needs_x11_restart(env: impl Fn(&str) -> Option<String>, overlay_enabled: 
         && env("XDG_CURRENT_DESKTOP").is_some_and(|desktop| desktop.split(':').any(|d| d.eq_ignore_ascii_case("gnome")))
 }
 
-/// A rectangle on the desktop, in pixels.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Rect {
-    pub x: i32,
-    pub y: i32,
-    pub width: i32,
-    pub height: i32,
-}
-
-impl Rect {
-    fn contains_center_of(self, other: Rect) -> bool {
-        let (x, y) = (other.x + other.width / 2, other.y + other.height / 2);
-        (self.x..self.x + self.width).contains(&x) && (self.y..self.y + self.height).contains(&y)
-    }
+fn contains_center_of(area: Rect, other: Rect) -> bool {
+    let (x, y) = (other.x + other.width / 2, other.y + other.height / 2);
+    (area.x..area.x + area.width).contains(&x) && (area.y..area.y + area.height).contains(&y)
 }
 
 /// The index in `monitors` of the monitor that shows the game window. `monitors` are the monitors of
@@ -58,7 +48,7 @@ fn select(game: Rect, x_monitors: &[Rect], monitors: &[Rect]) -> Option<usize> {
     if x_monitors.len() != monitors.len() {
         return None;
     }
-    let found = x_monitors.iter().position(|m| m.contains_center_of(game))?;
+    let found = x_monitors.iter().position(|&m| contains_center_of(m, game))?;
     let rank = order(x_monitors).iter().position(|&i| i == found)?;
     order(monitors).get(rank).copied()
 }

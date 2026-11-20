@@ -1,6 +1,8 @@
-/* The style of the overlay on Linux: the green text of an old terminal, with a glow, and no
-   background. A dark shadow keeps the text readable on a light scene. The name of the window limits
-   the style to the overlay. */
+/* The look of the overlay: the green text of an old terminal, with a glow, and no background. A dark
+   shadow keeps the text readable on a light scene. The GTK window on Linux and the page on Windows
+   (overlay.html) use this file. On Linux, the name of the window limits the style to the overlay. Use
+   only properties that GTK knows, because GTK refuses a file with an unknown property. The layout of
+   the page is in overlay-layout.css. */
 #custos-overlay { background-color: transparent; }
 #custos-overlay label {
     font-family: "JetBrains Mono", "Cascadia Mono", "Fira Code", "Source Code Pro", "Hack",

@@ -7,6 +7,7 @@
 - Overlay on Linux: the messages show as lines above the game while Foxhole runs, on the monitor of the game. A native GTK window on the overlay layer of the layer-shell protocol, for example on KDE Plasma 6 and Sway. Desktop notifications when the overlay is not open. New configuration table `[overlay]` with `enabled`, `anchor`, and `offset`.
 - Overlay style of an old terminal: green text that types out line by line, and a prompt with a cursor that fades in and out.
 - Overlay on GNOME: Custos starts again with the X11 backend of GTK, and the overlay is an X11 window above the game.
+- Overlay on Windows, experimental: a transparent webview window above the game, on the primary monitor, with the same look as on Linux. Foxhole must use the mode "Windowed Fullscreen" or a windowed mode.
 - Windows build, experimental: process detection, the save folder in `%LOCALAPPDATA%`, the Credential Manager for the tokens, a configuration template with Windows paths, and an ICO icon. A release build opens no console window.
 - If the tokens are larger than 2,560 bytes, the credential store keeps only the refresh token.
 - Custos now uses `steam_root` of the configuration. Before, it ignored the value.

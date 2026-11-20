@@ -255,10 +255,11 @@ fn start_agent(app: &AppHandle, config: config::Config) -> mpsc::UnboundedSender
 /// Custos shows desktop notifications.
 fn update_overlay(app: &AppHandle, game_running: bool) -> tauri::Result<()> {
     let settings = app.state::<Tray>().overlay();
+    let handle = app.clone();
     app.run_on_main_thread(move || {
         if !game_running || !settings.enabled {
             overlay::close();
-        } else if let Err(e) = overlay::open(settings) {
+        } else if let Err(e) = overlay::open(&handle, settings) {
             tracing::warn!("cannot open the overlay: {e}. Custos shows desktop notifications.");
         }
     })
