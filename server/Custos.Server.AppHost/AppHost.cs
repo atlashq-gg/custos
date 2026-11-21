@@ -47,10 +47,11 @@ var api = builder
 // lists them. An unset value is empty: the server treats an empty Discord:Token as no token, and an
 // empty Custos:DevelopmentDiscordUserId as no user. Set them in the user secrets of this project:
 //   dotnet user-secrets set Parameters:discord-token <bot token>
-//   dotnet user-secrets set Parameters:discord-user-id <Discord user ID of the user dev>
-// discord-user-id is for a token without the claim discord_id.
+//   dotnet user-secrets set Parameters:discord-client-id <Discord user ID of the user dev>
+// discord-client-id holds the Discord user ID of the user dev, for a token without the claim
+// discord_id.
 api.WithEnvironment("Discord__Token", OptionalParameter("discord-token", secret: true))
-    .WithEnvironment("Custos__DevelopmentDiscordUserId", OptionalParameter("discord-user-id"));
+    .WithEnvironment("Custos__DevelopmentDiscordUserId", OptionalParameter("discord-client-id"));
 
 // The tunnel serves only an endpoint that a container references. This reference also gives the
 // realm the host name of the server as Keycloak sees it (aspire.dev.internal). The server does not
