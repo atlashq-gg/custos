@@ -23,14 +23,14 @@ The AppHost starts:
 | Keycloak | `http://localhost:8180` | The realm `custos` with the user `dev`, password `dev`. Admin user `admin`. Its password is in the dashboard. |
 | Dashboard | `http://localhost:15180` | The Aspire dashboard. The login URL is in the console output. It shows the traces, the metrics, and the logs of the server. |
 
-Two parameters of the AppHost are optional. Set them in its user secrets:
+The AppHost has two parameters, `discord-token` and `discord-user-id`. The dashboard asks for a value that is not set, and the user secrets can hold the values:
 
 ```sh
 dotnet user-secrets set Parameters:discord-token <bot token> --project Custos.Server.AppHost
 dotnet user-secrets set Parameters:discord-user-id <your Discord user ID> --project Custos.Server.AppHost
 ```
 
-With the bot token, the server connects to Discord, and the MCP endpoint is at `http://localhost:5080/mcp`. A variable `Discord__Token` in the environment of the AppHost reaches the server when the parameter has no value. The Discord user ID is the user of a token without the claim `discord_id`. The realm gives the user `dev` no Discord user ID.
+With the bot token, the server connects to Discord, and the MCP endpoint is at `http://localhost:5080/mcp`. The Discord user ID is the user of a token without the claim `discord_id`. The realm gives the user `dev` no Discord user ID.
 
 Keycloak imports [the realm](Custos.Server.AppHost/keycloak/custos-realm.json) on each start. Changes in the Keycloak console last for one run. The realm declares the user attribute `discord_id`, and its default client scopes `basic` and `custos-discord` put the claims `sub` and `discord_id` into each access token. A realm file that lists client scopes replaces all built-in scopes of Keycloak, so the file holds `basic` too.
 
