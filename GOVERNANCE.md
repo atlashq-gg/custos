@@ -41,7 +41,7 @@ Discussions happen in GitHub issues and pull requests. A decision that does not 
 
 ## Licenses
 
-The content of this repository is under the MIT license, except `server/`, which is under the AGPL-3.0-or-later license. Each project folder holds the `LICENSE` file of its license ([ADR 0005](docs/adr/0005-license-by-project.md)).
+The content of this repository is under the MIT license, except `server/`, which is under the AGPL-3.0-or-later license, except `server/catalog/catalog.json`, which is under CC BY-NC-SA 4.0 ([server/catalog/LICENSE.md](server/catalog/LICENSE.md)). Each project folder holds the `LICENSE` file of its license ([ADR 0005](docs/adr/0005-license-by-project.md)).
 
 ## Documents
 

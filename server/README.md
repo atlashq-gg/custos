@@ -1,6 +1,6 @@
 # Custos reference server
 
-Version 0.2.0. Contract version `v0`. License: AGPL-3.0-or-later ([LICENSE](LICENSE)).
+Version 0.2.0. Contract version `v0`. License: AGPL-3.0-or-later ([LICENSE](LICENSE)), except the catalog of the game, which is under CC BY-NC-SA 4.0 ([catalog/LICENSE.md](catalog/LICENSE.md)).
 
 The reference implementation of the [Custos specification](../spec/README.md). It serves the discovery document and the Client ID Metadata Document of Custos, and it accepts uploads. It parses the map data file and keeps the parsed data in PostgreSQL, for each Discord guild. It does not keep the file.
 
@@ -308,6 +308,8 @@ CI publishes the image `ghcr.io/atlashq-gg/custos-server`:
 ```sh
 docker pull ghcr.io/atlashq-gg/custos-server:unstable
 ```
+
+The image holds the catalog of the game, a file from the Foxhole wiki under CC BY-NC-SA 4.0 ([catalog/LICENSE.md](catalog/LICENSE.md)). The label `org.opencontainers.image.licenses` names both licenses. The NonCommercial term applies to the image. For a commercial use, build the image without `catalog/catalog.json`.
 
 To build and run the image locally:
 

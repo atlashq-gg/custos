@@ -72,7 +72,7 @@ internal sealed class CustosFactory(
         }
         builder.UseSetting(
             "Custos:CatalogPath",
-            Path.Combine(AppContext.BaseDirectory, "Catalog", "test-catalog.json")
+            Path.Combine(AppContext.BaseDirectory, "TestData", "test-catalog.json")
         );
         builder.UseSetting(
             $"ConnectionStrings:{CustosDbContext.ConnectionName}",
