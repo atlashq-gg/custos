@@ -14,7 +14,7 @@ namespace Custos.Server.Tests.Discord;
 public sealed class CommandGuardTests
 {
     private const string Snapshot = "Discord/CommandGuards.txt";
-    private const string UserGuard = "RequireUserPermissions";
+    private static readonly string[] UserGuards = ["RequireUserPermissions", "RequireGuildAccess"];
 
     private static readonly Assembly Server = typeof(DiscordSetup).Assembly;
 
@@ -66,7 +66,7 @@ public sealed class CommandGuardTests
         var lines = SnapshotLines();
         var unexplained = lines
             .Select((line, i) => (Line: line, Previous: i > 0 ? lines[i - 1] : ""))
-            .Where(x => !x.Line.StartsWith('#') && !x.Line.Contains(UserGuard))
+            .Where(x => !x.Line.StartsWith('#') && !UserGuards.Any(x.Line.Contains))
             .Where(x =>
                 !x.Previous.StartsWith("# open by design:", StringComparison.Ordinal)
                 && !x.Previous.StartsWith("# inline:", StringComparison.Ordinal)
@@ -79,7 +79,11 @@ public sealed class CommandGuardTests
     [Test]
     public void Netcord_loads_the_modules()
     {
-        var commands = new ApplicationCommandService<ApplicationCommandContext>();
+        var commands =
+            new ApplicationCommandService<
+                ApplicationCommandContext,
+                AutocompleteInteractionContext
+            >();
         commands.AddModules(Server);
         var modals = new ComponentInteractionService<ModalInteractionContext>();
         modals.AddModules(Server);
@@ -88,7 +92,7 @@ public sealed class CommandGuardTests
         {
             Assert.That(
                 commands.GetCommands().Select(c => c.Name),
-                Is.EqualTo(new[] { "custosadmin" })
+                Is.EquivalentTo(new[] { "custos", "custosadmin" })
             );
             Assert.That(
                 modals.GetComponentInteractions().Select(i => i.Key.ToString()),

@@ -80,6 +80,13 @@ public sealed class CustosOptions
     [Range(1, long.MaxValue)]
     public long? DevelopmentDiscordUserId { get; set; }
 
+    /// <summary>
+    /// The catalog file of the game: display names and categories. A relative path starts at the
+    /// folder of the server. Without the file, each name is the code name.
+    /// </summary>
+    [Required]
+    public string CatalogPath { get; set; } = "catalog/catalog.json";
+
     public string ResolvedOpenIdConfiguration =>
         string.IsNullOrEmpty(OpenIdConfiguration)
             ? Combine(Authority, "/.well-known/openid-configuration")

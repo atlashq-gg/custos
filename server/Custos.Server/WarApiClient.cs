@@ -14,6 +14,20 @@ namespace Custos.Server;
 /// </summary>
 public sealed record CurrentWar(Guid WarId, int WarNumber, DateTimeOffset? StartedAt);
 
+/// <summary>A place name of the static map data. <see cref="Major"/> is a town or a
+/// base.</summary>
+public sealed record MapText(string Text, float X, float Y, bool Major);
+
+/// <summary>A map item of the dynamic map data.</summary>
+public sealed record MapIcon(int IconType, float X, float Y);
+
+/// <summary>The static map data of a region. <see cref="Places"/> is <c>null</c> when the war API
+/// answered <c>304</c>.</summary>
+public sealed record StaticMap(string? ETag, IReadOnlyList<MapText>? Places)
+{
+    public bool NotModified => Places is null;
+}
+
 /// <summary>
 /// Gets the current war from the Foxhole war API. A result is fresh for five minutes. When the API
 /// does not answer, the client gives the last answer that it got, and tries the API again after one
@@ -28,6 +42,7 @@ internal sealed partial class WarApiClient(
 )
 {
     public const string CurrentWarPath = "/api/worldconquest/war";
+    public const string MapsPath = "/api/worldconquest/maps";
     private const string FreshKey = "war:current";
     private const string LastKey = "war:last";
     private static readonly JsonSerializerOptions ApiJson = new(JsonSerializerDefaults.Web);
@@ -72,13 +87,7 @@ internal sealed partial class WarApiClient(
                 metrics.WarApiAnswer(WarApiOutcome.Fresh);
                 return current;
             }
-            catch (Exception e)
-                when (e
-                        is HttpRequestException
-                            or JsonException
-                            or TaskCanceledException
-                            or ExecutionRejectedException
-                )
+            catch (Exception e) when (IsNoAnswer(e))
             {
                 LogNoAnswer(logger, e);
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
@@ -87,6 +96,108 @@ internal sealed partial class WarApiClient(
                 return last;
             }
         });
+
+    /// <summary>The map names of the current world conquest, or <c>null</c> without an
+    /// answer.</summary>
+    public async Task<IReadOnlyList<string>?> GetMapNamesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await http.GetFromJsonAsync<string[]>(
+                CustosOptions.Combine(options.Value.WarApiBaseUrl, MapsPath),
+                ApiJson,
+                cancellationToken
+            );
+        }
+        catch (Exception e) when (IsNoAnswer(e))
+        {
+            LogNoAnswer(logger, e);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The place names of a region from the static map data. With <paramref name="etag"/>, the
+    /// request has <c>If-None-Match</c>, and an answer <c>304</c> gives <see
+    /// cref="StaticMap.NotModified"/>. <c>null</c> without an answer.
+    /// </summary>
+    public async Task<StaticMap?> GetStaticMapAsync(
+        string region,
+        string? etag,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                CustosOptions.Combine(options.Value.WarApiBaseUrl, $"{MapsPath}/{region}/static")
+            );
+            if (etag is not null)
+                request.Headers.TryAddWithoutValidation("If-None-Match", etag);
+            using var response = await http.SendAsync(request, cancellationToken);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotModified)
+                return new StaticMap(etag, null);
+
+            response.EnsureSuccessStatusCode();
+            var map = await response.Content.ReadFromJsonAsync<ApiMap>(ApiJson, cancellationToken);
+            return new StaticMap(
+                response.Headers.ETag?.ToString(),
+                [
+                    .. (map?.MapTextItems ?? []).Select(t => new MapText(
+                        t.Text,
+                        t.X,
+                        t.Y,
+                        t.MapMarkerType == "Major"
+                    )),
+                ]
+            );
+        }
+        catch (Exception e) when (IsNoAnswer(e))
+        {
+            LogNoAnswer(logger, e);
+            return null;
+        }
+    }
+
+    /// <summary>The map items of a region from the public dynamic map data, or <c>null</c> without
+    /// an answer.</summary>
+    public async Task<IReadOnlyList<MapIcon>?> GetMapItemsAsync(
+        string region,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            var map = await http.GetFromJsonAsync<ApiMap>(
+                CustosOptions.Combine(
+                    options.Value.WarApiBaseUrl,
+                    $"{MapsPath}/{region}/dynamic/public"
+                ),
+                ApiJson,
+                cancellationToken
+            );
+            return [.. (map?.MapItems ?? []).Select(i => new MapIcon(i.IconType, i.X, i.Y))];
+        }
+        catch (Exception e) when (IsNoAnswer(e))
+        {
+            LogNoAnswer(logger, e);
+            return null;
+        }
+    }
+
+    private static bool IsNoAnswer(Exception e) =>
+        e
+            is HttpRequestException
+                or JsonException
+                or TaskCanceledException
+                or ExecutionRejectedException;
+
+    private sealed record ApiMap(ApiText[]? MapTextItems, ApiItem[]? MapItems);
+
+    private sealed record ApiText(string Text, float X, float Y, string? MapMarkerType);
+
+    private sealed record ApiItem(int IconType, float X, float Y);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The Foxhole war API did not answer.")]
     private static partial void LogNoAnswer(ILogger logger, Exception exception);

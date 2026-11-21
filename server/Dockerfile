@@ -7,6 +7,8 @@ WORKDIR /src
 # Directory.Build.props holds the version defaults and the target framework, so it must be at /src.
 COPY global.json Directory.Build.props ./
 COPY Custos.Server/ ./Custos.Server/
+# The catalog of the game, when the folder holds it. It has its own license (catalog/README.md).
+COPY catalog/ ./catalog/
 RUN dotnet restore Custos.Server/Custos.Server.csproj
 
 # The version comes from CI. Version must be numeric. InformationalVersion is free text.

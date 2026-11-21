@@ -30,6 +30,17 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.21.0" />
   </ItemGroup>
 
+  <!-- The catalog of the game is a separate file with its own license (catalog/README.md). -->
+  <ItemGroup>
+    <None
+      Include="..\catalog\catalog.json"
+      Link="catalog\catalog.json"
+      CopyToOutputDirectory="PreserveNewest"
+      CopyToPublishDirectory="PreserveNewest"
+      Condition="Exists('..\catalog\catalog.json')"
+    />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="Custos.Server.Tests" />
   </ItemGroup>

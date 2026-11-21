@@ -54,6 +54,7 @@ The section `Custos` in `appsettings.json` or environment variables (`Custos__Pu
 | `DevelopmentDiscordUserId` | (none) | The Discord user of an upload whose token has no claim `DiscordIdClaim`. The server uses it only in the environment `Development`. |
 | `WarApiBaseUrl` | `https://war-service-live.foxholeservices.com` | The origin of the Foxhole war API. Each shard has its own host. The server gets the current war from `/api/worldconquest/war` on it. If the API does not answer, the server uses the last answer. Without an earlier answer, an upload gets `503`. |
 | `Shard` | `live` | A stable label for the shard of `WarApiBaseUrl`. The war API does not label its shard. The label is a part of the ID of each structure, so do not change it during a war. The server supports one shard. |
+| `CatalogPath` | `catalog/catalog.json` | The catalog of the game ([catalog/](catalog/README.md)). A relative path starts at the folder of the server. Without the file, each name is the code name. |
 | `WarPollIntervalSeconds` | `300` | The time between two requests for the current war. `0` stops the requests. |
 
 ## Guilds
@@ -123,12 +124,30 @@ The document:
 - The server writes one audit line to the log for each change, with the guild and the user.
 - The server reads the roles of a member from Discord for each request, and keeps no cache. Thus a role change applies to the next request.
 
+## Structure labels
+
+The map data holds no name for a structure. The server generates a label for each new structure, and a user can change it.
+
+- A world structure gets the place and the type, for example "Fort Barley Seaport". A structure is a world structure when the war API lists a map item at its coordinates.
+- A player-built structure gets the place, the type, and a code, for example "Fort Barley Bunker Base K7Q2". The code is 4 characters of the structure ID in Crockford base32. Thus each guild generates the same label for one structure.
+- The place is the nearest place name of the region, from the static map data of the war API. Without the map data of the region, the region name replaces the place.
+- The type is the display name of the [catalog](catalog/README.md), without the tier. Without a catalog entry, the type is the code name.
+- The label that shows is the label of a user, or else the generated label. It is unique in one guild and one war, without regard to case. If a generated label exists, the server adds the code, or more characters of the code.
+- The server never changes a generated label. The structure ID includes the war, so the labels start again at each war.
+- The server generates the labels of the structures of 0.1.0 when it starts.
+
+`/custos label` changes a label. The option `structure` has autocomplete on the labels of the current war. Without the option `label`, the generated label shows again. The command needs the access `label` ([Guild settings](#guild-settings)).
+
+A user label has 1 to 64 characters: letters, digits, spaces, and `-` `'` `.` `,` `(` `)` `/` `&` `+`. A label goes into Discord messages and into the context of an LLM, so the server refuses other characters. A change of a label is not a change of the structure: the history does not record it. The server writes one audit line to the log for each change.
+
 ## Storage
 
 The server keeps the parsed data in PostgreSQL. It applies its migrations when it starts. Issue #1 holds the design ("Extension: guild storage in `server/`").
 
 - `guild_id`, then `war_id`, start the key of each table of guild data. `wars` and `guild_settings` are the tables without `war_id`. `wars` is the only table without `guild_id`.
 - `guild_settings` holds the settings document of each guild as `jsonb` ([Guild settings](#guild-settings)).
+- `structures` has `generated_label` and `label` ([Structure labels](#structure-labels)). A unique index on `lower(coalesce(label, generated_label))` keeps the label that shows unique in one guild and one war.
+- `map_regions`, `map_places`, and `map_items` hold the map data of each region for each war. They are reference data, as `wars` is.
 - The current state is in `structures`, `stockpiles`, and `stockpile_entries`. The history is in `structure_changes` and `stockpile_changes`. The history keeps a change, not a sighting: for equal content, the server only moves `last_seen_at`. Data that is not newer than the last sighting changes nothing.
 - The ID of a structure is a UUID version 5 of the shard, the war, the region, and the coordinates as exact float32. The ID of a stockpile is a UUID version 5 of the structure and the name. Thus each guild calculates the same IDs ([EntityIds.cs](Custos.Server/Storage/EntityIds.cs)).
 - The server keeps a public stockpile only when it has entries, or when the server already knows it.
@@ -136,7 +155,7 @@ The server keeps the parsed data in PostgreSQL. It applies its migrations when i
 
 ### Wars
 
-The war monitor asks the war API for the current war on an interval. An upload does the same. For a new war, the server adds the row to `wars`, creates the partitions of the two history tables, and sets `ended_at` on the earlier war. A partition name has the war number, for example `stockpile_changes_w142`. The archive and the purge of a war are not automated.
+The war monitor asks the war API for the current war on an interval. An upload does the same. For a new war, the server adds the row to `wars`, creates the partitions of the two history tables, and sets `ended_at` on the earlier war. Then the war monitor gets the static map data and the public dynamic map data of each region one time for the war. The request for the static data has `If-None-Match` with the `ETag` of the earlier war. A region that does not answer gets a new request at the next interval. A partition name has the war number, for example `stockpile_changes_w142`. The archive and the purge of a war are not automated.
 
 ### Migrations
 

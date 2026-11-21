@@ -3,9 +3,9 @@ using Microsoft.Extensions.Options;
 namespace Custos.Server.Storage;
 
 /// <summary>
-/// Asks the war API for the current war on an interval, and records it. This detects the next war
-/// also when no guild sends an upload. <see cref="CustosOptions.WarPollIntervalSeconds"/> <c>0</c>
-/// stops the monitor.
+/// Asks the war API for the current war on an interval, and records it with the map data of its
+/// regions. This detects the next war also when no guild sends an upload.
+/// <see cref="CustosOptions.WarPollIntervalSeconds"/> <c>0</c> stops the monitor.
 /// </summary>
 internal sealed partial class WarMonitor(
     IServiceScopeFactory scopes,
@@ -30,9 +30,14 @@ internal sealed partial class WarMonitor(
                     .ServiceProvider.GetRequiredService<WarApiClient>()
                     .GetCurrentWarAsync(stoppingToken);
                 if (war is not null)
+                {
                     await scope
                         .ServiceProvider.GetRequiredService<WarRegistry>()
                         .RecordAsync(war, stoppingToken);
+                    await scope
+                        .ServiceProvider.GetRequiredService<WarMaps>()
+                        .EnsureAsync(war.WarId, stoppingToken);
+                }
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
