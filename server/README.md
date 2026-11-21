@@ -21,7 +21,7 @@ The AppHost starts:
 | Keycloak | `http://localhost:8180` | The realm `custos` with the user `dev`, password `dev`. Admin user `admin`. Its password is in the dashboard. |
 | Dashboard | `http://localhost:15180` | The Aspire dashboard. The login URL is in the console output. |
 
-Keycloak imports [the realm](Custos.Server.AppHost/keycloak/custos-realm.json) on each start. Changes in the Keycloak console last for one run.
+Keycloak imports [the realm](Custos.Server.AppHost/keycloak/custos-realm.json) on each start. Changes in the Keycloak console last for one run. The realm declares the user attribute `discord_id`, and its default client scopes `basic` and `custos-discord` put the claims `sub` and `discord_id` into each access token. A realm file that lists client scopes replaces all built-in scopes of Keycloak, so the file holds `basic` too.
 
 ## Endpoints
 
@@ -50,6 +50,8 @@ The section `Custos` in `appsettings.json` or environment variables (`Custos__Pu
 | `UploadMaxBytes` | `4194304` | The largest upload body. |
 | `UploadMinIntervalSeconds` | `60` | The shortest time between two uploads of one user. `10` in development. |
 | `DevelopmentGuildId` | (none) | The guild of an upload whose token has no claim `active_guild`. The server uses it only in the environment `Development`. `1236389163276959888` in development. |
+| `DiscordIdClaim` | `discord_id` | The claim of the access token with the Discord user ID, as a string. |
+| `DevelopmentDiscordUserId` | (none) | The Discord user of an upload whose token has no claim `DiscordIdClaim`. The server uses it only in the environment `Development`. |
 | `WarApiBaseUrl` | `https://war-service-live.foxholeservices.com` | The origin of the Foxhole war API. Each shard has its own host. The server gets the current war from `/api/worldconquest/war` on it. If the API does not answer, the server uses the last answer. Without an earlier answer, an upload gets `503`. |
 | `Shard` | `live` | A stable label for the shard of `WarApiBaseUrl`. The war API does not label its shard. The label is a part of the ID of each structure, so do not change it during a war. The server supports one shard. |
 | `WarPollIntervalSeconds` | `300` | The time between two requests for the current war. `0` stops the requests. |
@@ -59,6 +61,21 @@ The section `Custos` in `appsettings.json` or environment variables (`Custos__Pu
 The server is multi-tenant. A tenant is a Discord guild. The access token names the guild of the user in the claim `active_guild`, as the guild ID in a string. A custom authenticator in Keycloak lets the user choose the guild and sets the claim. That authenticator is not part of this repository.
 
 An upload without a valid `active_guild` gets `403`. In the environment `Development`, `DevelopmentGuildId` supplies the guild when the claim is absent. For production, see [The claim `active_guild`](#the-claim-active_guild).
+
+### Access for uploads
+
+With the [Discord connection](#discord) on, an upload needs a member of the guild with the access `report` ([Guild settings](#guild-settings)). The access token names the Discord user in the claim `discord_id` ([The claim `discord_id`](#the-claim-discord_id)).
+
+| Case | Answer |
+|---|---|
+| The token has no valid claim `discord_id`. | `403` |
+| The bot is not in the guild. | `403` |
+| The user is not a member of the guild, or has no role that can report. | `403` |
+| Discord does not answer. | `503`. Custos tries again at the next interval. |
+
+In the environment `Development`, `DevelopmentDiscordUserId` supplies the user when the claim is absent. In the AppHost, set it with `dotnet user-secrets set Parameters:discord-user-id <id> --project Custos.Server.AppHost`.
+
+The table `uploads` keeps the Discord user ID of each upload. It is null for the rows of 0.1.0. Without the Discord connection, the server examines no role, as in 0.1.0, and keeps the claim when the token has it.
 
 ## Discord
 
@@ -323,6 +340,18 @@ For one guild, a hardcoded claim gives each token of the realm the same guild:
 If Keycloak registered the client of Custos before step 3, add the scope to that client in **Clients**, on the tab **Client scopes**.
 
 This method works with Keycloak 26.8 and a client that Keycloak registered through CIMD (tested on 2026-11-18). Remove the scope when the authenticator sets the claim.
+
+#### The claim `discord_id`
+
+With the Discord connection on, an upload needs the Discord user ID in the claim `discord_id` of the access token. The development realm shows one method: a user attribute and a default client scope.
+
+1. In **Realm settings**, on the tab **User profile**, create the attribute `discord_id`. Let only an administrator edit it. Keycloak 24 and later remove a user attribute that the user profile does not declare.
+2. In **Client scopes**, create the scope `custos-discord` with the protocol `OpenID Connect`. Set **Include in token scope** to off.
+3. In the tab **Mappers** of the scope, configure a new mapper of the type **User Attribute**: **User Attribute** `discord_id`, **Token Claim Name** `discord_id`, **Claim JSON Type** `String`, **Add to access token** on.
+4. In the list **Client scopes**, set the assigned type of `custos-discord` to **Default**.
+5. Set the attribute `discord_id` of each user to the Discord user ID.
+
+The authenticator that sets `active_guild` can also set this claim. That work is outside this repository.
 
 ### 3. Write the Compose file
 

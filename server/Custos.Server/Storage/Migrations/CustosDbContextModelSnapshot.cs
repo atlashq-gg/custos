@@ -281,6 +281,10 @@ namespace Custos.Server.Storage.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("upload_id");
 
+                    b.Property<long?>("DiscordUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("discord_user_id");
+
                     b.Property<DateTimeOffset>("ReceivedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("received_at");

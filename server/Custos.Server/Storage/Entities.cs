@@ -30,6 +30,10 @@ public sealed class Upload
     /// <summary>The claim <c>sub</c> of the access token.</summary>
     public required string UserId { get; init; }
 
+    /// <summary>The Discord user ID of the access token. Null for the rows of 0.1.0, and for a
+    /// token without the claim when the Discord connection is off.</summary>
+    public long? DiscordUserId { get; init; }
+
     public required DateTimeOffset ReceivedAt { get; init; }
     public required byte[] Sha256 { get; init; }
     public required int SizeBytes { get; init; }

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using Custos.Server.Discord;
 using Custos.Server.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
@@ -20,11 +21,13 @@ namespace Custos.Server.Tests.Infrastructure;
 /// <summary>
 /// The server with a static authorization server: tokens are signed with a test key, and the
 /// Foxhole war API is a fake. Each factory has its own database in the shared PostgreSQL container.
-/// The war monitor is off.
+/// The war monitor is off. With <paramref name="discord"/>, the Discord connection is on, with
+/// the fake as Discord.
 /// </summary>
 internal sealed class CustosFactory(
     int uploadMinIntervalSeconds = 0,
-    string environment = "Testing"
+    string environment = "Testing",
+    FakeDiscordDirectory? discord = null
 ) : WebApplicationFactory<Program>
 {
     public const string PublicBaseUrl = "http://custos.test";
@@ -33,6 +36,7 @@ internal sealed class CustosFactory(
     public const int UploadMaxBytes = 16 * 1024;
     public const long GuildId = 1234;
     public const long DevelopmentGuildId = 99;
+    public const long DevelopmentDiscordUserId = 199;
 
     private static readonly SymmetricSecurityKey SigningKey = new(new byte[32]) { KeyId = "test" };
 
@@ -57,6 +61,7 @@ internal sealed class CustosFactory(
         builder.UseSetting("Custos:UploadMaxBytes", UploadMaxBytes.ToString());
         builder.UseSetting("Custos:UploadMinIntervalSeconds", uploadMinIntervalSeconds.ToString());
         builder.UseSetting("Custos:DevelopmentGuildId", DevelopmentGuildId.ToString());
+        builder.UseSetting("Custos:DevelopmentDiscordUserId", DevelopmentDiscordUserId.ToString());
         builder.UseSetting("Custos:WarPollIntervalSeconds", "0");
         builder.UseSetting(
             $"ConnectionStrings:{CustosDbContext.ConnectionName}",
@@ -66,6 +71,12 @@ internal sealed class CustosFactory(
         builder.ConfigureTestServices(services =>
         {
             services.AddHttpClient<WarApiClient>().ConfigurePrimaryHttpMessageHandler(() => WarApi);
+            if (discord is not null)
+            {
+                services.AddSingleton<IDiscordDirectory>(discord);
+                services.AddScoped<GuildAccessEvaluator>();
+            }
+
             // The retries stay, without the wait between them.
             services.ConfigureAll<HttpStandardResilienceOptions>(resilience =>
                 resilience.Retry.Delay = TimeSpan.Zero
@@ -90,17 +101,21 @@ internal sealed class CustosFactory(
 
     /// <summary>
     /// A client with a bearer token for the user <c>dev</c>, issued to <paramref name="azp"/>. The
-    /// claim <c>active_guild</c> is <paramref name="guild"/>, or absent when it is <c>null</c>.
+    /// claim <c>active_guild</c> is <paramref name="guild"/>, and the claim <c>discord_id</c> is
+    /// <paramref name="discordId"/>. A claim is absent when its value is <c>null</c>.
     /// </summary>
     public HttpClient CreateAuthorizedClient(
         string azp = ClientId,
         string subject = "dev",
-        string? guild = "1234"
+        string? guild = "1234",
+        string? discordId = null
     )
     {
         List<Claim> claims = [new("sub", subject), new("azp", azp)];
         if (guild is not null)
             claims.Add(new Claim("active_guild", guild));
+        if (discordId is not null)
+            claims.Add(new Claim("discord_id", discordId));
 
         var token = new JsonWebTokenHandler().CreateToken(
             new SecurityTokenDescriptor
