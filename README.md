@@ -26,4 +26,4 @@ Each project folder has a `README.md`, an `AGENTS.md`, a `CHANGELOG.md`, and a `
 
 ## License
 
-The content of this repository is under the MIT license ([LICENSE](LICENSE)), except `server/`, which is under the AGPL-3.0-or-later license in its own `LICENSE` file ([ADR 0005](docs/adr/0005-license-by-project.md)). The icons of Custos are third-party files under CC BY-NC 4.0 ([custos/crates/custos-app/icons/LICENSE.md](custos/crates/custos-app/icons/LICENSE.md)).
+The content of this repository is under the MIT license ([LICENSE](LICENSE)), except `server/`, which is under the AGPL-3.0-or-later license in its own `LICENSE` file ([ADR 0005](docs/adr/0005-license-by-project.md)). The catalog of the game in `server/catalog/` is a file from the Foxhole wiki under CC BY-NC-SA 4.0 ([server/catalog/LICENSE.md](server/catalog/LICENSE.md)). The icons of Custos are third-party files under CC BY-NC 4.0 ([custos/crates/custos-app/icons/LICENSE.md](custos/crates/custos-app/icons/LICENSE.md)).

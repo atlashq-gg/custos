@@ -1,0 +1,4822 @@
+{
+  "source": "https://foxhole.wiki.gg/wiki/Special:CargoTables",
+  "retrieved_at": "2026-11-21",
+  "entries": [
+    {
+      "code_name": "AAAmmo",
+      "display_name": "950-70b Anti-Aircraft Shell",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "AAGunAI",
+      "display_name": "Anti-Air Gun",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "ATAmmo",
+      "display_name": "68mm",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "ATGrenadeW",
+      "display_name": "BF5 White Ash Flask Grenade",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ATGunAIT1",
+      "display_name": "AT Gun Garrison (Tier 1)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "ATGunAIT2",
+      "display_name": "AT Gun Garrison (Tier 2)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "ATGunAIT3",
+      "display_name": "AT Gun Garrison (Tier 3)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "ATLargeAmmo",
+      "display_name": "94.5mm",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "ATLaunchedGrenadeW",
+      "display_name": "B2 Varsi Anti-Tank Grenade",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ATPillbox",
+      "display_name": "Anti-Tank Rifle Pillbox",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "ATRPGAmmo",
+      "display_name": "AP⧸RPG",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "ATRPGC",
+      "display_name": "Venom c.II 35",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ATRPGHeavyC",
+      "display_name": "Bane 45",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ATRPGHeavyW",
+      "display_name": "Carnyx Anti-Tank Rocket Launcher",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ATRPGIndirectAmmo",
+      "display_name": "ARC⧸RPG",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "ATRPGLightC",
+      "display_name": "Ignifist 30",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ATRPGShortC",
+      "display_name": "Bolt of Zeus",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ATRPGTW",
+      "display_name": "Mounted Bonesaw MK.3",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ATRPGUtilityW",
+      "display_name": "The P-A-C \"Bastard\" Burst Launcher",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ATRPGW",
+      "display_name": "Bonesaw MK.3",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ATRifleAmmo",
+      "display_name": "14.5mm",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "ATRifleAssaultW",
+      "display_name": "228 Satterley Heavy Storm Rifle",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ATRifleAutomaticW",
+      "display_name": "Booker Greyhound Model 910",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ATRifleLightC",
+      "display_name": "“Dawn” Ve.II",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ATRifleSniperC",
+      "display_name": "“Quickhatch” Rt.I",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ATRifleTC",
+      "display_name": "“Typhon” ra.XII",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ATRifleW",
+      "display_name": "Neville Anti-Tank Rifle",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AirSirenT",
+      "display_name": "Air Raid Siren",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "AircraftAmmo",
+      "display_name": "20mm",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "AircraftBomberC",
+      "display_name": "V-1 Tzykalia",
+      "kind": "vehicle",
+      "category": "Heavy Bomber Aircraft",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftBomberW",
+      "display_name": "Tulka P4 Welkinrive",
+      "kind": "vehicle",
+      "category": "Heavy Bomber Aircraft",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftDepot",
+      "display_name": "Aircraft Depot",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "AircraftDiveC",
+      "display_name": "Mergo-4 “Myrmidon”",
+      "kind": "vehicle",
+      "category": "Dive Bomber Aircraft",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftFactory",
+      "display_name": "Aircraft Hangar",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "AircraftFighter2C",
+      "display_name": "Daimon aK-5 “Harpy”",
+      "kind": "vehicle",
+      "category": "Fighter Aircraft",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftFighterC",
+      "display_name": "Toxot-902 “Blind Silver”",
+      "kind": "vehicle",
+      "category": "Fighter Aircraft",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftFighterW",
+      "display_name": "Luminary Mk. II Harbinger",
+      "kind": "vehicle",
+      "category": "Fighter Aircraft",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftParatrooperC",
+      "display_name": "V-5b Pegasus",
+      "kind": "vehicle",
+      "category": "Transport Aircraft",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftParatrooperW",
+      "display_name": "Rinnspeir Mk. I Zealot",
+      "kind": "vehicle",
+      "category": "Transport Aircraft",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftPartLargeEngineC",
+      "display_name": "Colonial Aircraft Engine (Large)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftPartLargeEngineW",
+      "display_name": "Warden Aircraft Engine (Large)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftPartLargeEngineWreckedC",
+      "display_name": "Damaged Colonial Aircraft Engine (Large)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftPartLargeEngineWreckedW",
+      "display_name": "Damaged Warden Aircraft Engine (Large)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftPartLargeMechanicalC",
+      "display_name": "Colonial Aircraft Mechanical Parts (Large)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftPartLargeMechanicalW",
+      "display_name": "Warden Aircraft Mechanical Parts (Large)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftPartLargeMechanicalWreckedC",
+      "display_name": "Damaged Colonial Aircraft Mechanical Parts (Large)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftPartLargeMechanicalWreckedW",
+      "display_name": "Damaged Warden Aircraft Mechanical Parts (Large)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftPartSmallEngineC",
+      "display_name": "Colonial Aircraft Engine (Small)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftPartSmallEngineW",
+      "display_name": "Warden Aircraft Engine (Small)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftPartSmallEngineWreckedC",
+      "display_name": "Damaged Colonial Aircraft Engine (Small)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftPartSmallEngineWreckedW",
+      "display_name": "Damaged Warden Aircraft Engine (Small)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftPartSmallMechanicalC",
+      "display_name": "Colonial Aircraft Mechanical Parts (Small)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftPartSmallMechanicalW",
+      "display_name": "Warden Aircraft Mechanical Parts (Small)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftPartSmallMechanicalWreckedC",
+      "display_name": "Damaged Colonial Aircraft Mechanical Parts (Small)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftPartSmallMechanicalWreckedW",
+      "display_name": "Damaged Warden Aircraft Mechanical Parts (Small)",
+      "kind": "item",
+      "category": "Parts",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftRocketW",
+      "display_name": "Tulka S2 Wyvern",
+      "kind": "vehicle",
+      "category": "Rocket-Armed Aircraft",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftRunwayT1",
+      "display_name": "Aircraft Runway (Tier 1)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "AircraftRunwayT2",
+      "display_name": "Aircraft Runway (Tier 2)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "AircraftScout2C",
+      "display_name": "A59 Venti “Perdix”",
+      "kind": "vehicle",
+      "category": "Scout Aircraft",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftScout2W",
+      "display_name": "Luminary Mk. VI Emissary",
+      "kind": "vehicle",
+      "category": "Scout Aircraft",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftScoutC",
+      "display_name": "A51 Venti “Daedalus”",
+      "kind": "vehicle",
+      "category": "Amphibious Scout Aircraft",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftScoutW",
+      "display_name": "Luminary Mk. IV Herald",
+      "kind": "vehicle",
+      "category": "Amphibious Scout Aircraft",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftTorpedoAmmo",
+      "display_name": "Tenta Torpedo",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftTorpedoC",
+      "display_name": "Daimon eO-1 “Siren”",
+      "kind": "vehicle",
+      "category": "Torpedo Bomber Aircraft",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AircraftTorpedoW",
+      "display_name": "M925 Austringer Man-O-War",
+      "kind": "vehicle",
+      "category": "Torpedo Bomber Aircraft",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AircraftWaterW",
+      "display_name": "Tulka I1.9 White Raven",
+      "kind": "vehicle",
+      "category": "Amphibious Fighter Aircraft",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Aluminum",
+      "display_name": "Aluminum",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "AluminumA",
+      "display_name": "Aluminum Alloy",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "AmbulanceC",
+      "display_name": "R-12 - “Salus” Ambulance",
+      "kind": "vehicle",
+      "category": "Ambulance",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AmbulanceFlameC",
+      "display_name": "R-12b - “Salva” Flame Truck",
+      "kind": "vehicle",
+      "category": "Fire Engine",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AmbulanceFlameW",
+      "display_name": "Dunne Dousing Engine 3r",
+      "kind": "vehicle",
+      "category": "Fire Engine",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AmbulanceW",
+      "display_name": "Dunne Responder 3e",
+      "kind": "vehicle",
+      "category": "Ambulance",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AmmoRoomT2",
+      "display_name": "Storage Room (Tier 2)",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "AmmoRoomT3",
+      "display_name": "Storage Room (Tier 3)",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "AmmoUniformW",
+      "display_name": "Specialist's Overcoat",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ArmoredCar2LargeW",
+      "display_name": "O'Brien V.101 Freeman",
+      "kind": "vehicle",
+      "category": "Armoured Car",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ArmoredCar2MultiW",
+      "display_name": "O'Brien V.200 Squire",
+      "kind": "vehicle",
+      "category": "Armoured Car",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ArmoredCar2TwinW",
+      "display_name": "O'Brien V.190 Knave",
+      "kind": "vehicle",
+      "category": "Armoured Car",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ArmoredCarATW",
+      "display_name": "O'Brien V.113 Gravekeeper",
+      "kind": "vehicle",
+      "category": "Armoured Car",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ArmoredCarC",
+      "display_name": "T3 “Xiphos”",
+      "kind": "vehicle",
+      "category": "Armoured Car",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ArmoredCarFlameW",
+      "display_name": "O'Brien V.130 Wild Jack",
+      "kind": "vehicle",
+      "category": "Armoured Car",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ArmoredCarMobilityW",
+      "display_name": "O'Brien V.121 Highlander",
+      "kind": "vehicle",
+      "category": "Armoured Car",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ArmoredCarOffensiveC",
+      "display_name": "T5 “Percutio”",
+      "kind": "vehicle",
+      "category": "Armoured Car",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ArmoredCarTwinC",
+      "display_name": "T8 “Gemini”",
+      "kind": "vehicle",
+      "category": "Armoured Car",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ArmoredCarW",
+      "display_name": "O'Brien V.110",
+      "kind": "vehicle",
+      "category": "Armoured Car",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ArmourMedicUniformC",
+      "display_name": "Medicus Apron",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ArmourMedicUniformW",
+      "display_name": "Physic's Cuirass",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ArmourUniformC",
+      "display_name": "Velian Flak Vest",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ArmourUniformW",
+      "display_name": "Gunner's Breastplate",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ArtilleryAIT1",
+      "display_name": "Artillery Garrison (Tier 1)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "ArtilleryAIT2",
+      "display_name": "Artillery Garrison (Tier 2)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "ArtilleryAIT3",
+      "display_name": "Artillery Garrison (Tier 3)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "AssaultRifleAmmo",
+      "display_name": "7.92mm",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "AssaultRifleC",
+      "display_name": "Catara mo.II",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AssaultRifleHeavyC",
+      "display_name": "“Dusk” ce.III",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "AssaultRifleHeavyW",
+      "display_name": "Booker Storm Rifle Model 838",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "AssaultRifleW",
+      "display_name": "Aalto Storm Rifle 24",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Bandages",
+      "display_name": "Bandages",
+      "kind": "item",
+      "category": "Medical",
+      "faction": "both"
+    },
+    {
+      "code_name": "BannerTC",
+      "display_name": "Legion Vexillum",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "BannerTW",
+      "display_name": "War Ensign",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "warden"
+    },
+    {
+      "code_name": "BarbedWireMaterials",
+      "display_name": "Barbed Wire",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "BarbedWireSpline",
+      "display_name": "Barbed Wire",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "BarbedWireWallSpline",
+      "display_name": "Barbed Wire Fence",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "Barge",
+      "display_name": "BMS - Aquatipper",
+      "kind": "vehicle",
+      "category": "Barge",
+      "faction": "both"
+    },
+    {
+      "code_name": "BattleTankAAAmmo",
+      "display_name": "921 Ogre Rocket",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "BattleTankAAC",
+      "display_name": "Lance-50 “Lampades”",
+      "kind": "vehicle",
+      "category": "Battle Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "BattleTankAAW",
+      "display_name": "Flood Veilcleave Mk. X",
+      "kind": "vehicle",
+      "category": "Battle Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "BattleTankATC",
+      "display_name": "Lance-25 “Hasta”",
+      "kind": "vehicle",
+      "category": "Battle Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "BattleTankAmmo",
+      "display_name": "75mm",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "BattleTankC",
+      "display_name": "Lance-36",
+      "kind": "vehicle",
+      "category": "Battle Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "BattleTankDefensiveW",
+      "display_name": "Flood Juggernaut Mk. VII",
+      "kind": "vehicle",
+      "category": "Battle Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "BattleTankHeavyArtilleryC",
+      "display_name": "Lance-46 “Sarissa”",
+      "kind": "vehicle",
+      "category": "Battle Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "BattleTankHeavyArtilleryW",
+      "display_name": "Flood Mk. IX Stain",
+      "kind": "vehicle",
+      "category": "Battle Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "BattleTankW",
+      "display_name": "Flood Mk. I",
+      "kind": "vehicle",
+      "category": "Battle Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Bayonet",
+      "display_name": "Buckhorn CCQ-18",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "Bicycle",
+      "display_name": "Blumfield LK205",
+      "kind": "vehicle",
+      "category": "Bicycle",
+      "faction": "both"
+    },
+    {
+      "code_name": "Binoculars",
+      "display_name": "Binoculars",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "BloodPlasma",
+      "display_name": "Blood Plasma",
+      "kind": "item",
+      "category": "Medical",
+      "faction": "both"
+    },
+    {
+      "code_name": "BomberAmmo",
+      "display_name": "Mark II Raidbreaker",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "BorderBase",
+      "display_name": "Border Base",
+      "kind": "structure",
+      "category": "Home Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "BunkerSupplies",
+      "display_name": "Bunker Supplies",
+      "kind": "item",
+      "category": "BunkerSupplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "BusC",
+      "display_name": "R-15 - “Chariot”",
+      "kind": "vehicle",
+      "category": "Transport Bus",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "BusW",
+      "display_name": "Dunne Caravaner 2f",
+      "kind": "vehicle",
+      "category": "Transport Bus",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Cloth",
+      "display_name": "Basic Materials",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "Coal",
+      "display_name": "Coal",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "CoalField",
+      "display_name": "Coal Field",
+      "kind": "structure",
+      "category": "Resource Field",
+      "faction": "both"
+    },
+    {
+      "code_name": "CoastalGun",
+      "display_name": "Coastal Gun",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "ComponentMine",
+      "display_name": "Component Mine",
+      "kind": "structure",
+      "category": "Resource Harvester",
+      "faction": "both"
+    },
+    {
+      "code_name": "Components",
+      "display_name": "Components",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "ComponentsField",
+      "display_name": "Component Field",
+      "kind": "structure",
+      "category": "Resource Field",
+      "faction": "both"
+    },
+    {
+      "code_name": "Concrete",
+      "display_name": "Concrete Materials",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "ConcreteBridge",
+      "display_name": "Concrete Bridge",
+      "kind": "structure",
+      "category": "Bridge",
+      "faction": "both"
+    },
+    {
+      "code_name": "ConcreteMixer",
+      "display_name": "Concrete Mixer",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "Construction",
+      "display_name": "BMS - Universal Assembly Rig",
+      "kind": "vehicle",
+      "category": "Construction Vehicle",
+      "faction": "both"
+    },
+    {
+      "code_name": "ConstructionEquipment",
+      "display_name": "Construction Equipment",
+      "kind": "structure",
+      "category": "Shippable Construction Equipment",
+      "faction": "both"
+    },
+    {
+      "code_name": "ConstructionUtility",
+      "display_name": "BMS - Fabricator",
+      "kind": "vehicle",
+      "category": "Advanced Construction Vehicle",
+      "faction": "both"
+    },
+    {
+      "code_name": "ConstructionYard",
+      "display_name": "Construction Yard",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "Copper",
+      "display_name": "Copper",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "CopperA",
+      "display_name": "Copper Alloy",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "Crane",
+      "display_name": "BMS - Class 2 Mobile Auto-Crane",
+      "kind": "vehicle",
+      "category": "Crane",
+      "faction": "both"
+    },
+    {
+      "code_name": "CraneRailTrackSpline",
+      "display_name": "Crane Railway Track",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "Crate",
+      "display_name": "Crate",
+      "kind": "item",
+      "category": "Crate",
+      "faction": "both"
+    },
+    {
+      "code_name": "CriticalSoldier",
+      "display_name": "Critically Wounded Soldier",
+      "kind": "item",
+      "category": "Medical",
+      "faction": "both"
+    },
+    {
+      "code_name": "DemolitionRocketAmmo",
+      "display_name": "Shatter Missile",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "DeployedATRPGTW",
+      "display_name": "Deployed Mounted Bonesaw MK.3",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "warden"
+    },
+    {
+      "code_name": "DeployedATRifleTC",
+      "display_name": "Deployed “Typhon” ra.XII",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "DeployedAirSirenT",
+      "display_name": "Deployed Air Raid Siren",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "DeployedBannerTC",
+      "display_name": "Deployed Legion Vexillum",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "DeployedBannerTW",
+      "display_name": "Deployed War Ensign",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "warden"
+    },
+    {
+      "code_name": "DeployedExplosiveTripod",
+      "display_name": "Deployed Havoc Charge",
+      "kind": "structure",
+      "category": "Deployed Charge",
+      "faction": "both"
+    },
+    {
+      "code_name": "DeployedGrenadeLauncherTC",
+      "display_name": "Deployed Mounted Fissura gd.I",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "DeployedISG",
+      "display_name": "Deployed Daucus isg.III",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "DeployedListeningKit",
+      "display_name": "Deployed Listening Kit",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "DeployedMGTC",
+      "display_name": "Deployed Lamentum mm.IV",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "DeployedMGTW",
+      "display_name": "Deployed Malone Ratcatcher MK.1",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "warden"
+    },
+    {
+      "code_name": "DeployedRPGTW",
+      "display_name": "Deployed Cutler Foebreaker",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "warden"
+    },
+    {
+      "code_name": "DeployedSatchelChargeT",
+      "display_name": "Deployed Havoc Charge Detonator",
+      "kind": "structure",
+      "category": "Deployed Charge",
+      "faction": "both"
+    },
+    {
+      "code_name": "DeployedTripod",
+      "display_name": "Deployed Tripod",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "DeployedWindsockT",
+      "display_name": "Deployed Wind Sock",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "DepthChargeAmmo",
+      "display_name": "Model-7 “Evie”",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "DestroyerTankFlameW",
+      "display_name": "Noble Firebrand Mk. XVII",
+      "kind": "vehicle",
+      "category": "Destroyer Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "DestroyerTankW",
+      "display_name": "Noble Widow MK. XIV",
+      "kind": "vehicle",
+      "category": "Destroyer Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Diesel",
+      "display_name": "Diesel",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "DiveBomberAmmo",
+      "display_name": "912 Shrike Rounds",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "DrawbridgeA",
+      "display_name": "Two Tier Bridge",
+      "kind": "structure",
+      "category": "Bridge",
+      "faction": "both"
+    },
+    {
+      "code_name": "DrawbridgeB",
+      "display_name": "Double Bridge",
+      "kind": "structure",
+      "category": "Bridge",
+      "faction": "both"
+    },
+    {
+      "code_name": "DrawbridgeC",
+      "display_name": "Long Bridge",
+      "kind": "structure",
+      "category": "Bridge",
+      "faction": "both"
+    },
+    {
+      "code_name": "EmplacedAAC",
+      "display_name": "DAE 5b “Zeal”",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "EmplacedAAW",
+      "display_name": "Leary AA-70 Bolas",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "warden"
+    },
+    {
+      "code_name": "EmplacedATLargeW",
+      "display_name": "Huber Starbreaker 94.5mm",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "warden"
+    },
+    {
+      "code_name": "EmplacedATW",
+      "display_name": "Leary Shellbore 68mm",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "warden"
+    },
+    {
+      "code_name": "EmplacedCannonLargeC",
+      "display_name": "DAE 2a-1 “Ruptura”",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "EmplacedHeavyArtilleryC",
+      "display_name": "50-500 “Thunderbolt” Cannon",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "EmplacedHeavyArtilleryW",
+      "display_name": "Huber Exalt 150mm",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "warden"
+    },
+    {
+      "code_name": "EmplacedIndirectC",
+      "display_name": "DAE 1o-3 “Polybolos”",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "EmplacedInfantryC",
+      "display_name": "DAE 1b-2 “Serra”",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "EmplacedInfantryW",
+      "display_name": "Leary Snare Trap 20",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "warden"
+    },
+    {
+      "code_name": "EmplacedLightArtilleryW",
+      "display_name": "Huber Lariat 120mm",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "warden"
+    },
+    {
+      "code_name": "EmplacedMultiC",
+      "display_name": "DAE 3b-2 “Hades' Net”",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "EngineRoomT2",
+      "display_name": "Engine Room (Tier 2)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "EngineRoomT3",
+      "display_name": "Engine Room (Tier 3)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "EngineerUniformC",
+      "display_name": "Fabri Rucksack",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "EngineerUniformW",
+      "display_name": "Sapper Gear",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "EngineeringCenter",
+      "display_name": "Engineering Center",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "Explosive",
+      "display_name": "Explosive Powder",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "ExplosiveLightC",
+      "display_name": "Hydra's Whisper",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ExplosiveTripod",
+      "display_name": "Havoc Charge",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityCatwalkBridge",
+      "display_name": "Catwalk Bridge",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityCatwalkPlatform",
+      "display_name": "Catwalk Platform",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityCatwalkStairs",
+      "display_name": "Catwalk Stairs",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityCoal1",
+      "display_name": "Coke",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityComponents1",
+      "display_name": "Damaged Components",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityCrane",
+      "display_name": "BMS Foreman Stacker",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityFactoryAircraft",
+      "display_name": "Aircraft Maintenance Factory",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityFactoryAmmo",
+      "display_name": "Ammunition Factory",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityFactorySmallArms",
+      "display_name": "Infantry Kit Factory",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMaterials1",
+      "display_name": "Construction Materials",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMaterials10",
+      "display_name": "Unstable Substances",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMaterials11",
+      "display_name": "Thermal Shielding",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMaterials12",
+      "display_name": "Rare Materials",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMaterials2",
+      "display_name": "Processed Construction Materials",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMaterials3",
+      "display_name": "Steel Construction Materials",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMaterials4",
+      "display_name": "Assembly Materials I",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMaterials5",
+      "display_name": "Assembly Materials II",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMaterials6",
+      "display_name": "Assembly Materials III",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMaterials7",
+      "display_name": "Assembly Materials IV",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMaterials8",
+      "display_name": "Assembly Materials V",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMaterials9",
+      "display_name": "Rare Alloys",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMineOil",
+      "display_name": "Oil Well",
+      "kind": "structure",
+      "category": "Resource Harvester",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMineOilRig",
+      "display_name": "Offshore Platform",
+      "kind": "structure",
+      "category": "Resource Harvester",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMineResource1",
+      "display_name": "Stationary Harvester (Salvage)",
+      "kind": "structure",
+      "category": "Resource Harvester",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMineResource2",
+      "display_name": "Stationary Harvester (Components)",
+      "kind": "structure",
+      "category": "Resource Harvester",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMineResource3",
+      "display_name": "Stationary Harvester (Sulfur)",
+      "kind": "structure",
+      "category": "Resource Harvester",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMineResource4",
+      "display_name": "Stationary Harvester (Coal)",
+      "kind": "structure",
+      "category": "Resource Harvester",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityMineWater",
+      "display_name": "Water Pump",
+      "kind": "structure",
+      "category": "Resource Harvester",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityModificationCenter",
+      "display_name": "Field Modification Center",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityOil1",
+      "display_name": "Heavy Oil",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityOil2",
+      "display_name": "Enriched Oil",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityPipe",
+      "display_name": "Pipeline",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityPipeOverhead",
+      "display_name": "Pipeline (Overhead)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityPipeTransfer",
+      "display_name": "Pipe (Transfer Point)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityPipeUnderground",
+      "display_name": "Pipeline (Underground)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityPipeValve",
+      "display_name": "Pipeline Valve",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityPower",
+      "display_name": "Facility Power",
+      "kind": "item",
+      "category": "FacilityPower",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityPowerDiesel",
+      "display_name": "Diesel Power Plant",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityPowerOil",
+      "display_name": "Power Station",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityRefinery1",
+      "display_name": "Materials Factory",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityRefinery2",
+      "display_name": "Metalworks Factory",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityRefineryCoal",
+      "display_name": "Coal Refinery",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityRefineryOil",
+      "display_name": "Oil Refinery",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityRoad",
+      "display_name": "Provisional Road",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilitySiloOil",
+      "display_name": "Liquid Silo",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityTransferCrate",
+      "display_name": "Crate Transfer Station",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityTransferLiquid",
+      "display_name": "Liquid Transfer Station",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityTransferMaterial",
+      "display_name": "Material Transfer Station",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityTransferResource",
+      "display_name": "Resource Transfer Station",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityVehicleFactory1",
+      "display_name": "Small Assembly Station",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityVehicleFactory2",
+      "display_name": "Large Assembly Station",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "FacilityVehicleFactory3",
+      "display_name": "Dry Dock",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "Factory",
+      "display_name": "Factory",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "FieldAT2C",
+      "display_name": "GA6 “Cestus”",
+      "kind": "vehicle",
+      "category": "Field AT Rifle",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "FieldAT2W",
+      "display_name": "Duncan's Coin 14.5mm",
+      "kind": "vehicle",
+      "category": "Field AT Rifle",
+      "faction": "warden"
+    },
+    {
+      "code_name": "FieldATC",
+      "display_name": "AA-2 Battering Ram",
+      "kind": "vehicle",
+      "category": "Field AT Gun",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "FieldATDamageW",
+      "display_name": "Balfour Rampart 68mm",
+      "kind": "vehicle",
+      "category": "Heavy Field Cannon",
+      "faction": "warden"
+    },
+    {
+      "code_name": "FieldATW",
+      "display_name": "Collins Cannon 68mm",
+      "kind": "vehicle",
+      "category": "Field AT Gun",
+      "faction": "warden"
+    },
+    {
+      "code_name": "FieldBridge",
+      "display_name": "Field Bridge",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FieldCannonDamageC",
+      "display_name": "40-45 “Smelter”",
+      "kind": "vehicle",
+      "category": "Heavy Field Gun",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "FieldCannonW",
+      "display_name": "Balfour Wolfhound 40mm",
+      "kind": "vehicle",
+      "category": "Field Cannon",
+      "faction": "warden"
+    },
+    {
+      "code_name": "FieldHospital",
+      "display_name": "Field Hospital",
+      "kind": "structure",
+      "category": "Medical Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "FieldMGAmmo",
+      "display_name": "14.5mm (pre-0.45)",
+      "kind": "item",
+      "category": "FieldMGAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "FieldMGC",
+      "display_name": "G40 “Sagittarii”",
+      "kind": "vehicle",
+      "category": "Field Machine Gun",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "FieldMGW",
+      "display_name": "Swallowtail 988/127-2",
+      "kind": "vehicle",
+      "category": "Field Machine Gun",
+      "faction": "warden"
+    },
+    {
+      "code_name": "FieldMortarC",
+      "display_name": "30-250 “Tisiphone” Field Cannon",
+      "kind": "vehicle",
+      "category": "Field Mortar",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "FieldMortarW",
+      "display_name": "Balfour Falconer 250mm",
+      "kind": "vehicle",
+      "category": "Field Mortar",
+      "faction": "warden"
+    },
+    {
+      "code_name": "FieldPier",
+      "display_name": "Navy Pier",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FirePitT1",
+      "display_name": "Fire Pit",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FirePitT2",
+      "display_name": "Field Range",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FireRocketAmmo",
+      "display_name": "4C-Fire Rocket",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "FirstAidKit",
+      "display_name": "First Aid Kit",
+      "kind": "item",
+      "category": "Medical",
+      "faction": "both"
+    },
+    {
+      "code_name": "FlameAmmo",
+      "display_name": "Flame Ammo",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "FlameBackpackC",
+      "display_name": "“Molten Wind” v.II Ammo",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "FlameBackpackW",
+      "display_name": "Willow's Bane Ammo",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "warden"
+    },
+    {
+      "code_name": "FlameTorchC",
+      "display_name": "“Molten Wind” v.II Flame Torch",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "FlameTorchW",
+      "display_name": "Willow's Bane Model 845",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "FlatbedTruck",
+      "display_name": "BMS - Packmule Flatbed",
+      "kind": "vehicle",
+      "category": "Flatbed Truck",
+      "faction": "both"
+    },
+    {
+      "code_name": "FlatbedTruckConcrete",
+      "display_name": "BMS - Stone Camel",
+      "kind": "vehicle",
+      "category": "Concrete Truck",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortArtilleryShelterT2",
+      "display_name": "Artillery Shelter Room (Tier 2)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortArtilleryShelterT3",
+      "display_name": "Artillery Shelter Room (Tier 3)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortBaseT1",
+      "display_name": "Bunker Base (Tier 1)",
+      "kind": "structure",
+      "category": "Forward Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortBaseT2",
+      "display_name": "Bunker Base (Tier 2)",
+      "kind": "structure",
+      "category": "Forward Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortBaseT3",
+      "display_name": "Bunker Base (Tier 3)",
+      "kind": "structure",
+      "category": "Forward Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortConstructionPart",
+      "display_name": "Construction Parts",
+      "kind": "structure",
+      "category": "Large Structure Part",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortCornerT1",
+      "display_name": "Bunker Corner (Tier 1)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortCornerT2",
+      "display_name": "Bunker Corner (Tier 2)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortCornerT3",
+      "display_name": "Bunker Corner (Tier 3)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortEmpT3",
+      "display_name": "Large Structure Foundation",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortFirePitT1",
+      "display_name": "Bunker Hearth (Tier 1)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortFirePitT2",
+      "display_name": "Bunker Hearth (Tier 2)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortFirePitT3",
+      "display_name": "Bunker Hearth (Tier 3)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortFlameT2",
+      "display_name": "Fire Suppression Room (Tier 2)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortFlameT3",
+      "display_name": "Fire Suppression Room (Tier 3)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortGarrisonStation",
+      "display_name": "Underground Fortress",
+      "kind": "structure",
+      "category": "Forward Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortGarrisonStationPart",
+      "display_name": "Underground Fortress Parts",
+      "kind": "structure",
+      "category": "Large Structure Part",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortISGAIT1",
+      "display_name": "ISG Overwatch Garrison (Tier 1)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortISGAIT2",
+      "display_name": "ISG Overwatch Garrison (Tier 2)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortISGAIT3",
+      "display_name": "ISG Overwatch Garrison (Tier 3)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortIntelCenterPart",
+      "display_name": "Intelligence Center Parts",
+      "kind": "structure",
+      "category": "Large Structure Part",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortLRArtilleryPart",
+      "display_name": "Storm Cannon Parts",
+      "kind": "structure",
+      "category": "Large Structure Part",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortLargeRadar",
+      "display_name": "SC-3 Aerial Interceptor Array",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortLargeRadarPart",
+      "display_name": "SC-3 Aerial Interceptor Array Parts",
+      "kind": "structure",
+      "category": "Large Structure Part",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortRadarT1",
+      "display_name": "Radar Bunker (Tier 1)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortRadarT2",
+      "display_name": "Radar Bunker (Tier 2)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortRadarT3",
+      "display_name": "Radar Bunker (Tier 3)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortRampT1",
+      "display_name": "Bunker Ramp (Tier 1)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortRampT2",
+      "display_name": "Bunker Ramp (Tier 2)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortRampT3",
+      "display_name": "Bunker Ramp (Tier 3)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortStructurePart",
+      "display_name": "Structure Parts",
+      "kind": "structure",
+      "category": "Large Structure Part",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortT1",
+      "display_name": "Bunker (Tier 1)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortT2",
+      "display_name": "Bunker (Tier 2)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortT3",
+      "display_name": "Bunker (Tier 3)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "FortWeatherStationPart",
+      "display_name": "Weather Station Parts",
+      "kind": "structure",
+      "category": "Large Structure Part",
+      "faction": "both"
+    },
+    {
+      "code_name": "ForwardBase1",
+      "display_name": "Encampment",
+      "kind": "structure",
+      "category": "Forward Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "Foundation011x2T1",
+      "display_name": "Foundation (1x2)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "Foundation011x2T3",
+      "display_name": "Concrete Foundation (1x2)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "Foundation012x2T1",
+      "display_name": "Foundation (2x2)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "Foundation012x2T3",
+      "display_name": "Concrete Foundation (2x2)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "Foundation01T1",
+      "display_name": "Foundation (1x1)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "Foundation01T3",
+      "display_name": "Concrete Foundation (1x1)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "Foundation02T1",
+      "display_name": "Foundation Corner (1x1)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "Foundation02T3",
+      "display_name": "Concrete Foundation Corner (1x1)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "Foxhole",
+      "display_name": "Foxhole",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "Freighter",
+      "display_name": "BMS - Ironship",
+      "kind": "vehicle",
+      "category": "Freighter",
+      "faction": "both"
+    },
+    {
+      "code_name": "FreighterLight",
+      "display_name": "Das Krokodil by VAC",
+      "kind": "vehicle",
+      "category": "Light Freighter",
+      "faction": "both"
+    },
+    {
+      "code_name": "GasMask",
+      "display_name": "Gas Mask",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "GasMaskFilter",
+      "display_name": "Gas Mask Filter",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "GateT1",
+      "display_name": "Gate (Tier 1)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "GateT2",
+      "display_name": "Gate (Tier 2)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "GateT3",
+      "display_name": "Gate (Tier 3)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "GreenAsh",
+      "display_name": "Green Ash Grenade",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "GrenadeAdapter",
+      "display_name": "The Ospreay",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "warden"
+    },
+    {
+      "code_name": "GrenadeC",
+      "display_name": "Bomastone Grenade",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "GrenadeLauncherC",
+      "display_name": "KLG901-2 Lunaire F",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "GrenadeLauncherTC",
+      "display_name": "Mounted Fissura gd.I",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "GrenadeUniformC",
+      "display_name": "Grenadier's Baldric",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "GrenadeW",
+      "display_name": "A3 Harpa Fragmentation Grenade",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "GroundMaterials",
+      "display_name": "Gravel",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "Gunboat2C",
+      "display_name": "Type B - “Lucian”",
+      "kind": "vehicle",
+      "category": "Siege Boat",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "Gunboat2W",
+      "display_name": "81f-f Ronan Blackguard",
+      "kind": "vehicle",
+      "category": "Siege Boat",
+      "faction": "warden"
+    },
+    {
+      "code_name": "GunboatC",
+      "display_name": "Type C - “Charon”",
+      "kind": "vehicle",
+      "category": "Gunboat",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "GunboatW",
+      "display_name": "74b-1 Ronan Gunship",
+      "kind": "vehicle",
+      "category": "Gunboat",
+      "faction": "warden"
+    },
+    {
+      "code_name": "HEGrenade",
+      "display_name": "Mammon 91-b",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "HELaunchedGrenade",
+      "display_name": "Tremola Grenade GPb-1",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "HERocketAmmo",
+      "display_name": "3C-High Explosive Rocket",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "HalfTrackArtilleryC",
+      "display_name": "HH-d “Peltast”",
+      "kind": "vehicle",
+      "category": "Half-Track",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "HalfTrackC",
+      "display_name": "HH-a “Javelin”",
+      "kind": "vehicle",
+      "category": "Half-Track",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "HalfTrackDefensiveC",
+      "display_name": "HH-b “Hoplite”",
+      "kind": "vehicle",
+      "category": "Half-Track",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "HalfTrackOffensiveW",
+      "display_name": "Niska Mk. II Blinder",
+      "kind": "vehicle",
+      "category": "Half-Track",
+      "faction": "warden"
+    },
+    {
+      "code_name": "HalfTrackTwinW",
+      "display_name": "Niska Mk. III Scar Twin",
+      "kind": "vehicle",
+      "category": "Half-Track",
+      "faction": "warden"
+    },
+    {
+      "code_name": "HalfTrackW",
+      "display_name": "Niska Mk. I Gun Motor Carriage",
+      "kind": "vehicle",
+      "category": "Half-Track",
+      "faction": "warden"
+    },
+    {
+      "code_name": "HalftrackMultiW",
+      "display_name": "Niska-Rycker Mk. IX Skycaller",
+      "kind": "vehicle",
+      "category": "Half-Track",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Harvester",
+      "display_name": "BMS - Scrap Hauler",
+      "kind": "vehicle",
+      "category": "Harvester",
+      "faction": "both"
+    },
+    {
+      "code_name": "HeavyArtilleryAmmo",
+      "display_name": "150mm",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "HeavyExplosive",
+      "display_name": "Heavy Explosive Powder",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "HeavyTruckC",
+      "display_name": "AU-A150 Taurine Rigger",
+      "kind": "vehicle",
+      "category": "Heavy-Duty Truck",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "HeavyTruckW",
+      "display_name": "Cnute Cliffwrest",
+      "kind": "vehicle",
+      "category": "Heavy-Duty Truck",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Hospital",
+      "display_name": "Hospital",
+      "kind": "structure",
+      "category": "Medical Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "ISGPillbox",
+      "display_name": "Infantry Support Gun Pillbox",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "ISGTC",
+      "display_name": "Daucus isg.III",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "In01KItem",
+      "display_name": "Small key",
+      "kind": "item",
+      "category": "In01KItem",
+      "faction": "lore"
+    },
+    {
+      "code_name": "In02KItem",
+      "display_name": "Slick Runestone",
+      "kind": "item",
+      "category": "In02KItem",
+      "faction": "lore"
+    },
+    {
+      "code_name": "In03KItem",
+      "display_name": "Sharp Runestone",
+      "kind": "item",
+      "category": "In03KItem",
+      "faction": "lore"
+    },
+    {
+      "code_name": "In04KItem",
+      "display_name": "Airy Runestone",
+      "kind": "item",
+      "category": "In04KItem",
+      "faction": "lore"
+    },
+    {
+      "code_name": "In05KItem",
+      "display_name": "Shimmering Runestone",
+      "kind": "item",
+      "category": "In05KItem",
+      "faction": "lore"
+    },
+    {
+      "code_name": "In06KItem",
+      "display_name": "Blackened Runestone",
+      "kind": "item",
+      "category": "In06KItem",
+      "faction": "lore"
+    },
+    {
+      "code_name": "In07KItem",
+      "display_name": "Burning Runestone",
+      "kind": "item",
+      "category": "In07KItem",
+      "faction": "lore"
+    },
+    {
+      "code_name": "InfantryMine",
+      "display_name": "Crow's Foot Mine",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "InfantryMineProxy",
+      "display_name": "Deployed Crow's Foot Mine",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "InfantryMineSpline",
+      "display_name": "Crow's Foot Minefield",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "IntelCenter",
+      "display_name": "Intelligence Center",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "Iron",
+      "display_name": "Iron",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "IronA",
+      "display_name": "Iron Alloy",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "Keep",
+      "display_name": "Keep",
+      "kind": "structure",
+      "category": "Forward Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "LRArtillery",
+      "display_name": "Storm Cannon",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "LRArtilleryAmmo",
+      "display_name": "300mm",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "LandingCraftC",
+      "display_name": "AB-8 “Acheron”",
+      "kind": "vehicle",
+      "category": "Landing APC",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LandingCraftOffensiveC",
+      "display_name": "AB-11 “Doru”",
+      "kind": "vehicle",
+      "category": "Landing APC",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LandingCraftW",
+      "display_name": "Mulloy LPC",
+      "kind": "vehicle",
+      "category": "Landing APC",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LandingDock",
+      "display_name": "Dock",
+      "kind": "structure",
+      "category": "LandingDock",
+      "faction": "both"
+    },
+    {
+      "code_name": "LandingShipC",
+      "display_name": "Interceptor PA-12",
+      "kind": "vehicle",
+      "category": "Landing Ship",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LandingShipW",
+      "display_name": "MacConmara Shorerunner",
+      "kind": "vehicle",
+      "category": "Landing Ship",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LargeCrane",
+      "display_name": "BMS - Overseer Sky-Hauler",
+      "kind": "vehicle",
+      "category": "Large Crane",
+      "faction": "both"
+    },
+    {
+      "code_name": "LargeFieldATC",
+      "display_name": "945g “Stygian Bolt”",
+      "kind": "vehicle",
+      "category": "Large Field Gun",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LargeFieldCannonW",
+      "display_name": "Balfour Stockade 75mm",
+      "kind": "vehicle",
+      "category": "Large Field Gun",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LargeFieldLightArtilleryC",
+      "display_name": "120-68 “Koronides” Field Gun",
+      "kind": "vehicle",
+      "category": "Field Artillery",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LargeFieldMortarC",
+      "display_name": "40-250 “Alekto” Heavy Cannon",
+      "kind": "vehicle",
+      "category": "Large Field Mortar",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LargeFieldMultiW",
+      "display_name": "Rycker 4/3-F Wasp Nest",
+      "kind": "vehicle",
+      "category": "Field Launcher",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LargeShipAircraftC",
+      "display_name": "Poseidon",
+      "kind": "vehicle",
+      "category": "Aircraft Carrier",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LargeShipBaseShip",
+      "display_name": "BMS - Longhook",
+      "kind": "vehicle",
+      "category": "Base Ship",
+      "faction": "both"
+    },
+    {
+      "code_name": "LargeShipBattleshipAircraftW",
+      "display_name": "Mercy",
+      "kind": "vehicle",
+      "category": "Aircraft Carrier",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LargeShipBattleshipC",
+      "display_name": "Titan",
+      "kind": "vehicle",
+      "category": "Battleship",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LargeShipBattleshipW",
+      "display_name": "Callahan",
+      "kind": "vehicle",
+      "category": "Battleship",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LargeShipDestroyerC",
+      "display_name": "Conqueror",
+      "kind": "vehicle",
+      "category": "Destroyer",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LargeShipDestroyerW",
+      "display_name": "Blacksteele",
+      "kind": "vehicle",
+      "category": "Light Frigate",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LargeShipLiquidShip",
+      "display_name": "Tümmler by VAC",
+      "kind": "vehicle",
+      "category": "Liquid Transport Ship",
+      "faction": "both"
+    },
+    {
+      "code_name": "LargeShipResourceShip",
+      "display_name": "BMS - Bowhead",
+      "kind": "vehicle",
+      "category": "Resource Ship",
+      "faction": "both"
+    },
+    {
+      "code_name": "LargeShipStorageShip",
+      "display_name": "BMS - Bluefin",
+      "kind": "vehicle",
+      "category": "Storage Ship",
+      "faction": "both"
+    },
+    {
+      "code_name": "LargeShipSubmarineC",
+      "display_name": "AC-b “Trident”",
+      "kind": "vehicle",
+      "category": "Submarine",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LargeShipSubmarineW",
+      "display_name": "Nakki",
+      "kind": "vehicle",
+      "category": "Submarine",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LightAAAmmo",
+      "display_name": "Absol Anti-Aircraft Rounds",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "LightArtilleryAmmo",
+      "display_name": "120mm",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "LightBoatInfantryC",
+      "display_name": "K-81e “Sombre”",
+      "kind": "vehicle",
+      "category": "Infantry Boat",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LightBoatInfantryW",
+      "display_name": "68A-4 Ronan Fathomer",
+      "kind": "vehicle",
+      "category": "Infantry Boat",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LightBoatSonarC",
+      "display_name": "Type F - “Abyss Trawler”",
+      "kind": "vehicle",
+      "category": "Light Boat",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LightBoatSonarW",
+      "display_name": "Rinnspeir Reefward Patrol Boat",
+      "kind": "vehicle",
+      "category": "Light Boat",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LightTank2InfantryC",
+      "display_name": "HC-2 “Scorpion”",
+      "kind": "vehicle",
+      "category": "Light Infantry Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LightTank3C",
+      "display_name": "HA-1 “Sagaris”",
+      "kind": "vehicle",
+      "category": "Light Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LightTank3W",
+      "display_name": "Sharkey-Devitt Birdeater Mk. I",
+      "kind": "vehicle",
+      "category": "Light Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LightTankAmmo",
+      "display_name": "40mm",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "LightTankArtilleryW",
+      "display_name": "Devitt-Caine Mk. IV MMR",
+      "kind": "vehicle",
+      "category": "Light Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LightTankC",
+      "display_name": "H-5 “Hatchet”",
+      "kind": "vehicle",
+      "category": "Light Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LightTankDefensiveW",
+      "display_name": "Devitt Ironhide Mk. IV",
+      "kind": "vehicle",
+      "category": "Light Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LightTankFlameC",
+      "display_name": "H-19 “Vulcan”",
+      "kind": "vehicle",
+      "category": "Light Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LightTankMobilityC",
+      "display_name": "H-8 “Kranesca”",
+      "kind": "vehicle",
+      "category": "Light Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LightTankOffensiveC",
+      "display_name": "H-10 “Pelekys”",
+      "kind": "vehicle",
+      "category": "Light Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "LightTankW",
+      "display_name": "Devitt Mk. III",
+      "kind": "vehicle",
+      "category": "Light Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "LiquidContainer",
+      "display_name": "Liquid Container",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "ListeningKit",
+      "display_name": "Listening Kit",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "Lore1",
+      "display_name": "Tin Case",
+      "kind": "item",
+      "category": "Lore1",
+      "faction": "lore"
+    },
+    {
+      "code_name": "Lore12",
+      "display_name": "Flask",
+      "kind": "item",
+      "category": "Lore12",
+      "faction": "lore"
+    },
+    {
+      "code_name": "Lore13",
+      "display_name": "Rusty Shovel",
+      "kind": "item",
+      "category": "Lore13",
+      "faction": "lore"
+    },
+    {
+      "code_name": "Lore4",
+      "display_name": "Peculiar Book",
+      "kind": "item",
+      "category": "Lore4",
+      "faction": "lore"
+    },
+    {
+      "code_name": "Lore9",
+      "display_name": "Bloodied Rifle",
+      "kind": "item",
+      "category": "Lore9",
+      "faction": "lore"
+    },
+    {
+      "code_name": "LoreSkull",
+      "display_name": "Pale Skull",
+      "kind": "item",
+      "category": "LoreSkull",
+      "faction": "lore"
+    },
+    {
+      "code_name": "MGAIT1",
+      "display_name": "Machine Gun Garrison (Tier 1)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "MGAIT2",
+      "display_name": "Machine Gun Garrison (Tier 2)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "MGAIT3",
+      "display_name": "Machine Gun Garrison (Tier 3)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "MGAmmo",
+      "display_name": "12.7mm",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "MGC",
+      "display_name": "KRN886-127 Gast Machine Gun",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "MGPillbox",
+      "display_name": "Machine Gun Pillbox",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "MGTC",
+      "display_name": "Lamentum mm.IV",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "MGTW",
+      "display_name": "Malone Ratcatcher MK.1",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "MGW",
+      "display_name": "Malone MK.2",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "MaceW",
+      "display_name": "Falias Raiding Club",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "warden"
+    },
+    {
+      "code_name": "MagicBox",
+      "display_name": "Magic Box",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "MaintenanceSupplies",
+      "display_name": "Maintenance Supplies",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "MaintenanceTunnel",
+      "display_name": "Maintenance Tunnel",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "MassProduction",
+      "display_name": "Mass Production Factory",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "MaterialPlatform",
+      "display_name": "Material Pallet",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "Mech",
+      "display_name": "Centurion MV-2",
+      "kind": "vehicle",
+      "category": "Mech",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "MechW",
+      "display_name": "Herne QMW 1a Scourge Hunter",
+      "kind": "vehicle",
+      "category": "Mech",
+      "faction": "warden"
+    },
+    {
+      "code_name": "MedicUniformC",
+      "display_name": "Medic Fatigues",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "MedicUniformW",
+      "display_name": "Physician's Jacket",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "MedicalRoomT1",
+      "display_name": "Medical Room (Tier 1)",
+      "kind": "structure",
+      "category": "Medical Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "MedicalRoomT2",
+      "display_name": "Medical Room (Tier 2)",
+      "kind": "structure",
+      "category": "Medical Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "MedicalRoomT3",
+      "display_name": "Medical Room (Tier 3)",
+      "kind": "structure",
+      "category": "Medical Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "MediumBoatC",
+      "display_name": "Strider",
+      "kind": "vehicle",
+      "category": "Gunship",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "MediumBoatW",
+      "display_name": "Rinnspeir Ornitier-Class Gunship",
+      "kind": "vehicle",
+      "category": "Gunship",
+      "faction": "warden"
+    },
+    {
+      "code_name": "MediumTank2C",
+      "display_name": "86K-a “Bardiche”",
+      "kind": "vehicle",
+      "category": "Assault Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "MediumTank2IndirectW",
+      "display_name": "Gallagher Thornfall Mk. VI",
+      "kind": "vehicle",
+      "category": "Cruiser Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "MediumTank2MultiW",
+      "display_name": "Gallagher Highwayman Mk. III",
+      "kind": "vehicle",
+      "category": "Cruiser Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "MediumTank2RangeW",
+      "display_name": "Gallagher Outlaw Mk. II",
+      "kind": "vehicle",
+      "category": "Cruiser Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "MediumTank2TwinC",
+      "display_name": "86K-c “Ranseur”",
+      "kind": "vehicle",
+      "category": "Assault Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "MediumTank2W",
+      "display_name": "Gallagher Brigand Mk. I",
+      "kind": "vehicle",
+      "category": "Cruiser Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "MediumTank3C",
+      "display_name": "90T-v “Nemesis”",
+      "kind": "vehicle",
+      "category": "Assault Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "MediumTankATW",
+      "display_name": "Silverhand Lordscar - Mk. X",
+      "kind": "vehicle",
+      "category": "Assault Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "MediumTankC",
+      "display_name": "85K-b “Falchion”",
+      "kind": "vehicle",
+      "category": "Assault Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "MediumTankLargeC",
+      "display_name": "85V-g “Talos”",
+      "kind": "vehicle",
+      "category": "Assault Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "MediumTankOffensiveC",
+      "display_name": "85K-a “Spatha”",
+      "kind": "vehicle",
+      "category": "Assault Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "MediumTankSiegeW",
+      "display_name": "Silverhand Chieftain - Mk. VI",
+      "kind": "vehicle",
+      "category": "Assault Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "MediumTankW",
+      "display_name": "Silverhand - Mk. IV",
+      "kind": "vehicle",
+      "category": "Assault Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Metal",
+      "display_name": "Salvage",
+      "kind": "item",
+      "category": "Metal",
+      "faction": "both"
+    },
+    {
+      "code_name": "MetalBeamMaterials",
+      "display_name": "Metal Beam",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "MineBoat",
+      "display_name": "Bellweather by VAC",
+      "kind": "vehicle",
+      "category": "Mine Boat",
+      "faction": "both"
+    },
+    {
+      "code_name": "MineSpline",
+      "display_name": "Prepared Minefield",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "MiniDepthChargeAmmo",
+      "display_name": "Model-8 “Kappa”",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "MiniTankAmmo",
+      "display_name": "30mm",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "MiniTorpedoAmmo",
+      "display_name": "Quillback Torpedo",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "Mortar",
+      "display_name": "Cremari Mortar",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "MortarAT",
+      "display_name": "Manticore Mortar",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "MortarAmmo",
+      "display_name": "Mortar Shell",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "MortarAmmoAT",
+      "display_name": "Manticore Ammo",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "MortarAmmoFL",
+      "display_name": "Flare Mortar Shell",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "MortarAmmoFlame",
+      "display_name": "Incendiary Mortar Shell",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "MortarAmmoSH",
+      "display_name": "Shrapnel Mortar Shell",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "MortarTankAmmo",
+      "display_name": "250mm “Purity” Shell",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "MortarTankAmmoBR",
+      "display_name": "250mm “Fury” Shell",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "MortarTankC",
+      "display_name": "HC-7 “Ballista”",
+      "kind": "vehicle",
+      "category": "Siege Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "Motorboat",
+      "display_name": "BMS - Grouper",
+      "kind": "vehicle",
+      "category": "Motorboat",
+      "faction": "both"
+    },
+    {
+      "code_name": "Motorcycle2IntelC",
+      "display_name": "Kb-12 “Oracle”",
+      "kind": "vehicle",
+      "category": "Motorcycle",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "Motorcycle2IntelW",
+      "display_name": "Faden & Co. Augur Relay Bike",
+      "kind": "vehicle",
+      "category": "Motorcycle",
+      "faction": "warden"
+    },
+    {
+      "code_name": "MotorcycleC",
+      "display_name": "03MM “Caster”",
+      "kind": "vehicle",
+      "category": "Motorcycle",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "MotorcycleOffensiveC",
+      "display_name": "00MS “Stinger”",
+      "kind": "vehicle",
+      "category": "Motorcycle",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "MotorcycleW",
+      "display_name": "Kivela Power Wheel 80-1",
+      "kind": "vehicle",
+      "category": "Motorcycle",
+      "faction": "warden"
+    },
+    {
+      "code_name": "NavalUniformC",
+      "display_name": "Remex Garb",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "NavalUniformW",
+      "display_name": "Gentleman's Peacoat",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ObservationBunkerT1",
+      "display_name": "Observation Bunker (Tier 1)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "ObservationBunkerT2",
+      "display_name": "Observation Bunker (Tier 2)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "ObservationBunkerT3",
+      "display_name": "Observation Bunker (Tier 3)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "ObservationTower",
+      "display_name": "Observation Tower",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "OfficerUniformC",
+      "display_name": "Officialis' Attire",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "OfficerUniformW",
+      "display_name": "Officer's Regalia",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Oil",
+      "display_name": "Oil",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "OilField",
+      "display_name": "Oil Field",
+      "kind": "structure",
+      "category": "Resource Field",
+      "faction": "both"
+    },
+    {
+      "code_name": "ParatrooperBackpack",
+      "display_name": "Paratrooper's Ruck",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "ParatrooperUniformC",
+      "display_name": "Auster's Harness",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ParatrooperUniformW",
+      "display_name": "Cloudrunner's Vesture",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Petrol",
+      "display_name": "Petrol",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "PilotMask",
+      "display_name": "Flight Mask",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "PilotUniformC",
+      "display_name": "Lodesman's Lorica",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "PilotUniformW",
+      "display_name": "Aviator's Raiment",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "PipeMaterials",
+      "display_name": "Pipe",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "PistolAmmo",
+      "display_name": "8mm",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "PistolC",
+      "display_name": "Ferro 879",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "PistolLightW",
+      "display_name": "Cascadier 873",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "PistolW",
+      "display_name": "Ahti Model 2",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "PowerBox",
+      "display_name": "Power Switch",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "PowerLine",
+      "display_name": "Power Line",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "PowerPole",
+      "display_name": "Power Pole",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "PrototypeKit",
+      "display_name": "Prototype Kit",
+      "kind": "item",
+      "category": "PrototypeKit",
+      "faction": "both"
+    },
+    {
+      "code_name": "RPGTW",
+      "display_name": "Cutler Foebreaker",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Radio",
+      "display_name": "Radio",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "RadioAircraft",
+      "display_name": "Liaison Transmitter",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "RadioBackpack",
+      "display_name": "Radio Backpack",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "RailTrackSpline",
+      "display_name": "Railway Track",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "RailTrackSplineBiarc",
+      "display_name": "Railway Track (Biarc)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "RailTrackSplineFoundation",
+      "display_name": "Railway Track (Foundation)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "RailTrackSplineTown",
+      "display_name": "Railway Track (Town)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "RainUniformC",
+      "display_name": "Legionary's Oilcoat",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "RareMetal",
+      "display_name": "Rare Metal",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "Refinery",
+      "display_name": "Refinery",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "RelicAPC",
+      "display_name": "Heavy Infantry Carrier",
+      "kind": "vehicle",
+      "category": "Relic Vehicle",
+      "faction": "both"
+    },
+    {
+      "code_name": "RelicArmouredCar",
+      "display_name": "Armoured Fighting Tractor",
+      "kind": "vehicle",
+      "category": "Relic Armoured Car",
+      "faction": "both"
+    },
+    {
+      "code_name": "RelicBase1",
+      "display_name": "Relic Base (Small)",
+      "kind": "structure",
+      "category": "Home Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "RelicBase2",
+      "display_name": "Relic Base (Medium)",
+      "kind": "structure",
+      "category": "Home Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "RelicBase3",
+      "display_name": "Relic Base (Large)",
+      "kind": "structure",
+      "category": "Home Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "RelicLightTank",
+      "display_name": "Storm Tank",
+      "kind": "vehicle",
+      "category": "Relic Light Tank",
+      "faction": "both"
+    },
+    {
+      "code_name": "RelicMaterials",
+      "display_name": "Relic Materials",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "RelicMediumTank",
+      "display_name": "PL-1 “Phalanx”",
+      "kind": "vehicle",
+      "category": "Relic Vehicle",
+      "faction": "both"
+    },
+    {
+      "code_name": "RelicScoutVehicle",
+      "display_name": "Staff Car",
+      "kind": "vehicle",
+      "category": "Relic Vehicle",
+      "faction": "both"
+    },
+    {
+      "code_name": "RelicTruck",
+      "display_name": "Repurposed Truck",
+      "kind": "vehicle",
+      "category": "Relic Truck",
+      "faction": "both"
+    },
+    {
+      "code_name": "ReservePower",
+      "display_name": "Reserve Power",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "ResourceContainer",
+      "display_name": "Resource Container",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "Revolver",
+      "display_name": "Cometa T2-9",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "RevolverAmmo",
+      "display_name": ".44 Mag",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "RifleAIT1",
+      "display_name": "Rifle Garrison (Tier 1)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "RifleAIT2",
+      "display_name": "Rifle Garrison (Tier 2)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "RifleAIT3",
+      "display_name": "Rifle Garrison (Tier 3)",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "RifleAmmo",
+      "display_name": "7.62mm",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "RifleAutomaticC",
+      "display_name": "Catena rt.IV Auto-Rifle",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "RifleAutomaticW",
+      "display_name": "Sampo Auto-Rifle 77",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "RifleC",
+      "display_name": "Argenti r.II Rifle",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "RifleHeavyC",
+      "display_name": "Volta r.I Repeater",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "RifleHeavyW",
+      "display_name": "The Hangman 757",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "RifleLightC",
+      "display_name": "Fuscina pi.I",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "RifleLightW",
+      "display_name": "Blakerow 871",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "RifleLongC",
+      "display_name": "KRR2-790 Omen",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "RifleLongW",
+      "display_name": "Clancy Cinder M3",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "RiflePillbox",
+      "display_name": "Rifle Pillbox",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "RifleShortW",
+      "display_name": "No.2B Hawthorne",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "RifleW",
+      "display_name": "No.2 Loughcaster",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Rocket",
+      "display_name": "A0E-9 Rocket",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "RocketPartBottom",
+      "display_name": "A0E-9 Rocket Booster",
+      "kind": "structure",
+      "category": "Rocket Part",
+      "faction": "both"
+    },
+    {
+      "code_name": "RocketPartCenter",
+      "display_name": "A0E-9 Rocket Body",
+      "kind": "structure",
+      "category": "Rocket Part",
+      "faction": "both"
+    },
+    {
+      "code_name": "RocketPartTop",
+      "display_name": "A0E-9 Rocket Warhead",
+      "kind": "structure",
+      "category": "Rocket Part",
+      "faction": "both"
+    },
+    {
+      "code_name": "RocketSite",
+      "display_name": "A0E-9 Rocket Platform",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "RpgAmmo",
+      "display_name": "RPG",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "RpgW",
+      "display_name": "Cutler Launcher 4",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "SMGAmmo",
+      "display_name": "9mm",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "SMGC",
+      "display_name": "“The Pitch Gun” mc.V",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "SMGHeavyC",
+      "display_name": "“Lionclaw” mc.VIII",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "SMGHeavyW",
+      "display_name": "No.1 “The Liar” Submachine Gun",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "SMGW",
+      "display_name": "Fiddler Submachine Gun Model 868",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "SalvageField",
+      "display_name": "Salvage Field",
+      "kind": "structure",
+      "category": "Resource Field",
+      "faction": "both"
+    },
+    {
+      "code_name": "SandbagFullSpline",
+      "display_name": "Sandbag Wall",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "SandbagHalfSpline",
+      "display_name": "Sandbag Cover",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "SandbagMaterials",
+      "display_name": "Sandbag",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "SatchelChargeT",
+      "display_name": "Havoc Charge Detonator",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "SatchelChargeW",
+      "display_name": "Alligator Charge",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ScoutTankMultiW",
+      "display_name": "King Jester Mk. I-1",
+      "kind": "vehicle",
+      "category": "Scout Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ScoutTankOffensiveW",
+      "display_name": "King Gallant Mk. II",
+      "kind": "vehicle",
+      "category": "Scout Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ScoutTankW",
+      "display_name": "King Spire Mk. I",
+      "kind": "vehicle",
+      "category": "Scout Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ScoutUniformC",
+      "display_name": "Recon Camo",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ScoutUniformW",
+      "display_name": "Outrider's Mantle",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ScoutVehicleMobilityC",
+      "display_name": "UV-05a “Argonaut”",
+      "kind": "vehicle",
+      "category": "Light Utility Vehicle",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ScoutVehicleOffensiveC",
+      "display_name": "UV-24 “Icarus”",
+      "kind": "vehicle",
+      "category": "Light Utility Vehicle",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ScoutVehicleOffensiveW",
+      "display_name": "Drummond Spitfire 100d",
+      "kind": "vehicle",
+      "category": "Light Utility Vehicle",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ScoutVehicleUtilityC",
+      "display_name": "UV-5c “Odyssey”",
+      "kind": "vehicle",
+      "category": "Light Utility Vehicle",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ScoutVehicleUtilityW",
+      "display_name": "Drummond Loscann 55c",
+      "kind": "vehicle",
+      "category": "Light Utility Vehicle",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ScoutVehicleW",
+      "display_name": "Drummond 100a",
+      "kind": "vehicle",
+      "category": "Light Utility Vehicle",
+      "faction": "warden"
+    },
+    {
+      "code_name": "ScrapMine",
+      "display_name": "Salvage Mine",
+      "kind": "structure",
+      "category": "Resource Harvester",
+      "faction": "both"
+    },
+    {
+      "code_name": "Seaport",
+      "display_name": "Seaport",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "ShipPart1",
+      "display_name": "Naval Hull Segments",
+      "kind": "structure",
+      "category": "Ship Part",
+      "faction": "both"
+    },
+    {
+      "code_name": "ShipPart2",
+      "display_name": "Naval Shell Plating",
+      "kind": "structure",
+      "category": "Ship Part",
+      "faction": "both"
+    },
+    {
+      "code_name": "ShipPart3",
+      "display_name": "Naval Turbine Components",
+      "kind": "structure",
+      "category": "Ship Part",
+      "faction": "both"
+    },
+    {
+      "code_name": "ShippingContainer",
+      "display_name": "Shipping Container",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "Shipyard",
+      "display_name": "Shipyard",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "ShotgunAmmo",
+      "display_name": "Buckshot",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "ShotgunC",
+      "display_name": "KRF1-750 Dragonfly",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "ShotgunW",
+      "display_name": "No.4 The Pillory Scattergun",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Shovel",
+      "display_name": "Shovel",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "SignPost",
+      "display_name": "Signpost",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "SledgeHammer",
+      "display_name": "Sledge Hammer",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "SmallRailTrackSpline",
+      "display_name": "Small Gauge Railway Track",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "SmallRailTrackSplineBiarc",
+      "display_name": "Small Gauge Railway Track (Biarc)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "SmallRailTrackSplineFoundation",
+      "display_name": "Small Gauge Railway Track (Foundation)",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "SmallTrainEngine",
+      "display_name": "BMS Mineseeker",
+      "kind": "vehicle",
+      "category": "Small Train Locomotive",
+      "faction": "both"
+    },
+    {
+      "code_name": "SmallTrainLiquid",
+      "display_name": "BMS Tinderbox",
+      "kind": "vehicle",
+      "category": "Small Liquid Container Car",
+      "faction": "both"
+    },
+    {
+      "code_name": "SmallTrainMaterial",
+      "display_name": "BMS Linerunner",
+      "kind": "vehicle",
+      "category": "Small Flatbed Car",
+      "faction": "both"
+    },
+    {
+      "code_name": "SmallTrainResource",
+      "display_name": "BMS Railtruck",
+      "kind": "vehicle",
+      "category": "Small Container Car",
+      "faction": "both"
+    },
+    {
+      "code_name": "SmallTrainShipping",
+      "display_name": "BMS Stowheel",
+      "kind": "vehicle",
+      "category": "Small Box Car",
+      "faction": "both"
+    },
+    {
+      "code_name": "SmokeGrenade",
+      "display_name": "PT-815 Smoke Grenade",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "SniperRifleAmmo",
+      "display_name": "8.5mm",
+      "kind": "item",
+      "category": "SniperRifleAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "SniperRifleC",
+      "display_name": "KRR3-792 Auger",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "SniperRifleW",
+      "display_name": "Clancy-Raca M4",
+      "kind": "item",
+      "category": "SmallArms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "SnowUniformC",
+      "display_name": "Heavy Topcoat",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "SnowUniformW",
+      "display_name": "Caoivish Parka",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "SoldierSupplies",
+      "display_name": "Soldier Supplies",
+      "kind": "item",
+      "category": "Medical",
+      "faction": "both"
+    },
+    {
+      "code_name": "SoldierUniformC",
+      "display_name": "Legionary Fatigues",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "SoldierUniformW",
+      "display_name": "Infantry Battledress",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "StaticCrane",
+      "display_name": "Stationary Crane",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "StickyBomb",
+      "display_name": "Anti-Tank Sticky Bomb",
+      "kind": "item",
+      "category": "HeavyArms",
+      "faction": "both"
+    },
+    {
+      "code_name": "StorageBox",
+      "display_name": "Storage Box",
+      "kind": "structure",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "StorageFacility",
+      "display_name": "Storage Depot",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "StructureCrate",
+      "display_name": "Shippable Crate",
+      "kind": "structure",
+      "category": "Storage",
+      "faction": "both"
+    },
+    {
+      "code_name": "SubmarineLightC",
+      "display_name": "AF-e \"Palaemon\"",
+      "kind": "vehicle",
+      "category": "Submarine",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "SubmarineLightW",
+      "display_name": "Hodari",
+      "kind": "vehicle",
+      "category": "Submarine",
+      "faction": "warden"
+    },
+    {
+      "code_name": "Sulfur",
+      "display_name": "Sulfur",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "SulfurField",
+      "display_name": "Sulfur Field",
+      "kind": "structure",
+      "category": "Resource Field",
+      "faction": "both"
+    },
+    {
+      "code_name": "SulfurMine",
+      "display_name": "Sulfur Mine",
+      "kind": "structure",
+      "category": "Resource Harvester",
+      "faction": "both"
+    },
+    {
+      "code_name": "SuperTankC",
+      "display_name": "O-75b “Ares”",
+      "kind": "vehicle",
+      "category": "Super Tank",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "SuperTankW",
+      "display_name": "Cullen Predator Mk. III",
+      "kind": "vehicle",
+      "category": "Super Tank",
+      "faction": "warden"
+    },
+    {
+      "code_name": "SurfaceWaterMine",
+      "display_name": "E681-B Hullbreaker Mine",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "SurfaceWaterMineSpline",
+      "display_name": "E681-B Hullbreaker Minefield",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "SwordC",
+      "display_name": "Eleos Infantry Dagger",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TankMine",
+      "display_name": "Abisme AT-99 Mine",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "TankMineProxy",
+      "display_name": "Deployed Abisme AT-99 Mine",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TankMineSpline",
+      "display_name": "Abisme AT-99 Minefield",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TankStop",
+      "display_name": "Tank Trap",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TankStopSplineT3",
+      "display_name": "Dragon's Teeth",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TankUniformC",
+      "display_name": "Tankman's Coveralls",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TankUniformW",
+      "display_name": "Padded Boiler Suit",
+      "kind": "item",
+      "category": "Uniforms",
+      "faction": "warden"
+    },
+    {
+      "code_name": "TanketteC",
+      "display_name": "T12 “Actaeon” Tankette",
+      "kind": "vehicle",
+      "category": "Tankette",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TanketteFlameC",
+      "display_name": "T14 “Vesta” Tankette",
+      "kind": "vehicle",
+      "category": "Tankette",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TanketteMultiC",
+      "display_name": "T13 “Deioneus” Rocket Battery",
+      "kind": "vehicle",
+      "category": "Tankette",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TanketteOffensiveC",
+      "display_name": "T20 “Ixion” Tankette",
+      "kind": "vehicle",
+      "category": "Tankette",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TorpedoAmmo",
+      "display_name": "Moray Torpedo",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "TownBase1",
+      "display_name": "Post Office (Tier 1)",
+      "kind": "structure",
+      "category": "Home Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "TownBase2",
+      "display_name": "School (Tier 1)",
+      "kind": "structure",
+      "category": "Home Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "TownBase3",
+      "display_name": "Town Center (Tier 1)",
+      "kind": "structure",
+      "category": "Home Base",
+      "faction": "both"
+    },
+    {
+      "code_name": "TownWSmall1",
+      "display_name": "Emplacement House",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrailerLiquid",
+      "display_name": "Rooster - Lamploader",
+      "kind": "vehicle",
+      "category": "Trailer",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrailerMaterial",
+      "display_name": "Rooster - Tumblebox",
+      "kind": "vehicle",
+      "category": "Trailer",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrailerResource",
+      "display_name": "Rooster - Junkwagon",
+      "kind": "vehicle",
+      "category": "Trailer",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrainBridgeA",
+      "display_name": "Train Bridge (Short)",
+      "kind": "structure",
+      "category": "Bridge",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrainBridgeC",
+      "display_name": "Train Bridge (Long)",
+      "kind": "structure",
+      "category": "Bridge",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrainCaboose",
+      "display_name": "BMS Roadhouse",
+      "kind": "vehicle",
+      "category": "Caboose",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrainCoal",
+      "display_name": "BMS Rockhold",
+      "kind": "vehicle",
+      "category": "Container Car",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrainCombatCarC",
+      "display_name": "Aegis Steelbreaker K5a",
+      "kind": "vehicle",
+      "category": "Combat Car",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TrainCombatCarW",
+      "display_name": "O'Brien Warsmith v.215",
+      "kind": "vehicle",
+      "category": "Combat Car",
+      "faction": "warden"
+    },
+    {
+      "code_name": "TrainEngine",
+      "display_name": "BMS Black Bolt",
+      "kind": "vehicle",
+      "category": "Locomotive",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrainFlatbed",
+      "display_name": "BMS Longrider",
+      "kind": "vehicle",
+      "category": "Flatbed Car",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrainHospital",
+      "display_name": "BMS Bloodtender",
+      "kind": "vehicle",
+      "category": "First Aid Car",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrainInfantry",
+      "display_name": "BMS Holdout",
+      "kind": "vehicle",
+      "category": "Infantry Car",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrainLRArtillery",
+      "display_name": "Tempest Cannon RA-2",
+      "kind": "vehicle",
+      "category": "Long-Range Artillery Car",
+      "faction": "both"
+    },
+    {
+      "code_name": "TraumaKit",
+      "display_name": "Trauma Kit",
+      "kind": "item",
+      "category": "Medical",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrenchConnectorT1",
+      "display_name": "Trench Connector (Tier 1)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrenchConnectorT2",
+      "display_name": "Trench Connector (Tier 2)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrenchConnectorT3",
+      "display_name": "Trench Connector (Tier 3)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrenchEmpT1",
+      "display_name": "Trench Emplacement (Tier 1)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrenchEmpT2",
+      "display_name": "Trench Emplacement (Tier 2)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrenchEmpT3",
+      "display_name": "Trench Emplacement (Tier 3)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrenchIntT1",
+      "display_name": "Trench Intersection (Tier 1)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrenchIntT2",
+      "display_name": "Trench Intersection (Tier 2)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrenchIntT3",
+      "display_name": "Trench Intersection (Tier 3)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrenchT1",
+      "display_name": "Trench (Tier 1)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrenchT2",
+      "display_name": "Trench (Tier 2)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "TrenchT3",
+      "display_name": "Trench (Tier 3)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "Tripod",
+      "display_name": "Tripod",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "TruckC",
+      "display_name": "R-1 Hauler",
+      "kind": "vehicle",
+      "category": "Truck",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TruckDefensiveW",
+      "display_name": "Dunne Leatherback 2a",
+      "kind": "vehicle",
+      "category": "Truck",
+      "faction": "warden"
+    },
+    {
+      "code_name": "TruckLiquidC",
+      "display_name": "RR-3 “Stolon” Tanker",
+      "kind": "vehicle",
+      "category": "Fuel Tanker",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TruckLiquidW",
+      "display_name": "Dunne Fuelrunner 2d",
+      "kind": "vehicle",
+      "category": "Fuel Tanker",
+      "faction": "warden"
+    },
+    {
+      "code_name": "TruckMobilityC",
+      "display_name": "R-5b “Sisyphus” Hauler",
+      "kind": "vehicle",
+      "category": "Truck",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TruckMobilityW",
+      "display_name": "Dunne Landrunner 12c",
+      "kind": "vehicle",
+      "category": "Truck",
+      "faction": "warden"
+    },
+    {
+      "code_name": "TruckMultiC",
+      "display_name": "R-17 “Retiarius” Skirmisher",
+      "kind": "vehicle",
+      "category": "Truck",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TruckOffensiveC",
+      "display_name": "R-9 “Speartip” Escort",
+      "kind": "vehicle",
+      "category": "Truck",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TruckResourceC",
+      "display_name": "R-5 “Atlas” Hauler",
+      "kind": "vehicle",
+      "category": "Truck",
+      "faction": "colonial"
+    },
+    {
+      "code_name": "TruckResourceW",
+      "display_name": "Dunne Loadlugger 3c",
+      "kind": "vehicle",
+      "category": "Truck",
+      "faction": "warden"
+    },
+    {
+      "code_name": "TruckW",
+      "display_name": "Dunne Transport",
+      "kind": "vehicle",
+      "category": "Truck",
+      "faction": "warden"
+    },
+    {
+      "code_name": "UnexplodedOrdnance",
+      "display_name": "Unexploded Ordnance",
+      "kind": "item",
+      "category": "UnexplodedOrdnance",
+      "faction": "both"
+    },
+    {
+      "code_name": "VehicleFactory",
+      "display_name": "Garage",
+      "kind": "structure",
+      "category": "Production",
+      "faction": "both"
+    },
+    {
+      "code_name": "WallSplineT1",
+      "display_name": "Wall (Tier 1)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "WallSplineT2",
+      "display_name": "Wall (Tier 2)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "WallSplineT3",
+      "display_name": "Wall (Tier 3)",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "WatchTower",
+      "display_name": "Watch Tower",
+      "kind": "structure",
+      "category": "Automated Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "Water",
+      "display_name": "Water",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "WaterBucket",
+      "display_name": "Water Bucket",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "WaterMine",
+      "display_name": "E680-S Rudder Lock",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "WaterMineSpline",
+      "display_name": "E680-S Rudder Lock Minefield",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "WaterWallMaterials",
+      "display_name": "Naval Buoy",
+      "kind": "item",
+      "category": "HeavyAmmo",
+      "faction": "both"
+    },
+    {
+      "code_name": "WaterWallSplineT1",
+      "display_name": "Crespine Netting",
+      "kind": "structure",
+      "category": "Passive Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "WeatherStation",
+      "display_name": "Weather Station",
+      "kind": "structure",
+      "category": "Player Manned Defense",
+      "faction": "both"
+    },
+    {
+      "code_name": "WindsockT",
+      "display_name": "Wind Sock",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "Wood",
+      "display_name": "Refined Materials",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    },
+    {
+      "code_name": "WorkHammer",
+      "display_name": "Hammer",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "WorkWrench",
+      "display_name": "Wrench",
+      "kind": "item",
+      "category": "Utility",
+      "faction": "both"
+    },
+    {
+      "code_name": "WoundedCarriedPlayer",
+      "display_name": "Wounded Player",
+      "kind": "item",
+      "category": "Medical",
+      "faction": "both"
+    },
+    {
+      "code_name": "Wreckage",
+      "display_name": "Wreckage",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both"
+    }
+  ]
+}

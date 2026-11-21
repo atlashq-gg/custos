@@ -7,7 +7,7 @@ namespace Custos.Server.Tests.Catalog;
 public sealed class GameCatalogTests
 {
     private static readonly GameCatalog Catalog = GameCatalog.Load(
-        Path.Combine(AppContext.BaseDirectory, "Catalog", "test-catalog.json")
+        Path.Combine(AppContext.BaseDirectory, "TestData", "test-catalog.json")
     );
 
     [Test]
@@ -30,6 +30,26 @@ public sealed class GameCatalogTests
                     )
                 )
             );
+        }
+    }
+
+    // The file that the build copies from server/catalog. A run of the script that goes wrong, for
+    // example when the wiki changes its tables, fails here.
+    [Test]
+    public void Shipped_catalog_has_the_names_of_the_sample_of_0_1_0()
+    {
+        var shipped = GameCatalog.Load(
+            Path.Combine(AppContext.BaseDirectory, "catalog", "catalog.json")
+        );
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(shipped.Count, Is.GreaterThan(500));
+            Assert.That(shipped.DisplayName("StorageFacility"), Is.EqualTo("Storage Depot"));
+            Assert.That(shipped.DisplayName("Seaport"), Is.EqualTo("Seaport"));
+            Assert.That(shipped.Find("RifleC")?.Kind, Is.EqualTo(CatalogKind.Item));
+            Assert.That(shipped.Find("TruckC")?.Kind, Is.EqualTo(CatalogKind.Vehicle));
+            Assert.That(shipped.StructureType("FortBaseT2"), Is.EqualTo("Bunker Base"));
         }
     }
 
