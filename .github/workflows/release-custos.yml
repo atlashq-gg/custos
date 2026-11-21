@@ -8,10 +8,18 @@ on:
   push:
     tags: ["custos-[0-9]+.[0-9]+.[0-9]+"]
   pull_request:
+    types: [opened, synchronize, reopened, closed]
     paths:
       - ".github/workflows/release-custos.yml"
       - "custos/packaging/**"
       - "custos/crates/custos-app/tauri.conf.json"
+
+# A new push to a pull request cancels the run in progress for it. Closing or merging the pull
+# request does the same: the run for the event "closed" cancels the run in progress, and skips its
+# jobs. A push gets its own group, so it never cancels.
+concurrency:
+  group: release-custos-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -24,6 +32,7 @@ env:
 
 jobs:
   version:
+    if: github.event.action != 'closed'
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
