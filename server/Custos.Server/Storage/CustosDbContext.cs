@@ -20,6 +20,7 @@ public sealed class CustosDbContext(DbContextOptions<CustosDbContext> options) :
     public DbSet<StockpileEntry> StockpileEntries => Set<StockpileEntry>();
     public DbSet<StockpileChange> StockpileChanges => Set<StockpileChange>();
     public DbSet<StructureChange> StructureChanges => Set<StructureChange>();
+    public DbSet<GuildSettingsRow> GuildSettings => Set<GuildSettingsRow>();
 
     /// <summary>Adds the options that the server and the design-time factory share.</summary>
     public static void Configure(DbContextOptionsBuilder options) =>
@@ -113,6 +114,16 @@ public sealed class CustosDbContext(DbContextOptions<CustosDbContext> options) :
                 s.ObservedAt,
             });
             e.Property(s => s.Entries).HasColumnType("jsonb");
+        });
+
+        model.Entity<GuildSettingsRow>(e =>
+        {
+            e.ToTable("guild_settings");
+            e.HasKey(s => s.GuildId);
+            e.Property(s => s.GuildId).ValueGeneratedNever();
+            e.Property(s => s.Document).HasColumnType("jsonb");
+            // The reverse lookup of the shared guilds: document @> '{"Sharing": ...}'.
+            e.HasIndex(s => s.Document).HasMethod("gin").HasOperators("jsonb_path_ops");
         });
 
         model.Entity<StructureChange>(e =>

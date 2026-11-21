@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Custos.Server;
+using Custos.Server.Discord;
 using Custos.Server.Endpoints;
 using Custos.Server.Storage;
 using Custos.Server.Telemetry;
@@ -48,7 +49,12 @@ builder.Services.AddScoped<UploadStore>();
 builder.Services.AddHostedService<DatabaseMigrator>();
 builder.Services.AddHostedService<WarMonitor>();
 
-builder.AddCustosTelemetry().AddCustosAuthentication().AddCustosRateLimiting().AddCustosOpenApi();
+builder
+    .AddCustosTelemetry()
+    .AddCustosDiscord()
+    .AddCustosAuthentication()
+    .AddCustosRateLimiting()
+    .AddCustosOpenApi();
 
 var app = builder.Build();
 
@@ -63,6 +69,7 @@ app.MapClientMetadata();
 app.MapUploads();
 app.MapCustosOpenApi();
 app.MapHealth();
+app.MapCustosDiscord();
 
 LogStarting(app.Logger, ServerVersion.Value);
 
