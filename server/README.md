@@ -27,7 +27,7 @@ Two parameters of the AppHost are optional. Set them in its user secrets:
 
 ```sh
 dotnet user-secrets set Parameters:discord-token <bot token> --project Custos.Server.AppHost
-dotnet user-secrets set Parameters:discord-client-id <your Discord user ID> --project Custos.Server.AppHost
+dotnet user-secrets set Parameters:discord-user-id <your Discord user ID> --project Custos.Server.AppHost
 ```
 
 With the bot token, the server connects to Discord, and the MCP endpoint is at `http://localhost:5080/mcp`. The Discord user ID is the user of a token without the claim `discord_id`. The realm gives the user `dev` no Discord user ID.
@@ -87,7 +87,7 @@ With the [Discord connection](#discord) on, an upload needs a member of the guil
 | The user is not a member of the guild, or has no role that can report. | `403` |
 | Discord does not answer. | `503`. Custos tries again at the next interval. |
 
-In the environment `Development`, `DevelopmentDiscordUserId` supplies the user when the claim is absent. In the AppHost, set it with `dotnet user-secrets set Parameters:discord-client-id <id> --project Custos.Server.AppHost`.
+In the environment `Development`, `DevelopmentDiscordUserId` supplies the user when the claim is absent. In the AppHost, set it with `dotnet user-secrets set Parameters:discord-user-id <id> --project Custos.Server.AppHost`.
 
 The table `uploads` keeps the Discord user ID of each upload. It is null for the rows of 0.1.0. Without the Discord connection, the server examines no role, as in 0.1.0, and keeps the claim when the token has it.
 
