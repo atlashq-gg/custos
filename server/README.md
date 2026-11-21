@@ -23,7 +23,7 @@ The AppHost starts:
 | Keycloak | `http://localhost:8180` | The realm `custos` with the user `dev`, password `dev`. Admin user `admin`. Its password is in the dashboard. |
 | Dashboard | `http://localhost:15180` | The Aspire dashboard. The login URL is in the console output. It shows the traces, the metrics, and the logs of the server. |
 
-Two parameters of the AppHost are optional. Set them in its user secrets:
+The AppHost has two parameters, `discord-token` and `discord-user-id`. The dashboard asks for a value that is not set, and the user secrets can hold the values:
 
 ```sh
 dotnet user-secrets set Parameters:discord-token <bot token> --project Custos.Server.AppHost
@@ -93,7 +93,7 @@ The table `uploads` keeps the Discord user ID of each upload. It is null for the
 
 ## Discord
 
-The server connects to Discord as a bot when the configuration has `Discord:Token` (`Discord__Token`). Without the token, the connection is off, and the server writes a warning to the log when it starts. An upload then works as in 0.1.0.
+The server connects to Discord as a bot when the configuration has `Discord:Token` (`Discord__Token`). The token comes from the environment variable `Discord__Token`, or from the file `/run/secrets/Discord__Token`. A file in `/run/secrets` replaces an environment variable of the same key, also when the file is empty. Without the token, the connection is off, and the server writes a warning to the log when it starts. An upload then works as in 0.1.0.
 
 - The bot uses the gateway with the intent `Guilds` only. It needs no privileged intent.
 - The bot reads the roles of a member with Get Guild Member for each upload and each MCP call. A slash command gets the roles in the interaction.
