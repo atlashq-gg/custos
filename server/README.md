@@ -30,7 +30,7 @@ dotnet user-secrets set Parameters:discord-token <bot token> --project Custos.Se
 dotnet user-secrets set Parameters:discord-user-id <your Discord user ID> --project Custos.Server.AppHost
 ```
 
-With the bot token, the server connects to Discord, and the MCP endpoint is at `http://localhost:5080/mcp`. The Discord user ID is the user of a token without the claim `discord_id`. The realm gives the user `dev` no Discord user ID.
+With the bot token, the server connects to Discord, and the MCP endpoint is at `http://localhost:5080/mcp`. A variable `Discord__Token` in the environment of the AppHost reaches the server when the parameter has no value. The Discord user ID is the user of a token without the claim `discord_id`. The realm gives the user `dev` no Discord user ID.
 
 Keycloak imports [the realm](Custos.Server.AppHost/keycloak/custos-realm.json) on each start. Changes in the Keycloak console last for one run. The realm declares the user attribute `discord_id`, and its default client scopes `basic` and `custos-discord` put the claims `sub` and `discord_id` into each access token. A realm file that lists client scopes replaces all built-in scopes of Keycloak, so the file holds `basic` too.
 
@@ -93,7 +93,7 @@ The table `uploads` keeps the Discord user ID of each upload. It is null for the
 
 ## Discord
 
-The server connects to Discord as a bot when the configuration has `Discord:Token` (`Discord__Token`). Without the token, the connection is off, and the server writes a warning to the log when it starts. An upload then works as in 0.1.0.
+The server connects to Discord as a bot when the configuration has `Discord:Token` (`Discord__Token`). The token comes from the environment variable `Discord__Token`, or from the file `/run/secrets/Discord__Token`. A file in `/run/secrets` replaces an environment variable of the same key, also when the file is empty. Without the token, the connection is off, and the server writes a warning to the log when it starts. An upload then works as in 0.1.0.
 
 - The bot uses the gateway with the intent `Guilds` only. It needs no privileged intent.
 - The bot reads the roles of a member with Get Guild Member for each upload and each MCP call. A slash command gets the roles in the interaction.

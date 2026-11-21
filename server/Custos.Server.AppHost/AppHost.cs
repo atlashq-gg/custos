@@ -44,13 +44,14 @@ var api = builder
     .WithHttpHealthCheck("/health/ready");
 
 // The two parameters are optional, and the AppHost always registers them, so that the dashboard
-// lists them. An unset value is empty: the server treats an empty Discord:Token as no token, and an
-// empty Custos:DevelopmentDiscordUserId as no user. Set them in the user secrets of this project:
+// lists them. A parameter without a value sets no environment variable, so that a variable of the
+// same name in the environment of the AppHost (Discord__Token) reaches the server. Set the values
+// in the user secrets of this project:
 //   dotnet user-secrets set Parameters:discord-token <bot token>
 //   dotnet user-secrets set Parameters:discord-user-id <Discord user ID of the user dev>
 // discord-user-id is for a token without the claim discord_id.
-api.WithEnvironment("Discord__Token", OptionalParameter("discord-token", secret: true))
-    .WithEnvironment("Custos__DevelopmentDiscordUserId", OptionalParameter("discord-user-id"));
+WithOptionalParameter("Discord__Token", "discord-token", secret: true);
+WithOptionalParameter("Custos__DevelopmentDiscordUserId", "discord-user-id");
 
 // The tunnel serves only an endpoint that a container references. This reference also gives the
 // realm the host name of the server as Keycloak sees it (aspire.dev.internal). The server does not
@@ -64,9 +65,14 @@ keycloak.WithEnvironment(
 builder.Build().Run();
 
 // AddParameter fails for a key that is not in the configuration. This one gives an empty value.
-IResourceBuilder<ParameterResource> OptionalParameter(string name, bool secret = false) =>
-    builder.AddParameter(
+void WithOptionalParameter(string variable, string name, bool secret = false)
+{
+    var key = $"Parameters:{name}";
+    var parameter = builder.AddParameter(
         name,
-        () => builder.Configuration[$"Parameters:{name}"] ?? string.Empty,
+        () => builder.Configuration[key] ?? string.Empty,
         secret: secret
     );
+    if (!string.IsNullOrEmpty(builder.Configuration[key]))
+        api.WithEnvironment(variable, parameter);
+}
