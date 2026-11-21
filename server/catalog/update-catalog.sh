@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Makes catalog.json from the Cargo tables of the Foxhole wiki. Run it from this folder after a
-# game update:
+# Writes the catalog, as JSON, to the standard output. It makes the catalog from the Cargo tables of
+# the Foxhole wiki. Run it from this folder after a game update:
 #
-#   ./update-catalog.sh [catalog.json]
+#   ./update-catalog.sh > catalog.json
 #
 # It needs curl and jq. The queries are in this file, so that each run gives the same shape. The
 # wiki content is under CC BY-NC-SA 4.0 (LICENSE.md): change the date in LICENSE.md with the file.
@@ -10,7 +10,6 @@ set -euo pipefail
 
 api="https://foxhole.wiki.gg/api.php"
 source="https://foxhole.wiki.gg/wiki/Special:CargoTables"
-output="${1:-catalog.json}"
 
 # Table, the field with the category, and the kind. The first table with a code name wins: an
 # item before a vehicle before a structure.
@@ -70,6 +69,4 @@ query() {
 for entry in "${tables[@]}"; do
   read -r table category kind <<<"$entry"
   query "$table" "$category" "$kind"
-done | jq -s --arg source "$source" --arg retrieved_at "$(date -u +%F)" "$build" >"$output"
-
-echo "$(jq '.entries | length' "$output") entries in $output"
+done | jq -s --arg source "$source" --arg retrieved_at "$(date -u +%F)" "$build"

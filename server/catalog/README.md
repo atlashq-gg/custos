@@ -36,8 +36,10 @@ Run the script after a game update. It needs `curl`, `jq`, and access to the wik
 
 ```sh
 cd server/catalog
-./update-catalog.sh catalog.json
+./update-catalog.sh > catalog.json
 ```
+
+The script writes the catalog to the standard output, so a pipe to `jq` also works. The shell empties `catalog.json` before the script starts. If the script fails, it exits with a code other than `0`: restore the file with `git restore catalog.json`.
 
 The script queries the Cargo tables `itemdata`, `vehicles`, and `structures` through `api.php?action=cargoquery`. The queries are in the script, so that each run gives the same shape. A code name that is in more than one table gets the entry of the first table in that order.
 
