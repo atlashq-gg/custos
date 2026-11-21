@@ -134,3 +134,20 @@ public sealed class StructureChange
     public required string CodeName { get; init; }
     public required string Details { get; init; }
 }
+
+/// <summary>
+/// The settings document of a guild (<see cref="Discord.GuildSettings"/>). A guild without a row
+/// has the default document.
+/// </summary>
+public sealed class GuildSettingsRow
+{
+    public required long GuildId { get; init; }
+
+    /// <summary>The document as <c>jsonb</c>.</summary>
+    public required string Document { get; set; }
+
+    public required DateTimeOffset UpdatedAt { get; set; }
+
+    /// <summary>The Discord user ID of the last change.</summary>
+    public required long UpdatedBy { get; set; }
+}
