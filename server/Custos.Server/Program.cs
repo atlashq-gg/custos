@@ -12,6 +12,9 @@ if (await CommandLine.RunAsync(args, Console.Out) is { } exitCode)
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Docker secrets: the file /run/secrets/Discord__Token gives Discord:Token.
+builder.Configuration.AddKeyPerFile("/run/secrets", optional: true);
+
 builder
     .Services.AddOptions<CustosOptions>()
     .BindConfiguration(CustosOptions.SectionName)

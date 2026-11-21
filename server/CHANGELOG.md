@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.0
+
+The server connects to Discord as a bot, gives access by the roles of a member, labels the structures, and serves an MCP endpoint for searches. Contract version `v0` does not change.
+
+- Telemetry: OpenTelemetry traces, metrics, and logs, with OTLP export when the environment has `OTEL_EXPORTER_OTLP_ENDPOINT`. One activity source and one meter, `Custos.Server`. Instruments for uploads, the war API, Discord requests, and MCP tool calls.
+- Health checks with the tags `live` and `ready`. The flags `--healthcheck` and `--version`, and a `HEALTHCHECK` in the image.
+- The standard resilience handler for the war API, with 15 seconds at most.
+- Discord connection with `Discord:Token`, through the gateway with the intent `Guilds`. Without the token, the server works as 0.1.0. The server reads the file `/run/secrets/Discord__Token`.
+- `/custosadmin settings view` and `update`: the settings document of a guild with the roles that can report, read, and label, and the guilds that can read the records. The table `guild_settings`.
+- An upload needs a member of the guild with the access `report`, with the Discord user ID in the claim `discord_id`. `403` for a refusal, and `503` when Discord does not answer. The column `uploads.discord_user_id`.
+- Structure labels: the server generates a unique label for each structure from the place, the type, and a code. `/custos label` changes a label. The server generates the labels of the rows of 0.1.0 when it starts.
+- Map data of the war API: the place names and the map items of each region for each war.
+- The format of the catalog of the game, its loader, and the script that makes it from the Foxhole wiki. The catalog file is not in this release.
+- MCP endpoint `/mcp` with `Mcp:Enabled`: an OAuth resource server with the metadata document, the scopes `custos:read` and `custos:write`, a guard on each tool, and a rate limit for each caller. The tools `list_guilds`, `find_items`, `find_structures`, and `set_structure_label`. A search also reads the records of the guilds that share with the guild.
+- One audit line in the log for each settings change, label change, and MCP tool call.
+- Development realm: the user attribute `discord_id`, the client scopes `basic`, `custos-discord`, `custos:read`, and `custos:write`, the policies for the registration of a harness, and PKCE with S256. Keycloak starts with `cimd,resource-indicators`.
+
 ## 0.1.0
 
 First version. Implements contract version `v0`.
