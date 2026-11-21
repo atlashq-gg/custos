@@ -53,6 +53,99 @@ namespace Custos.Server.Storage.Migrations
                     b.ToTable("guild_settings", (string)null);
                 });
 
+            modelBuilder.Entity("Custos.Server.Storage.MapItem", b =>
+                {
+                    b.Property<Guid>("WarId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("war_id");
+
+                    b.Property<string>("Region")
+                        .HasColumnType("text")
+                        .HasColumnName("region");
+
+                    b.Property<int>("ItemIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("item_index");
+
+                    b.Property<int>("IconType")
+                        .HasColumnType("integer")
+                        .HasColumnName("icon_type");
+
+                    b.Property<float>("X")
+                        .HasColumnType("real")
+                        .HasColumnName("x");
+
+                    b.Property<float>("Y")
+                        .HasColumnType("real")
+                        .HasColumnName("y");
+
+                    b.HasKey("WarId", "Region", "ItemIndex")
+                        .HasName("pk_map_items");
+
+                    b.ToTable("map_items", (string)null);
+                });
+
+            modelBuilder.Entity("Custos.Server.Storage.MapPlace", b =>
+                {
+                    b.Property<Guid>("WarId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("war_id");
+
+                    b.Property<string>("Region")
+                        .HasColumnType("text")
+                        .HasColumnName("region");
+
+                    b.Property<int>("PlaceIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("place_index");
+
+                    b.Property<bool>("Major")
+                        .HasColumnType("boolean")
+                        .HasColumnName("major");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<float>("X")
+                        .HasColumnType("real")
+                        .HasColumnName("x");
+
+                    b.Property<float>("Y")
+                        .HasColumnType("real")
+                        .HasColumnName("y");
+
+                    b.HasKey("WarId", "Region", "PlaceIndex")
+                        .HasName("pk_map_places");
+
+                    b.ToTable("map_places", (string)null);
+                });
+
+            modelBuilder.Entity("Custos.Server.Storage.MapRegion", b =>
+                {
+                    b.Property<Guid>("WarId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("war_id");
+
+                    b.Property<string>("Region")
+                        .HasColumnType("text")
+                        .HasColumnName("region");
+
+                    b.Property<DateTimeOffset>("FetchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fetched_at");
+
+                    b.Property<string>("StaticEtag")
+                        .HasColumnType("text")
+                        .HasColumnName("static_etag");
+
+                    b.HasKey("WarId", "Region")
+                        .HasName("pk_map_regions");
+
+                    b.ToTable("map_regions", (string)null);
+                });
+
             modelBuilder.Entity("Custos.Server.Storage.Stockpile", b =>
                 {
                     b.Property<long>("GuildId")
@@ -194,6 +287,14 @@ namespace Custos.Server.Storage.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb")
                         .HasColumnName("details");
+
+                    b.Property<string>("GeneratedLabel")
+                        .HasColumnType("text")
+                        .HasColumnName("generated_label");
+
+                    b.Property<string>("Label")
+                        .HasColumnType("text")
+                        .HasColumnName("label");
 
                     b.Property<DateTimeOffset>("LastSeenAt")
                         .HasColumnType("timestamp with time zone")
@@ -347,6 +448,36 @@ namespace Custos.Server.Storage.Migrations
                         .HasName("pk_wars");
 
                     b.ToTable("wars", (string)null);
+                });
+
+            modelBuilder.Entity("Custos.Server.Storage.MapItem", b =>
+                {
+                    b.HasOne("Custos.Server.Storage.MapRegion", null)
+                        .WithMany()
+                        .HasForeignKey("WarId", "Region")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_map_items_map_regions_war_id_region");
+                });
+
+            modelBuilder.Entity("Custos.Server.Storage.MapPlace", b =>
+                {
+                    b.HasOne("Custos.Server.Storage.MapRegion", null)
+                        .WithMany()
+                        .HasForeignKey("WarId", "Region")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_map_places_map_regions_war_id_region");
+                });
+
+            modelBuilder.Entity("Custos.Server.Storage.MapRegion", b =>
+                {
+                    b.HasOne("Custos.Server.Storage.War", null)
+                        .WithMany()
+                        .HasForeignKey("WarId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_map_regions_wars_war_id");
                 });
 
             modelBuilder.Entity("Custos.Server.Storage.Stockpile", b =>

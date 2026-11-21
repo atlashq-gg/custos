@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Custos.Server;
+using Custos.Server.Catalog;
 using Custos.Server.Discord;
 using Custos.Server.Endpoints;
 using Custos.Server.Storage;
@@ -44,13 +45,17 @@ builder.AddNpgsqlDbContext<CustosDbContext>(
 );
 builder.Services.AddScoped<WarRegistry>();
 builder.Services.AddScoped<UploadStore>();
+builder.Services.AddScoped<WarMaps>();
+builder.Services.AddScoped<StructureLabels>();
 
 // The migrator must start first: hosted services start in the order of registration.
 builder.Services.AddHostedService<DatabaseMigrator>();
+builder.Services.AddHostedService<LabelBackfill>();
 builder.Services.AddHostedService<WarMonitor>();
 
 builder
     .AddCustosTelemetry()
+    .AddCustosCatalog()
     .AddCustosDiscord()
     .AddCustosAuthentication()
     .AddCustosRateLimiting()

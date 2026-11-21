@@ -21,6 +21,9 @@ public sealed class CustosDbContext(DbContextOptions<CustosDbContext> options) :
     public DbSet<StockpileChange> StockpileChanges => Set<StockpileChange>();
     public DbSet<StructureChange> StructureChanges => Set<StructureChange>();
     public DbSet<GuildSettingsRow> GuildSettings => Set<GuildSettingsRow>();
+    public DbSet<MapRegion> MapRegions => Set<MapRegion>();
+    public DbSet<MapPlace> MapPlaces => Set<MapPlace>();
+    public DbSet<MapItem> MapItems => Set<MapItem>();
 
     /// <summary>Adds the options that the server and the design-time factory share.</summary>
     public static void Configure(DbContextOptionsBuilder options) =>
@@ -114,6 +117,43 @@ public sealed class CustosDbContext(DbContextOptions<CustosDbContext> options) :
                 s.ObservedAt,
             });
             e.Property(s => s.Entries).HasColumnType("jsonb");
+        });
+
+        model.Entity<MapRegion>(e =>
+        {
+            e.HasKey(r => new { r.WarId, r.Region });
+            e.HasOne<War>()
+                .WithMany()
+                .HasForeignKey(r => r.WarId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        model.Entity<MapPlace>(e =>
+        {
+            e.HasKey(p => new
+            {
+                p.WarId,
+                p.Region,
+                p.PlaceIndex,
+            });
+            e.HasOne<MapRegion>()
+                .WithMany()
+                .HasForeignKey(p => new { p.WarId, p.Region })
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<MapItem>(e =>
+        {
+            e.HasKey(i => new
+            {
+                i.WarId,
+                i.Region,
+                i.ItemIndex,
+            });
+            e.HasOne<MapRegion>()
+                .WithMany()
+                .HasForeignKey(i => new { i.WarId, i.Region })
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         model.Entity<GuildSettingsRow>(e =>
