@@ -122,7 +122,7 @@ CI publishes the image `ghcr.io/atlashq-gg/custos-server`:
 
 | Tag | Content |
 |---|---|
-| `X.Y.Z`, `X.Y` | The release from the Git tag `server/vX.Y.Z`. |
+| `X.Y.Z`, `X.Y` | The release from the Git tag `server-X.Y.Z`. |
 | `unstable` | The latest build of `main`. |
 | `sha-<commit>` | The build of one commit on `main`. |
 

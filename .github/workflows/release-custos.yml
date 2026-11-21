@@ -1,12 +1,12 @@
 name: release-custos
 
-# A tag custos/vX.Y.Z builds the AppImage, the installer script, and the Windows installer. It attests
+# A tag custos-X.Y.Z builds the AppImage, the installer script, and the Windows installer. It attests
 # the three files and attaches them to a GitHub release. The description of the release is the
 # section of the version in custos/CHANGELOG.md. A pull request that changes the packages builds and
 # tests them, with no attestation and no release.
 on:
   push:
-    tags: ["custos/v*"]
+    tags: ["custos-[0-9]+.[0-9]+.[0-9]+"]
   pull_request:
     paths:
       - ".github/workflows/release-custos.yml"
@@ -34,7 +34,7 @@ jobs:
         id: version
         run: |
           version=$(grep -m1 '^version' custos/Cargo.toml | cut -d'"' -f2)
-          if [ "$GITHUB_REF_TYPE" = tag ] && [ "${GITHUB_REF_NAME#custos/v}" != "$version" ]; then
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "${GITHUB_REF_NAME#custos-}" != "$version" ]; then
             echo "The tag $GITHUB_REF_NAME is not the version $version in custos/Cargo.toml."
             exit 1
           fi
