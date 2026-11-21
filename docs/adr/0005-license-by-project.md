@@ -47,3 +47,4 @@ spec, custos, and the root content are under the MIT license. server is under th
 ## Log
 
 - 2026-11-17: Created.
+- 2026-11-21: The Maintainer added `server/catalog/catalog.json`, a file from the Foxhole wiki under CC BY-NC-SA 4.0 ([server/catalog/LICENSE.md](../../server/catalog/LICENSE.md)). It is a data file inside `server/`, and it is the only file in the repository under that license. This ADR does not change: the code of `server/` stays under AGPL-3.0-or-later. The NonCommercial term applies to the container image that holds the file.
