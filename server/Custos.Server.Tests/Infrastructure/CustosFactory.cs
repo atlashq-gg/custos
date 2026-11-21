@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
@@ -65,6 +66,10 @@ internal sealed class CustosFactory(
         builder.ConfigureTestServices(services =>
         {
             services.AddHttpClient<WarApiClient>().ConfigurePrimaryHttpMessageHandler(() => WarApi);
+            // The retries stay, without the wait between them.
+            services.ConfigureAll<HttpStandardResilienceOptions>(resilience =>
+                resilience.Retry.Delay = TimeSpan.Zero
+            );
 
             services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, jwt =>
             {
@@ -116,8 +121,10 @@ internal sealed class CustosFactory(
     }
 }
 
-/// <summary>The Foxhole war API. It answers with <see cref="War"/>, or fails when <see
-/// cref="Fail"/> is set.</summary>
+/// <summary>
+/// The Foxhole war API. It answers with <see cref="War"/>. It fails when <see cref="Fail"/> is set,
+/// and for the next <see cref="Failures"/> requests.
+/// </summary>
 internal sealed class FakeWarApi : HttpMessageHandler
 {
     public static readonly CurrentWar War142 = new(
@@ -128,6 +135,7 @@ internal sealed class FakeWarApi : HttpMessageHandler
 
     public CurrentWar War { get; set; } = War142;
     public bool Fail { get; set; }
+    public int Failures { get; set; }
     public int Calls { get; private set; }
     public Uri? LastRequest { get; private set; }
 
@@ -138,8 +146,9 @@ internal sealed class FakeWarApi : HttpMessageHandler
     {
         Calls++;
         LastRequest = request.RequestUri;
+        var fail = Fail || Failures-- > 0;
         return Task.FromResult(
-            Fail
+            fail
                 ? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
                 : new HttpResponseMessage(HttpStatusCode.OK)
                 {
