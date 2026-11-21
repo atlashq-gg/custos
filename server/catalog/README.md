@@ -32,11 +32,11 @@ The source is the Foxhole wiki. The file is under [CC BY-NC-SA 4.0](https://crea
 
 ## Update
 
-Run the script after a game update. It needs the .NET SDK 10 and access to the wiki. Change the date in [LICENSE.md](LICENSE.md) in the same commit.
+Run the script after a game update. It needs `curl`, `jq`, and access to the wiki. Change the date in [LICENSE.md](LICENSE.md) in the same commit.
 
 ```sh
 cd server/catalog
-dotnet run update-catalog.cs -- catalog.json
+./update-catalog.sh catalog.json
 ```
 
 The script queries the Cargo tables `itemdata`, `vehicles`, and `structures` through `api.php?action=cargoquery`. The queries are in the script, so that each run gives the same shape. A code name that is in more than one table gets the entry of the first table in that order.
