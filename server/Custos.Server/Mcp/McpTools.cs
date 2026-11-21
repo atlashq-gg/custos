@@ -41,6 +41,11 @@ public abstract partial class McpTools(McpCallContext context, IServiceProvider 
             outcome = "ok";
             return result;
         }
+        catch (McpDeniedException e)
+        {
+            outcome = "denied";
+            return Problem(e.Problem);
+        }
         catch (McpException)
         {
             // A wrong argument. The SDK gives the message to the model.
