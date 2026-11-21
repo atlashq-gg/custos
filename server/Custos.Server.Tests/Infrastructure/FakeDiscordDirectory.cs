@@ -13,6 +13,9 @@ internal sealed class FakeDiscordDirectory : IDiscordDirectory
     public bool Unavailable { get; set; }
     public int Calls { get; private set; }
 
+    public IReadOnlyList<DiscordGuild> ListGuilds() =>
+        [.. Guilds.Order().Select(id => new DiscordGuild(id, $"Guild {id}"))];
+
     /// <summary>Adds a member, and the bot to the guild of the member.</summary>
     public FakeDiscordDirectory Add(
         ulong guildId,

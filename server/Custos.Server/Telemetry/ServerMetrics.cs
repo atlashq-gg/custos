@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
 namespace Custos.Server.Telemetry;
@@ -9,12 +10,16 @@ internal sealed class ServerMetrics
     public const string UploadParseDuration = "custos.upload.parse.duration";
     public const string WarApiAnswers = "custos.war_api.answers";
     public const string DiscordRequestDuration = "custos.discord.request.duration";
+    public const string McpToolCalls = "custos.mcp.tool.calls";
+    public const string McpToolDuration = "custos.mcp.tool.duration";
     public const string OutcomeTag = "outcome";
 
     private readonly Counter<long> _uploads;
     private readonly Histogram<double> _uploadParseDuration;
     private readonly Counter<long> _warApiAnswers;
     private readonly Histogram<double> _discordRequestDuration;
+    private readonly Counter<long> _mcpToolCalls;
+    private readonly Histogram<double> _mcpToolDuration;
 
     public ServerMetrics(Meter meter)
     {
@@ -40,6 +45,16 @@ internal sealed class ServerMetrics
             "The requests of the bot to the REST API of Discord, by outcome: ok, client_error, "
                 + "rate_limited (429), server_error (5xx), or error (no answer)."
         );
+        _mcpToolCalls = meter.CreateCounter<long>(
+            McpToolCalls,
+            "{call}",
+            "The calls of MCP tools, by tool, outcome, and access of the caller."
+        );
+        _mcpToolDuration = meter.CreateHistogram<double>(
+            McpToolDuration,
+            "s",
+            "The duration of the calls of MCP tools, by tool, outcome, and access of the caller."
+        );
     }
 
     /// <summary>
@@ -58,6 +73,18 @@ internal sealed class ServerMetrics
     /// answer.</summary>
     public void DiscordRequest(TimeSpan duration, int? status) =>
         _discordRequestDuration.Record(duration.TotalSeconds, Outcome(DiscordOutcome(status)));
+
+    public void McpToolCall(string tool, string outcome, string access, TimeSpan duration)
+    {
+        var tags = new TagList
+        {
+            { "tool", tool },
+            { OutcomeTag, outcome },
+            { "access", access },
+        };
+        _mcpToolCalls.Add(1, tags);
+        _mcpToolDuration.Record(duration.TotalSeconds, tags);
+    }
 
     internal static string DiscordOutcome(int? status) =>
         status switch

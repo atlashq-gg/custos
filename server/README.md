@@ -140,6 +140,33 @@ The map data holds no name for a structure. The server generates a label for eac
 
 A user label has 1 to 64 characters: letters, digits, spaces, and `-` `'` `.` `,` `(` `)` `/` `&` `+`. A label goes into Discord messages and into the context of an LLM, so the server refuses other characters. A change of a label is not a change of the structure: the history does not record it. The server writes one audit line to the log for each change.
 
+## MCP endpoint
+
+`/mcp` is an MCP (Model Context Protocol) endpoint with stateless HTTP. A user searches the records of a guild through an LLM harness. The endpoint is an OAuth resource server: the authorization server issues the tokens, and the server validates them. It needs `Mcp:Enabled` and the [Discord connection](#discord).
+
+| Key | Default | Content |
+|---|---|---|
+| `Mcp:Enabled` | `false` | Without `true`, the server maps no MCP endpoint. |
+| `Mcp:Resource` | (required) | The URL of the endpoint as a harness sees it, for example `https://custos.example.com/mcp`. Its path is `/mcp`. A token must have it in `aud`. |
+| `Mcp:Authority` | `Custos:Authority` | The issuer of the MCP tokens. |
+| `Mcp:ReadScope` | `custos:read` | The scope of the read tools. |
+| `Mcp:WriteScope` | `custos:write` | The scope of the label tool. |
+| `Mcp:RequestsPerMinute` | `60` | The largest number of requests of one caller in one minute. Each call can cost a request to Discord. |
+
+- The server serves the metadata document (RFC 9728) at `/.well-known/oauth-protected-resource` on the origin of `Mcp:Resource`. `/.well-known/oauth-protected-resource/mcp` redirects to it.
+- A request without a valid token gets `401` with `WWW-Authenticate: Bearer resource_metadata="...", scope="custos:read custos:write"`.
+- The token needs the audience `Mcp:Resource`, the claim `discord_id`, and the scope of the tool. The token of Custos has no audience, so `/mcp` refuses it. An MCP token has another `azp`, so the upload refuses it.
+- A tool without the scope of the token is not in the list of tools. A call without the scope gets `403` with `error="insufficient_scope"`.
+- A refusal for access is a tool result with `isError` and a problem body: `urn:custos:mcp:forbidden`, `urn:custos:mcp:not-visible`, or `urn:custos:mcp:discord-unavailable`. A missing guild, a guild without the bot, and a guild where the caller is not a member get the same `not-visible` answer.
+- The server writes one audit line to the log for each tool call.
+- The SDK serves the metadata document only to a request whose scheme and host are equal to `Mcp:Resource`. Behind a reverse proxy, set `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`, so that the server applies `X-Forwarded-Proto` and `X-Forwarded-For`.
+
+| Tool | Scope | Access | Result |
+|---|---|---|---|
+| `list_guilds` | read | (token only) | Each guild of the bot where the caller is a member: the ID, the name, the access, the current war, and the guilds that share their records with it. |
+
+The development realm has the optional client scopes `custos:read` and `custos:write`, each with an audience mapper for `CUSTOS_MCP_RESOURCE` and the `discord_id` mapper. It permits an anonymous client registration from `localhost` and `127.0.0.1`, and each client must use PKCE with S256. Keycloak starts with the features `cimd` and `resource-indicators`.
+
 ## Storage
 
 The server keeps the parsed data in PostgreSQL. It applies its migrations when it starts. Issue #1 holds the design ("Extension: guild storage in `server/`").

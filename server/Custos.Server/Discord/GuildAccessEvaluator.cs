@@ -1,7 +1,7 @@
 namespace Custos.Server.Discord;
 
 /// <summary>The result of an access check: the status of the member, and the access.</summary>
-internal sealed record AccessCheck(MemberStatus Status, GuildAccess Access)
+public sealed record AccessCheck(MemberStatus Status, GuildAccess Access)
 {
     public bool Has(GuildAccess access) => (Access & access) == access;
 }
@@ -11,7 +11,7 @@ internal sealed record AccessCheck(MemberStatus Status, GuildAccess Access)
 /// guild. Scoped: it asks Discord one time for each guild and user in one request, and keeps no
 /// answer between requests, so a role change applies to the next request.
 /// </summary>
-internal sealed class GuildAccessEvaluator(IDiscordDirectory directory, GuildSettingsStore settings)
+public sealed class GuildAccessEvaluator(IDiscordDirectory directory, GuildSettingsStore settings)
 {
     private readonly Dictionary<(ulong Guild, ulong User), AccessCheck> _checks = [];
 

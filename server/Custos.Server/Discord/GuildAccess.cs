@@ -17,7 +17,7 @@ public enum GuildAccess
 /// The facts about a member that the access rule needs: the role IDs, and the Administrator
 /// permission. The guild owner has the Administrator permission.
 /// </summary>
-internal sealed record MemberFacts(IReadOnlyCollection<ulong> RoleIds, bool IsAdministrator);
+public sealed record MemberFacts(IReadOnlyCollection<ulong> RoleIds, bool IsAdministrator);
 
 /// <summary>The access rule. It has no I/O.</summary>
 internal static class AccessRule

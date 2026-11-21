@@ -1,0 +1,17 @@
+# Each MCP tool of the server, with its guard, its arguments, and its description.
+#
+# A snapshot, not configuration. Nothing reads it at runtime. McpToolTests compares it with the
+# assembly. The server refuses each call of a tool without a guard, and a guard that someone
+# changes gives no build error, so this file is where a reviewer sees the change.
+#
+# One line for each tool:   name | Type.Method | scope, access | arguments | description
+#
+#   access       the access of the caller in the guild of the argument guild_id. None: the guard
+#                examines the token only.
+#   arguments    name:type for each argument of the input schema, in order. ? marks an argument
+#                with a default.
+#   description  the [Description] of the tool, which the model reads.
+#
+# A change of a tool is a change of this file. Blank lines and # comments do not count.
+
+list_guilds | GuildTools.ListGuilds | Read, None | none | The Discord guilds of the Custos bot where you are a member: the guild ID, the name, your access, the current war, and the guilds that share their records with it.

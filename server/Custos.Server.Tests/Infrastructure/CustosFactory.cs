@@ -27,7 +27,8 @@ namespace Custos.Server.Tests.Infrastructure;
 internal sealed class CustosFactory(
     int uploadMinIntervalSeconds = 0,
     string environment = "Testing",
-    FakeDiscordDirectory? discord = null
+    FakeDiscordDirectory? discord = null,
+    bool mcp = false
 ) : WebApplicationFactory<Program>
 {
     public const string PublicBaseUrl = "http://custos.test";
@@ -37,6 +38,7 @@ internal sealed class CustosFactory(
     public const long GuildId = 1234;
     public const long DevelopmentGuildId = 99;
     public const long DevelopmentDiscordUserId = 199;
+    public const string McpResource = "http://localhost/mcp";
 
     private static readonly SymmetricSecurityKey SigningKey = new(new byte[32]) { KeyId = "test" };
 
@@ -63,6 +65,11 @@ internal sealed class CustosFactory(
         builder.UseSetting("Custos:DevelopmentGuildId", DevelopmentGuildId.ToString());
         builder.UseSetting("Custos:DevelopmentDiscordUserId", DevelopmentDiscordUserId.ToString());
         builder.UseSetting("Custos:WarPollIntervalSeconds", "0");
+        if (mcp)
+        {
+            builder.UseSetting("Mcp:Enabled", "true");
+            builder.UseSetting("Mcp:Resource", McpResource);
+        }
         builder.UseSetting(
             "Custos:CatalogPath",
             Path.Combine(AppContext.BaseDirectory, "Catalog", "test-catalog.json")
@@ -86,7 +93,8 @@ internal sealed class CustosFactory(
                 resilience.Retry.Delay = TimeSpan.Zero
             );
 
-            services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, jwt =>
+            // Both bearer schemes: the token of Custos and the MCP token.
+            services.PostConfigureAll<JwtBearerOptions>(jwt =>
             {
                 var metadata = new OpenIdConnectConfiguration
                 {
@@ -125,6 +133,39 @@ internal sealed class CustosFactory(
             new SecurityTokenDescriptor
             {
                 Issuer = Issuer,
+                Subject = new ClaimsIdentity(claims),
+                Expires = DateTime.UtcNow.AddMinutes(5),
+                SigningCredentials = new SigningCredentials(
+                    SigningKey,
+                    SecurityAlgorithms.HmacSha256
+                ),
+            }
+        );
+
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
+
+    /// <summary>
+    /// A client with an MCP token: the audience <paramref name="audience"/>, the scopes
+    /// <paramref name="scopes"/>, and the claim <c>discord_id</c> when it is not <c>null</c>.
+    /// </summary>
+    public HttpClient CreateMcpClient(
+        string? discordId,
+        string scopes = "custos:read custos:write",
+        string audience = McpResource
+    )
+    {
+        List<Claim> claims = [new("sub", "mcp-user"), new("azp", "harness"), new("scope", scopes)];
+        if (discordId is not null)
+            claims.Add(new Claim("discord_id", discordId));
+
+        var token = new JsonWebTokenHandler().CreateToken(
+            new SecurityTokenDescriptor
+            {
+                Issuer = Issuer,
+                Audience = audience,
                 Subject = new ClaimsIdentity(claims),
                 Expires = DateTime.UtcNow.AddMinutes(5),
                 SigningCredentials = new SigningCredentials(
