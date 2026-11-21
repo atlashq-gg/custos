@@ -166,6 +166,7 @@ A user label has 1 to 64 characters: letters, digits, spaces, and `-` `'` `.` `,
 | `list_guilds` | read | (token only) | Each guild of the bot where the caller is a member: the ID, the name, the access, the current war, and the guilds that share their records with it. |
 | `find_items` | read | `read` | One row for each matching item in each stockpile: the item, the quantity, the stockpile, the structure with its label, and the time of the last sighting. One total for each item. |
 | `find_structures` | read | `read` | One row for each matching structure: the label, the generated label, the type, the category, the region, the place, and its stockpiles with their entries. |
+| `set_structure_label` | write | `label` | Changes the label of a structure in the records of the guild, or removes it. The result gives the old label and the new label. |
 
 The search tools take the argument `guild_id`, and the filters `items`, `stockpiles`, `structures`, and `structure_categories`.
 
@@ -176,6 +177,7 @@ The search tools take the argument `guild_id`, and the filters `items`, `stockpi
 - `limit` is 50 by default and 200 at most. `total` gives the number of all rows, and `next_cursor` gets the next page.
 - `applied` gives the war, the access of the caller, and the code names that each item filter matched.
 - A search for guild B reads the records of B and of each guild that lists B in `Sharing.ReadGuildIds`. A row from another guild names it in `origin_guild`. For a stockpile that two guilds know, the row comes from the record with the latest sighting. A structure shows the label of B when B has its own record of it, else the label of the guild of the record.
+- `set_structure_label` changes only a record of the guild of `guild_id`. It applies the rules of a user label ([Structure labels](#structure-labels)). Its audit line names MCP as the origin. A token without the write scope does not list it.
 - The names of reserve stockpiles and the labels are text from players. The results give them as values of JSON members only.
 
 The development realm has the optional client scopes `custos:read` and `custos:write`, each with an audience mapper for `CUSTOS_MCP_RESOURCE` and the `discord_id` mapper. It permits an anonymous client registration from `localhost` and `127.0.0.1`, and each client must use PKCE with S256. Keycloak starts with the features `cimd` and `resource-indicators`.
