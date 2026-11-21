@@ -7,7 +7,7 @@ namespace Custos.Server.Storage;
 /// also when no guild sends an upload. <see cref="CustosOptions.WarPollIntervalSeconds"/> <c>0</c>
 /// stops the monitor.
 /// </summary>
-internal sealed class WarMonitor(
+internal sealed partial class WarMonitor(
     IServiceScopeFactory scopes,
     IOptions<CustosOptions> options,
     TimeProvider time,
@@ -36,8 +36,14 @@ internal sealed class WarMonitor(
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                logger.LogError(e, "The server could not record the current war.");
+                LogRecordFailed(logger, e);
             }
         } while (await timer.WaitForNextTickAsync(stoppingToken));
     }
+
+    [LoggerMessage(
+        Level = LogLevel.Error,
+        Message = "The server could not record the current war."
+    )]
+    private static partial void LogRecordFailed(ILogger logger, Exception exception);
 }

@@ -97,6 +97,30 @@ Keycloak 26.8 has the experimental feature `cimd`. The realm has a client policy
 - A token for Custos has no audience. The server requires the claim `azp` to be the client ID.
 - Keycloak shows a consent page for the client on the first login.
 
+## Telemetry and health
+
+The server sends traces, metrics, and logs through OpenTelemetry. It exports them with OTLP only when the environment has `OTEL_EXPORTER_OTLP_ENDPOINT`. The standard variables `OTEL_EXPORTER_OTLP_*` configure the exporter. Set the name of the service with `OTEL_SERVICE_NAME`. The server adds only `service.version`. In development, the Aspire dashboard shows the three signals.
+
+- Instrumentation: ASP.NET Core, `HttpClient`, the .NET runtime, Npgsql, and the metrics of EF Core. The traces leave out the health endpoints.
+- The server has one activity source and one meter, each with the name `Custos.Server` and the version of the build.
+
+| Instrument | Unit | Content |
+|---|---|---|
+| `custos.uploads` | `{upload}` | The uploads that reached the handler, with the tag `outcome`: `accepted`, `forbidden`, `too_large`, `not_map_data`, `unavailable`, or `error`. A refusal before the handler (`401`, `415`, `429`) is only in the metrics of ASP.NET Core. |
+| `custos.upload.parse.duration` | `s` | The time to parse the map data file. |
+| `custos.war_api.answers` | `{answer}` | The requests to the war API, with the tag `outcome`: `fresh`, `stale` (the server used the last answer), or `none`. |
+
+The health checks have tags. `/health/alive` runs the checks with the tag `live`, and `/health/ready` the checks with the tag `ready`. `ready` holds the database only.
+
+Two flags run before the server starts:
+
+| Flag | Content |
+|---|---|
+| `--version` | Writes the version of the build, and stops. |
+| `--healthcheck` | Gets `/health/alive` of the server on this machine, and stops. The exit code is `0` for a healthy server, and `1` for all other answers. The URL comes from `ASPNETCORE_URLS`, else from `ASPNETCORE_HTTP_PORTS`, else port 8080. |
+
+The client of the war API has the standard resilience handler: 3 attempts of at most 5 seconds each, and 15 seconds in total. After that, the rule of the last answer applies (`WarApiBaseUrl` in [Configuration](#configuration)).
+
 ## Format
 
 [CSharpier](https://csharpier.com) formats the C# code. `.editorconfig` sets the line width to 100 characters.
@@ -305,6 +329,6 @@ curl https://custos.example.com/.well-known/custos-configuration
 ### Operation
 
 - Run one instance. The rate limit and the cache of the war API are in the memory of the process.
-- The image has no shell and no `curl`, so a Compose `healthcheck` cannot run in it. Check `/health/ready` from the proxy or from a monitor.
+- The image has a `HEALTHCHECK`. It runs `dotnet Custos.Server.dll --healthcheck`, because the image has no shell and no `curl` ([Telemetry and health](#telemetry-and-health)). The check uses `/health/alive`. Check `/health/ready` from the proxy or from a monitor.
 - Back up the database before you update the image. The server applies new migrations when it starts ([Migrations](#migrations)).
 - The archive and the purge of a war are manual ([Wars](#wars)).
