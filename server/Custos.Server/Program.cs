@@ -48,6 +48,7 @@ builder.Services.AddScoped<WarRegistry>();
 builder.Services.AddScoped<UploadStore>();
 builder.Services.AddScoped<WarMaps>();
 builder.Services.AddScoped<StructureLabels>();
+builder.Services.AddScoped<GuildRecords>();
 
 // The migrator must start first: hosted services start in the order of registration.
 builder.Services.AddHostedService<DatabaseMigrator>();
