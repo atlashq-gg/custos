@@ -4,21 +4,24 @@ name: server
 #
 #   pull request          -> build the image, no push
 #   push to main          -> push the tags unstable and sha-<sha>, version "unstable+<short sha>"
-#   push of server-X.Y.Z -> push the tags X.Y.Z and X.Y, version "X.Y.Z"
+#   push of server-X.Y.Z  -> push the tags X.Y.Z and X.Y, version "X.Y.Z"
 #
 # GitHub does not apply the paths filter to a tag push, so each server-* tag runs this workflow.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, closed]
     paths: ["server/**", "spec/**", ".github/workflows/server.yml"]
   push:
     branches: [main]
     tags: ["server-[0-9]+.[0-9]+.[0-9]+"]
     paths: ["server/**", "spec/**", ".github/workflows/server.yml"]
 
-# One run for each ref at a time, so two pushes to main cannot race on the tag unstable.
+# One run for each ref at a time, so two pushes to main cannot race on the tag unstable. A new
+# push to a pull request cancels the run in progress for it. Closing or merging the pull request
+# does the same: the run for the event "closed" cancels the run in progress, and skips its jobs.
 concurrency:
-  group: server-${{ github.ref }}
-  cancel-in-progress: false
+  group: server-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -29,6 +32,7 @@ defaults:
 
 jobs:
   build-and-test:
+    if: github.event.action != 'closed'
     # The Docker daemon of ubuntu-latest runs Keycloak for the Integration test.
     runs-on: ubuntu-latest
     timeout-minutes: 20
