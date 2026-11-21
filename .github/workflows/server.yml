@@ -160,7 +160,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v3
         with:
-          name: Custos reference server ${{ steps.notes.outputs.version }}
+          name: Server ${{ steps.notes.outputs.version }}
           body_path: ${{ runner.temp }}/release-notes.md
           # The latest release stays the one of Custos, the application that users download.
           make_latest: false
