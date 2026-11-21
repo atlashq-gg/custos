@@ -43,18 +43,15 @@ var api = builder
     .WaitFor(database)
     .WithHttpHealthCheck("/health/ready");
 
-// The bot token is optional. Without it, the Discord connection of the server is off. Set it in the
-// user secrets of this project: dotnet user-secrets set Parameters:discord-token <token>
-// discord-user-id is the Discord user ID of the user dev, for a token without the claim discord_id.
-if (!string.IsNullOrEmpty(builder.Configuration["Parameters:discord-token"]))
-    api.WithEnvironment("Discord__Token", builder.AddParameter("discord-token", secret: true));
-if (!string.IsNullOrEmpty(builder.Configuration["Parameters:discord-user-id"]))
-{
-    api.WithEnvironment(
-        "Custos__DevelopmentDiscordUserId",
-        builder.AddParameter("discord-user-id")
-    );
-}
+// The two parameters are optional, and the AppHost always registers them, so that the dashboard
+// lists them. An unset value is empty: the server treats an empty Discord:Token as no token, and an
+// empty Custos:DevelopmentDiscordUserId as no user. Set them in the user secrets of this project:
+//   dotnet user-secrets set Parameters:discord-token <bot token>
+//   dotnet user-secrets set Parameters:discord-client-id <Discord user ID of the user dev>
+// discord-client-id holds the Discord user ID of the user dev, for a token without the claim
+// discord_id.
+api.WithEnvironment("Discord__Token", OptionalParameter("discord-token", secret: true))
+    .WithEnvironment("Custos__DevelopmentDiscordUserId", OptionalParameter("discord-client-id"));
 
 // The tunnel serves only an endpoint that a container references. This reference also gives the
 // realm the host name of the server as Keycloak sees it (aspire.dev.internal). The server does not
@@ -66,3 +63,11 @@ keycloak.WithEnvironment(
 );
 
 builder.Build().Run();
+
+// AddParameter fails for a key that is not in the configuration. This one gives an empty value.
+IResourceBuilder<ParameterResource> OptionalParameter(string name, bool secret = false) =>
+    builder.AddParameter(
+        name,
+        () => builder.Configuration[$"Parameters:{name}"] ?? string.Empty,
+        secret: secret
+    );
