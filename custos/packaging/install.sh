@@ -54,7 +54,7 @@ download() {
     case "$VERSION" in
         @*) fail "this copy of the script has no version. Give the path of an AppImage." ;;
     esac
-    url="https://github.com/$REPOSITORY/releases/download/custos/v$VERSION/Custos_${VERSION}_amd64.AppImage"
+    url="https://github.com/$REPOSITORY/releases/download/custos-$VERSION/Custos_${VERSION}_amd64.AppImage"
     echo "Downloading $url"
     if command -v curl >/dev/null 2>&1; then
         curl --fail --location --proto '=https' --output "$1" "$url"

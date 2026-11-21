@@ -4,15 +4,15 @@ name: server
 #
 #   pull request          -> build the image, no push
 #   push to main          -> push the tags unstable and sha-<sha>, version "unstable+<short sha>"
-#   push of server/vX.Y.Z -> push the tags X.Y.Z and X.Y, version "X.Y.Z"
+#   push of server-X.Y.Z -> push the tags X.Y.Z and X.Y, version "X.Y.Z"
 #
-# GitHub does not apply the paths filter to a tag push, so each server/v* tag runs this workflow.
+# GitHub does not apply the paths filter to a tag push, so each server-* tag runs this workflow.
 on:
   pull_request:
     paths: ["server/**", "spec/**", ".github/workflows/server.yml"]
   push:
     branches: [main]
-    tags: ["server/v[0-9]+.[0-9]+.[0-9]+"]
+    tags: ["server-[0-9]+.[0-9]+.[0-9]+"]
     paths: ["server/**", "spec/**", ".github/workflows/server.yml"]
 
 # One run for each ref at a time, so two pushes to main cannot race on the tag unstable.
@@ -79,8 +79,8 @@ jobs:
         id: version
         run: |
           set -euo pipefail
-          if [[ "${GITHUB_REF}" == refs/tags/server/v* ]]; then
-            semver="${GITHUB_REF#refs/tags/server/v}"
+          if [[ "${GITHUB_REF}" == refs/tags/server-* ]]; then
+            semver="${GITHUB_REF#refs/tags/server-}"
             if ! grep -qx "## ${semver}" CHANGELOG.md; then
               echo "server/CHANGELOG.md has no section ## ${semver}."
               exit 1
@@ -108,10 +108,10 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/custos-server
           flavor: latest=false
-          # The tag has the prefix server/v, so the semver entries get the version from the value.
+          # The tag has the prefix server-, so the semver entries get the version from the value.
           tags: |
-            type=semver,pattern={{version}},value=${{ steps.version.outputs.semver }},enable=${{ startsWith(github.ref, 'refs/tags/server/v') }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.semver }},enable=${{ startsWith(github.ref, 'refs/tags/server/v') }}
+            type=semver,pattern={{version}},value=${{ steps.version.outputs.semver }},enable=${{ startsWith(github.ref, 'refs/tags/server-') }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.semver }},enable=${{ startsWith(github.ref, 'refs/tags/server-') }}
             type=raw,value=unstable,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,prefix=sha-,format=long,enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=pr
@@ -137,10 +137,10 @@ jobs:
           cache-to: type=gha,scope=custos-server,mode=max
 
   release:
-    # A GitHub release for a tag server/vX.Y.Z, after the image is published. Its description is the
+    # A GitHub release for a tag server-X.Y.Z, after the image is published. Its description is the
     # section of the version in server/CHANGELOG.md.
     needs: image
-    if: startsWith(github.ref, 'refs/tags/server/v')
+    if: startsWith(github.ref, 'refs/tags/server-')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -151,7 +151,7 @@ jobs:
       - name: Write the release notes
         id: notes
         run: |
-          version="${GITHUB_REF_NAME#server/v}"
+          version="${GITHUB_REF_NAME#server-}"
           notes="$RUNNER_TEMP/release-notes.md"
           ../.github/scripts/release-notes.sh CHANGELOG.md "$version" "$notes"
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/custos-server:${version}"
@@ -160,7 +160,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v3
         with:
-          name: Custos reference server ${{ steps.notes.outputs.version }}
+          name: Server ${{ steps.notes.outputs.version }}
           body_path: ${{ runner.temp }}/release-notes.md
           # The latest release stays the one of Custos, the application that users download.
           make_latest: false
