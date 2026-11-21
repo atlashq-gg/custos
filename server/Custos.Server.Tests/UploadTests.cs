@@ -6,24 +6,12 @@ using Custos.Server.Tests.Infrastructure;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
+using static Custos.Server.Tests.Infrastructure.UploadRequests;
 
 namespace Custos.Server.Tests;
 
 public sealed class UploadTests
 {
-    private const string Path = "/api/v1/uploads";
-    private static readonly byte[] SaveFile = MapDataWriter.File(
-        new Pinned(
-            "OriginHex",
-            0.25f,
-            0.75f,
-            "StorageFacility",
-            FakeWarApi.War142.StartedAt!.Value.AddDays(1),
-            [("ItemCrates", "RifleC", 20)],
-            [("ATLAS REC", [("Vehicles", "TruckC", 2)])]
-        )
-    );
-
     private CustosFactory _factory = null!;
 
     [SetUp]
@@ -36,7 +24,7 @@ public sealed class UploadTests
     public async Task Accepted_upload_returns_a_result_that_conforms_to_the_spec()
     {
         using var client = _factory.CreateAuthorizedClient();
-        using var response = await client.PostAsync(Path, Body(SaveFile));
+        using var response = await client.PostAsync(UploadPath, Body(SaveFile));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var result = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
@@ -74,7 +62,7 @@ public sealed class UploadTests
         using var client = _factory.CreateAuthorizedClient();
 
         await AssertProblemAsync(
-            await client.PostAsync(Path, Body(SaveFile)),
+            await client.PostAsync(UploadPath, Body(SaveFile)),
             HttpStatusCode.ServiceUnavailable
         );
     }
@@ -83,18 +71,19 @@ public sealed class UploadTests
     public async Task War_api_failure_uses_the_last_answer()
     {
         using var client = _factory.CreateAuthorizedClient();
-        (await client.PostAsync(Path, Body(SaveFile))).Dispose();
+        (await client.PostAsync(UploadPath, Body(SaveFile))).Dispose();
         _factory.WarApi.Fail = true;
         // The fresh answer expires.
         _factory.Services.GetRequiredService<IMemoryCache>().Remove("war:current");
 
-        using var response = await client.PostAsync(Path, Body(SaveFile));
+        using var response = await client.PostAsync(UploadPath, Body(SaveFile));
         var result = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(_factory.WarApi.Calls, Is.EqualTo(2));
+            // One request for the first upload, and three attempts for the second.
+            Assert.That(_factory.WarApi.Calls, Is.EqualTo(4));
             Assert.That(
                 result.GetProperty("war").GetProperty("war_number").GetInt32(),
                 Is.EqualTo(142)
@@ -103,11 +92,26 @@ public sealed class UploadTests
     }
 
     [Test]
+    public async Task War_api_request_is_tried_again_after_a_failure()
+    {
+        _factory.WarApi.Failures = 1;
+        using var client = _factory.CreateAuthorizedClient();
+
+        using var response = await client.PostAsync(UploadPath, Body(SaveFile));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(_factory.WarApi.Calls, Is.EqualTo(2));
+        }
+    }
+
+    [Test]
     public async Task War_api_answer_is_cached()
     {
         using var client = _factory.CreateAuthorizedClient();
-        (await client.PostAsync(Path, Body(SaveFile))).Dispose();
-        (await client.PostAsync(Path, Body(SaveFile))).Dispose();
+        (await client.PostAsync(UploadPath, Body(SaveFile))).Dispose();
+        (await client.PostAsync(UploadPath, Body(SaveFile))).Dispose();
 
         Assert.That(_factory.WarApi.Calls, Is.EqualTo(1));
     }
@@ -123,7 +127,7 @@ public sealed class UploadTests
             .CreateAuthorizedClient()
             .DefaultRequestHeaders.Authorization;
 
-        (await client.PostAsync(Path, Body(SaveFile))).Dispose();
+        (await client.PostAsync(UploadPath, Body(SaveFile))).Dispose();
 
         Assert.That(
             _factory.WarApi.LastRequest?.ToString(),
@@ -135,7 +139,7 @@ public sealed class UploadTests
     public async Task Missing_token_gets_a_bearer_challenge()
     {
         using var client = _factory.CreateClient();
-        using var response = await client.PostAsync(Path, Body(SaveFile));
+        using var response = await client.PostAsync(UploadPath, Body(SaveFile));
 
         using (Assert.EnterMultipleScope())
         {
@@ -155,7 +159,7 @@ public sealed class UploadTests
     public async Task Token_for_a_different_client_is_forbidden()
     {
         using var client = _factory.CreateAuthorizedClient(azp: "some-other-client");
-        using var response = await client.PostAsync(Path, Body(SaveFile));
+        using var response = await client.PostAsync(UploadPath, Body(SaveFile));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
@@ -170,7 +174,7 @@ public sealed class UploadTests
         using var client = _factory.CreateAuthorizedClient(guild: guild);
 
         await AssertProblemAsync(
-            await client.PostAsync(Path, Body(SaveFile)),
+            await client.PostAsync(UploadPath, Body(SaveFile)),
             HttpStatusCode.Forbidden
         );
     }
@@ -182,10 +186,10 @@ public sealed class UploadTests
         using var developmentClient = development.CreateAuthorizedClient(guild: null);
         using var productionClient = _factory.CreateAuthorizedClient(guild: null);
 
-        using var accepted = await developmentClient.PostAsync(Path, Body(SaveFile));
+        using var accepted = await developmentClient.PostAsync(UploadPath, Body(SaveFile));
         Assert.That(accepted.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         await AssertProblemAsync(
-            await productionClient.PostAsync(Path, Body(SaveFile)),
+            await productionClient.PostAsync(UploadPath, Body(SaveFile)),
             HttpStatusCode.Forbidden
         );
     }
@@ -198,7 +202,7 @@ public sealed class UploadTests
         content.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
 
         await AssertProblemAsync(
-            await client.PostAsync(Path, content),
+            await client.PostAsync(UploadPath, content),
             HttpStatusCode.UnsupportedMediaType
         );
     }
@@ -210,7 +214,7 @@ public sealed class UploadTests
         var file = MapDataWriter.File("/Script/War.PlayerSaveGame", MapDataWriter.Properties());
 
         await AssertProblemAsync(
-            await client.PostAsync(Path, Body(file)),
+            await client.PostAsync(UploadPath, Body(file)),
             HttpStatusCode.UnprocessableEntity
         );
     }
@@ -221,7 +225,7 @@ public sealed class UploadTests
         using var client = _factory.CreateAuthorizedClient();
 
         await AssertProblemAsync(
-            await client.PostAsync(Path, Body("NOPE"u8.ToArray())),
+            await client.PostAsync(UploadPath, Body("NOPE"u8.ToArray())),
             HttpStatusCode.UnprocessableEntity
         );
     }
@@ -234,7 +238,7 @@ public sealed class UploadTests
         "GVAS"u8.CopyTo(body);
 
         await AssertProblemAsync(
-            await client.PostAsync(Path, Body(body)),
+            await client.PostAsync(UploadPath, Body(body)),
             HttpStatusCode.RequestEntityTooLarge
         );
     }
@@ -249,7 +253,7 @@ public sealed class UploadTests
         content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
         await AssertProblemAsync(
-            await client.PostAsync(Path, content),
+            await client.PostAsync(UploadPath, content),
             HttpStatusCode.RequestEntityTooLarge
         );
     }
@@ -260,8 +264,8 @@ public sealed class UploadTests
         using var factory = new CustosFactory(uploadMinIntervalSeconds: 60);
         using var client = factory.CreateAuthorizedClient();
 
-        (await client.PostAsync(Path, Body(SaveFile))).Dispose();
-        using var response = await client.PostAsync(Path, Body(SaveFile));
+        (await client.PostAsync(UploadPath, Body(SaveFile))).Dispose();
+        using var response = await client.PostAsync(UploadPath, Body(SaveFile));
 
         await AssertProblemAsync(response, HttpStatusCode.TooManyRequests);
         Assert.That(response.Headers.RetryAfter?.Delta?.TotalSeconds, Is.InRange(1, 60));
@@ -274,17 +278,10 @@ public sealed class UploadTests
         using var first = factory.CreateAuthorizedClient(subject: "first");
         using var second = factory.CreateAuthorizedClient(subject: "second");
 
-        (await first.PostAsync(Path, Body(SaveFile))).Dispose();
-        using var response = await second.PostAsync(Path, Body(SaveFile));
+        (await first.PostAsync(UploadPath, Body(SaveFile))).Dispose();
+        using var response = await second.PostAsync(UploadPath, Body(SaveFile));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-    }
-
-    private static ByteArrayContent Body(byte[] bytes)
-    {
-        var content = new ByteArrayContent(bytes);
-        content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-        return content;
     }
 
     private static async Task AssertProblemAsync(

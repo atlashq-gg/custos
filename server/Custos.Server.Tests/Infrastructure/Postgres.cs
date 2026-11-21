@@ -12,7 +12,11 @@ internal static class Postgres
 {
     private static readonly Lazy<Task<PostgreSqlContainer>> Container = new(async () =>
     {
-        var container = new PostgreSqlBuilder("postgres:18").Build();
+        // Each test server has its own database and its own pool of connections. The default of
+        // 100 connections is too few for the full run.
+        var container = new PostgreSqlBuilder("postgres:18")
+            .WithCommand("-c", "max_connections=1000")
+            .Build();
         await container.StartAsync();
         return container;
     });

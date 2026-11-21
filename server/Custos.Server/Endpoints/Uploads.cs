@@ -1,8 +1,12 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
+using Custos.Server.Discord;
 using Custos.Server.MapData;
 using Custos.Server.Storage;
+using Custos.Server.Telemetry;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 
@@ -44,9 +48,33 @@ internal static class Uploads
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .RequireAuthorization(Authentication.CustosPolicy)
-            .RequireRateLimiting(RateLimiting.UploadPolicy);
+            .RequireRateLimiting(RateLimiting.UploadPolicy)
+            .AddEndpointFilter(CountAsync);
 
         return app;
+    }
+
+    /// <summary>Counts each upload that the handler answers, by outcome.</summary>
+    private static async ValueTask<object?> CountAsync(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next
+    )
+    {
+        var metrics = context.HttpContext.RequestServices.GetRequiredService<ServerMetrics>();
+        try
+        {
+            var result = await next(context);
+            var status = (result as INestedHttpResult)?.Result ?? result;
+            metrics.Upload(
+                (status as IStatusCodeHttpResult)?.StatusCode ?? StatusCodes.Status200OK
+            );
+            return result;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            metrics.Upload(StatusCodes.Status500InternalServerError);
+            throw;
+        }
     }
 
     private static async Task<Results<Ok<UploadResult>, ProblemHttpResult>> PostAsync(
@@ -57,20 +85,29 @@ internal static class Uploads
         WarRegistry wars,
         UploadStore store,
         TimeProvider time,
+        ActivitySource activities,
+        ServerMetrics metrics,
+        [FromServices] GuildAccessEvaluator? access,
         CancellationToken cancellationToken
     )
     {
         var receivedAt = time.GetUtcNow();
-        var guildId = ActiveGuild.Resolve(request.HttpContext.User, options.Value, environment);
+        var user = request.HttpContext.User;
+        var guildId = TokenClaims.GuildId(user, options.Value, environment);
         if (guildId is null)
         {
             return Problem(
                 StatusCodes.Status403Forbidden,
                 "No guild",
-                $"The access token has no valid claim {ActiveGuild.ClaimType}. "
+                $"The access token has no valid claim {TokenClaims.ActiveGuild}. "
                     + "Choose a guild when you log in."
             );
         }
+
+        var discordUserId = TokenClaims.DiscordUserId(user, options.Value, environment);
+        // Without the Discord connection, the server examines no role, as in 0.1.0.
+        if (access is not null && await RefuseAsync(guildId, discordUserId) is { } refusal)
+            return refusal;
 
         var maxBytes = options.Value.UploadMaxBytes;
 
@@ -111,17 +148,27 @@ internal static class Uploads
 
         var bytes = body.GetBuffer().AsMemory(0, (int)body.Length);
         IReadOnlyList<PinnedItem> items;
-        try
+        using (var activity = activities.StartActivity("Parse map data"))
         {
-            items = MapDataFile.Parse(bytes);
-        }
-        catch (GvasFormatException e)
-        {
-            return Problem(
-                StatusCodes.Status422UnprocessableEntity,
-                "Not a map data file",
-                e.Message
-            );
+            var started = time.GetTimestamp();
+            try
+            {
+                items = MapDataFile.Parse(bytes);
+                activity?.SetTag("custos.pinned_items", items.Count);
+            }
+            catch (GvasFormatException e)
+            {
+                activity?.SetStatus(ActivityStatusCode.Error, e.Message);
+                return Problem(
+                    StatusCodes.Status422UnprocessableEntity,
+                    "Not a map data file",
+                    e.Message
+                );
+            }
+            finally
+            {
+                metrics.UploadParsed(time.GetElapsedTime(started));
+            }
         }
 
         // The key of an entity needs the war, and the server does not keep the file. Thus Custos
@@ -142,7 +189,8 @@ internal static class Uploads
             GuildId = guildId.Value,
             WarId = war.WarId,
             UploadId = Guid.CreateVersion7(receivedAt),
-            UserId = request.HttpContext.User.FindFirst("sub")?.Value ?? "",
+            UserId = user.FindFirst("sub")?.Value ?? "",
+            DiscordUserId = discordUserId,
             ReceivedAt = receivedAt,
             Sha256 = SHA256.HashData(bytes.Span),
             SizeBytes = bytes.Length,
@@ -159,6 +207,58 @@ internal static class Uploads
                 stockpiles
             )
         );
+
+        // An upload needs a member of the guild with the access report.
+        async Task<ProblemHttpResult?> RefuseAsync(long? guild, long? discordUser)
+        {
+            if (discordUser is null)
+            {
+                return Problem(
+                    StatusCodes.Status403Forbidden,
+                    "No Discord user",
+                    $"The access token has no valid claim {options.Value.DiscordIdClaim}. "
+                        + "Ask the operator of the server to link your Discord account."
+                );
+            }
+
+            AccessCheck check;
+            try
+            {
+                check = await access.EvaluateAsync(
+                    (ulong)guild!.Value,
+                    (ulong)discordUser.Value,
+                    cancellationToken
+                );
+            }
+            catch (DiscordUnavailableException)
+            {
+                return Problem(
+                    StatusCodes.Status503ServiceUnavailable,
+                    "Discord unavailable",
+                    "The server could not read your roles from Discord. Try again later."
+                );
+            }
+
+            return check switch
+            {
+                { Status: MemberStatus.BotNotInGuild } => Problem(
+                    StatusCodes.Status403Forbidden,
+                    "Guild without the bot",
+                    "The Discord bot of this server is not in your guild."
+                ),
+                { Status: MemberStatus.NotMember } => Problem(
+                    StatusCodes.Status403Forbidden,
+                    "Not a member",
+                    "You are not a member of the guild of your login."
+                ),
+                _ when !check.Has(GuildAccess.Report) => Problem(
+                    StatusCodes.Status403Forbidden,
+                    "No access",
+                    "You have no role that can report changes in this guild."
+                ),
+                _ => null,
+            };
+        }
     }
 
     private static ProblemHttpResult TooLarge(int maxBytes) =>

@@ -7,6 +7,8 @@ WORKDIR /src
 # Directory.Build.props holds the version defaults and the target framework, so it must be at /src.
 COPY global.json Directory.Build.props ./
 COPY Custos.Server/ ./Custos.Server/
+# The catalog of the game, when the folder holds it. It has its own license (catalog/README.md).
+COPY catalog/ ./catalog/
 RUN dotnet restore Custos.Server/Custos.Server.csproj
 
 # The version comes from CI. Version must be numeric. InformationalVersion is free text.
@@ -42,3 +44,5 @@ LABEL org.opencontainers.image.source="${SOURCE_REPO}" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
 
 ENTRYPOINT ["dotnet", "Custos.Server.dll"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD ["dotnet", "Custos.Server.dll", "--healthcheck"]

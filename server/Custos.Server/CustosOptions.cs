@@ -68,6 +68,25 @@ public sealed class CustosOptions
     [Range(1, long.MaxValue)]
     public long? DevelopmentGuildId { get; set; }
 
+    /// <summary>The claim of the access token with the Discord user ID, as a string.</summary>
+    [Required]
+    public string DiscordIdClaim { get; set; } = "discord_id";
+
+    /// <summary>
+    /// The Discord user of a request whose token has no claim <see cref="DiscordIdClaim"/>. The
+    /// server uses it only in the environment Development, and ignores it in all other
+    /// environments.
+    /// </summary>
+    [Range(1, long.MaxValue)]
+    public long? DevelopmentDiscordUserId { get; set; }
+
+    /// <summary>
+    /// The catalog file of the game: display names and categories. A relative path starts at the
+    /// folder of the server. Without the file, each name is the code name.
+    /// </summary>
+    [Required]
+    public string CatalogPath { get; set; } = "catalog/catalog.json";
+
     public string ResolvedOpenIdConfiguration =>
         string.IsNullOrEmpty(OpenIdConfiguration)
             ? Combine(Authority, "/.well-known/openid-configuration")

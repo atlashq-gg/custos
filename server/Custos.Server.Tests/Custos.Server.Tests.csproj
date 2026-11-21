@@ -19,6 +19,9 @@
       LinkBase="spec"
       CopyToOutputDirectory="PreserveNewest"
     />
+    <None Include="Discord\CommandGuards.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Catalog\test-catalog.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Mcp\McpTools.txt" CopyToOutputDirectory="PreserveNewest" />
     <None
       Include="..\Custos.Server.AppHost\keycloak\custos-realm.json"
       Link="keycloak\custos-realm.json"
@@ -29,6 +32,7 @@
   <ItemGroup>
     <PackageReference Include="JsonSchema.Net" Version="9.7.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" Version="11.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
     <PackageReference Include="NUnit" Version="5.0.0" />
     <PackageReference Include="NUnit.Analyzers" Version="4.15.0">

@@ -17,7 +17,29 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="11.0.0" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.4.0" />
+    <PackageReference Include="NetCord" Version="1.0.0-beta.30" />
+    <PackageReference Include="NetCord.Hosting" Version="1.0.0-beta.30" />
+    <PackageReference Include="NetCord.Hosting.Services" Version="1.0.0-beta.30" />
+    <PackageReference Include="NetCord.Services" Version="1.0.0-beta.30" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.21.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.21.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.21.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.21.0" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.21.0" />
+  </ItemGroup>
+
+  <!-- The catalog of the game is a separate file with its own license (catalog/README.md). -->
+  <ItemGroup>
+    <None
+      Include="..\catalog\catalog.json"
+      Link="catalog\catalog.json"
+      CopyToOutputDirectory="PreserveNewest"
+      CopyToPublishDirectory="PreserveNewest"
+      Condition="Exists('..\catalog\catalog.json')"
+    />
   </ItemGroup>
 
   <ItemGroup>

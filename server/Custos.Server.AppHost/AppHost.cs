@@ -15,11 +15,16 @@ const int keycloakPort = 8180;
 const string tunnelHost = "aspire.dev.internal";
 var clientId = $"http://{tunnelHost}:{apiPort}/.well-known/custos-client";
 
+// The MCP endpoint, as a harness on this machine reaches it. A token for MCP has it in aud. The
+// server maps the endpoint only with the Discord connection on.
+var mcpResource = $"http://localhost:{apiPort}/mcp";
+
 // No volume: Keycloak imports the realm on every start. What the console changes lasts one run.
 var keycloak = builder
     .AddKeycloak("keycloak", keycloakPort)
     .WithImageTag("26.8.2")
-    .WithArgs("--features=cimd")
+    .WithArgs("--features=cimd,resource-indicators")
+    .WithEnvironment("CUSTOS_MCP_RESOURCE", mcpResource)
     .WithRealmImport(Path.Combine(builder.AppHostDirectory, "keycloak", "custos-realm.json"))
     .WithoutHttpsCertificate();
 
@@ -32,9 +37,20 @@ var database = builder.AddPostgres("postgres").WithImageTag("18").AddDatabase("c
 var api = builder
     .AddProject<Projects.Custos_Server>("api")
     .WithEnvironment("Custos__ClientId", clientId)
+    .WithEnvironment("Mcp__Enabled", "true")
+    .WithEnvironment("Mcp__Resource", mcpResource)
     .WithReference(database)
     .WaitFor(database)
     .WithHttpHealthCheck("/health/ready");
+
+// The two parameters are optional, and the AppHost always registers them, so that the dashboard
+// lists them. An unset value is empty: the server treats an empty Discord:Token as no token, and an
+// empty Custos:DevelopmentDiscordUserId as no user. Set them in the user secrets of this project:
+//   dotnet user-secrets set Parameters:discord-token <bot token>
+//   dotnet user-secrets set Parameters:discord-user-id <Discord user ID of the user dev>
+// discord-user-id is for a token without the claim discord_id.
+api.WithEnvironment("Discord__Token", OptionalParameter("discord-token", secret: true))
+    .WithEnvironment("Custos__DevelopmentDiscordUserId", OptionalParameter("discord-user-id"));
 
 // The tunnel serves only an endpoint that a container references. This reference also gives the
 // realm the host name of the server as Keycloak sees it (aspire.dev.internal). The server does not
@@ -46,3 +62,11 @@ keycloak.WithEnvironment(
 );
 
 builder.Build().Run();
+
+// AddParameter fails for a key that is not in the configuration. This one gives an empty value.
+IResourceBuilder<ParameterResource> OptionalParameter(string name, bool secret = false) =>
+    builder.AddParameter(
+        name,
+        () => builder.Configuration[$"Parameters:{name}"] ?? string.Empty,
+        secret: secret
+    );

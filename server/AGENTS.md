@@ -7,4 +7,6 @@
 - Run `dotnet test` before a commit. All tests need Docker for PostgreSQL. The test in the category `Integration` also starts Keycloak.
 - Change the database only through an EF Core migration in `Custos.Server/Storage/Migrations/`. Write the DDL of a partitioned history table with SQL in the migration.
 - Keep the realm in `Custos.Server.AppHost/keycloak/custos-realm.json` in step with the test `KeycloakLoginTests`. Both use the same file.
+- A new or changed Discord command or MCP tool needs its line in `Custos.Server.Tests/Discord/CommandGuards.txt` or `Custos.Server.Tests/Mcp/McpTools.txt`. Each command and each tool needs a guard.
+- The automated tests run without Discord: they replace `IDiscordDirectory` with `FakeDiscordDirectory`.
 - The content of this folder is under AGPL-3.0-or-later.
