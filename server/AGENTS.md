@@ -9,4 +9,4 @@
 - Keep the realm in `Custos.Server.AppHost/keycloak/custos-realm.json` in step with the test `KeycloakLoginTests`. Both use the same file.
 - A new or changed Discord command or MCP tool needs its line in `Custos.Server.Tests/Discord/CommandGuards.txt` or `Custos.Server.Tests/Mcp/McpTools.txt`. Each command and each tool needs a guard.
 - The automated tests run without Discord: they replace `IDiscordDirectory` with `FakeDiscordDirectory`.
-- The content of this folder is under AGPL-3.0-or-later, except `catalog/catalog.json`: it is under CC BY-NC-SA 4.0. Change the file only with `catalog/update-catalog.cs`, and keep the date in `catalog/LICENSE.md` correct.
+- The content of this folder is under AGPL-3.0-or-later, except `catalog/catalog.json`: it is under CC BY-NC-SA 4.0. Change the file only with `catalog/update-catalog.sh`, and keep the date in `catalog/LICENSE.md` correct.
