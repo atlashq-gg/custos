@@ -5,13 +5,18 @@ using Microsoft.Extensions.Options;
 
 namespace Custos.Server.Catalog;
 
-/// <summary>One code name of the game, with the names that a person reads.</summary>
+/// <summary>
+/// One code name of the game, with the names that a person reads. <paramref name="CrateSize"/> is
+/// the number in one crate: for an item, in an item crate, and for a vehicle or a structure, in a
+/// shippable crate. It is null when the catalog does not have the number.
+/// </summary>
 public sealed record CatalogEntry(
     string CodeName,
     string DisplayName,
     CatalogKind Kind,
     string Category,
-    string Faction
+    string Faction,
+    int? CrateSize = null
 );
 
 [JsonConverter(typeof(JsonStringEnumConverter<CatalogKind>))]

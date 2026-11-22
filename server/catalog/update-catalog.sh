@@ -37,17 +37,19 @@ def faction:
   | ((.name // "") | trim) as $name
   | select($code != "" and $name != "")
   | ((.category // "") | trim) as $category
+  | ((.crate_size // "") | trim | try tonumber catch null) as $crate
   | { code_name: $code,
       display_name: ($name | decode),
       kind: .kind,
       category: (if $category == "" then $code else $category end),
-      faction: (.faction | faction) } ]
+      faction: (.faction | faction) }
+    + (if $crate != null and $crate > 0 then {crate_size: $crate} else {} end) ]
 | group_by(.code_name) | map(.[0])
 | {source: $source, retrieved_at: $retrieved_at, entries: .}
 JQ
 
 # The Cargo API gives at most 500 rows for each request. Writes the rows of one table, each with
-# the fields codename, name, category, faction, and kind.
+# the fields codename, name, category, faction, crate_size, and kind.
 query() {
   local table=$1 category=$2 kind=$3 offset=0 page count
   while :; do
@@ -56,7 +58,7 @@ query() {
       --data-urlencode "action=cargoquery" \
       --data-urlencode "format=json" \
       --data-urlencode "tables=$table" \
-      --data-urlencode "fields=codename,name,$category=category,faction" \
+      --data-urlencode "fields=codename,name,$category=category,faction,crate_amount=crate_size" \
       --data-urlencode "limit=500" \
       --data-urlencode "offset=$offset")
     jq -c --arg kind "$kind" '.cargoquery[].title + {kind: $kind}' <<<"$page"

@@ -28,7 +28,8 @@
       "display_name": "Test Rifle",
       "kind": "item",
       "category": "Test Arms",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 20
     },
     {
       "code_name": "TruckC",

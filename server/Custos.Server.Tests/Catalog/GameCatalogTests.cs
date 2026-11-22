@@ -26,7 +26,8 @@ public sealed class GameCatalogTests
                         "Test Rifle",
                         CatalogKind.Item,
                         "Test Arms",
-                        "colonial"
+                        "colonial",
+                        20
                     )
                 )
             );
@@ -50,6 +51,8 @@ public sealed class GameCatalogTests
             Assert.That(shipped.Find("RifleC")?.Kind, Is.EqualTo(CatalogKind.Item));
             Assert.That(shipped.Find("TruckC")?.Kind, Is.EqualTo(CatalogKind.Vehicle));
             Assert.That(shipped.StructureType("FortBaseT2"), Is.EqualTo("Bunker Base"));
+            Assert.That(shipped.Find("Cloth")?.CrateSize, Is.EqualTo(100));
+            Assert.That(shipped.Find("StorageFacility")?.CrateSize, Is.Null);
         }
     }
 
