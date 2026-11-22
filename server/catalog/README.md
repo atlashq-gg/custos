@@ -17,6 +17,14 @@ The source is the Foxhole wiki. The file is under [CC BY-NC-SA 4.0](https://crea
       "kind": "structure",
       "category": "Storage",
       "faction": "both"
+    },
+    {
+      "code_name": "Cloth",
+      "display_name": "Basic Materials",
+      "kind": "item",
+      "category": "Supplies",
+      "faction": "both",
+      "crate_size": 100
     }
   ]
 }
@@ -29,6 +37,14 @@ The source is the Foxhole wiki. The file is under [CC BY-NC-SA 4.0](https://crea
 | `kind` | `item`, `vehicle`, or `structure`. |
 | `category` | `ItemCategory` of the wiki table `itemdata`, or `type` of the tables `vehicles` and `structures`. |
 | `faction` | `colonial`, `warden`, or `both`. |
+| `crate_size` | The number in one crate. For an item, the number in an item crate (`crate_amount` of the wiki). For a vehicle or a structure, the number in a crate that the Mass Production Factory (MPF) makes: 3 (see below). The member is not there when the catalog has no number. |
+| `pallet_size` | The number of items in a pallet (`pallet_amount` of the wiki). Only an item has it. The member is not there when the wiki has no number. |
+
+A vehicle or a structure has a crate size only when the MPF can produce it. The wiki table `Production` has the flag `IsMPFable` for each recipe. The script matches the recipe with the entry by its display name and its type. The recipes show: 64 vehicles and 15 structures are MPF-able.
+
+- A crate of such a vehicle or structure holds 3 packed vehicles or structures (wiki page "Shippable Structures"). The wiki tables do not have that number, so the script sets 3.
+- A number in the wiki wins: `CrateCapacity` of the recipe, or `crate_amount` of the vehicle table. `MediumTankC` has 5, and the Maintainer confirmed it.
+- A vehicle or a structure that the MPF cannot produce has no crate size, also when its wiki size is shippable. Examples are the aircraft, and the structures that a Small Assembly Station makes. `shippable_size` and `construction_type` of the wiki do not decide.
 
 ## Update
 
@@ -43,6 +59,6 @@ The script writes the catalog to the standard output, so a pipe to `jq` also wor
 
 The script queries the Cargo tables `itemdata`, `vehicles`, and `structures` through `api.php?action=cargoquery`. The queries are in the script, so that each run gives the same shape. A code name that is in more than one table gets the entry of the first table in that order.
 
-On 2026-11-21 the script wrote 688 entries: 253 items, 189 vehicles, and 246 structures. The code names of the sample of 0.1.0 (`StorageFacility`, `Seaport`, `Refinery`, `FortBaseT2`, `MaintenanceTunnel`, `RifleC`, `TruckC`) were all in the tables.
+On 2026-11-22 the script wrote 688 entries: 253 items, 189 vehicles, and 246 structures. The code names of the sample of 0.1.0 (`StorageFacility`, `Seaport`, `Refinery`, `FortBaseT2`, `MaintenanceTunnel`, `RifleC`, `TruckC`) were all in the tables.
 
 The server reads the file from `Custos:CatalogPath` (default `catalog/catalog.json` in the folder of the server). The build and the image copy the file with `LICENSE.md` and the license text.

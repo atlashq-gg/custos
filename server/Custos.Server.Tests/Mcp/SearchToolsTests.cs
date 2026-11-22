@@ -77,6 +77,14 @@ public sealed class SearchToolsTests
                 Is.EqualTo("Test Rifle")
             );
             Assert.That(rows[1].GetProperty("crated").GetBoolean(), Is.True);
+            Assert.That(
+                rows[1].GetProperty("item").GetProperty("crate_size").GetInt32(),
+                Is.EqualTo(20)
+            );
+            Assert.That(
+                rows[1].GetProperty("item").GetProperty("pallet_size").GetInt32(),
+                Is.EqualTo(120)
+            );
             Assert.That(rows[1].GetProperty("stockpile").GetString(), Is.EqualTo("Public"));
             Assert.That(rows[0].TryGetProperty("origin_guild", out _), Is.False);
             Assert.That(
@@ -171,6 +179,9 @@ public sealed class SearchToolsTests
                     .GetString(),
                 Is.EqualTo("RifleC")
             );
+            var rifle = stockpile.GetProperty("entries")[0].GetProperty("item");
+            Assert.That(rifle.GetProperty("crate_size").GetInt32(), Is.EqualTo(20));
+            Assert.That(rifle.GetProperty("pallet_size").GetInt32(), Is.EqualTo(120));
         }
     }
 

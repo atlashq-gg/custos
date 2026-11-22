@@ -17,7 +17,9 @@ public sealed record SearchApplied(
     IReadOnlyDictionary<string, IReadOnlyList<string>>? Items
 );
 
-public sealed record ItemName(string CodeName, string DisplayName);
+/// <summary>An item, vehicle, or structure type, with the number in a crate and in a pallet when
+/// the catalog has them.</summary>
+public sealed record ItemName(string CodeName, string DisplayName, int? CrateSize, int? PalletSize);
 
 public sealed record StructureRef(
     string StructureId,
@@ -107,7 +109,9 @@ public sealed class SearchTools(
     [McpGuard(McpScope.Read, GuildAccess.Read)]
     [Description(
         "The stockpiles that hold an item, with the quantities. One row for each item in each "
-            + "stockpile, and one total for each item. Filters: items (code name or name), "
+            + "stockpile, and one total for each item. A row with crated true counts crates: "
+            + "crate_size is the number in one crate, and pallet_size is the number in one "
+            + "pallet. Filters: items (code name or name), "
             + "stockpiles (ID, part of a name, or public), structures (ID or part of a label), "
             + "and structure_categories. war is a war number, and the default is the current war."
     )]
@@ -175,7 +179,9 @@ public sealed class SearchTools(
     [McpGuard(McpScope.Read, GuildAccess.Read)]
     [Description(
         "The structures, with their labels, places, stockpiles, and items. One row for each "
-            + "structure. Filters: structures (ID or part of a label), structure_categories, "
+            + "structure. An item with crated true counts crates: crate_size is the number in one "
+            + "crate, and pallet_size is the number in one pallet. Filters: structures (ID or part "
+            + "of a label), structure_categories, "
             + "items (code name or name), and stockpiles (ID, part of a name, or public). war is a "
             + "war number, and the default is the current war."
     )]
@@ -300,7 +306,11 @@ public sealed class SearchTools(
         );
     }
 
-    private ItemName Name(string codeName) => new(codeName, catalog.DisplayName(codeName));
+    private ItemName Name(string codeName)
+    {
+        var entry = catalog.Find(codeName);
+        return new(codeName, catalog.DisplayName(codeName), entry?.CrateSize, entry?.PalletSize);
+    }
 
     private StructureRef Ref(StructureRecord structure) =>
         new(
