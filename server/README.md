@@ -209,7 +209,7 @@ The search tools take the argument `guild_id`, and the filters `items`, `stockpi
 - `set_structure_label` changes only a record of the guild of `guild_id`. It applies the rules of a user label ([Structure labels](#structure-labels)). Its audit line names MCP as the origin. A token without the write scope does not list it.
 - The names of reserve stockpiles and the labels are text from players. The results give them as values of JSON members only.
 
-The development realm has the optional client scopes `custos:read` and `custos:write`, each with an audience mapper for `CUSTOS_MCP_RESOURCE` and the `discord_id` mapper. It permits an anonymous client registration from `localhost` and `127.0.0.1`, and each client must use PKCE with S256. Keycloak starts with the features `cimd` and `resource-indicators`.
+The development realm has the optional client scopes `custos:read` and `custos:write`, each with an audience mapper for `CUSTOS_MCP_RESOURCE` and the `discord_id` mapper. It permits an anonymous client registration from `localhost` and `127.0.0.1`, and each client must use PKCE with S256. It also accepts the Client ID Metadata Document of Claude Code (`https://claude.ai/oauth/claude-code-client-metadata`): the profile `custos-cimd` permits the domains `claude.ai`, `localhost`, and `127.0.0.1`, and the resource of the MCP endpoint. Keycloak starts with the features `cimd` and `resource-indicators`.
 
 ## Storage
 
@@ -450,7 +450,7 @@ The authenticator that sets `active_guild` can also set this claim. That work is
 
 #### The MCP scopes and the registration of a harness
 
-An LLM harness reads the metadata document of `/mcp`, registers its own client in the realm, and asks the user to log in. The token needs the audience of the endpoint, the claim `discord_id`, and a scope. The [development realm](Custos.Server.AppHost/keycloak/custos-realm.json) holds each of these settings.
+An LLM harness reads the metadata document of `/mcp`, gets its own client in the realm, and asks the user to log in. A harness gets a client in one of two ways. It sends a registration request, or it uses the URL of its Client ID Metadata Document as the client ID. Keycloak with the feature `cimd` states that it supports the second way, so a harness such as Claude Code uses it and sends no registration request. The token needs the audience of the endpoint, the claim `discord_id`, and a scope. The [development realm](Custos.Server.AppHost/keycloak/custos-realm.json) holds each of these settings.
 
 1. In **Client scopes**, create the scopes `custos:read` and `custos:write`, each with the protocol `OpenID Connect` and **Include in token scope** on.
 2. In the tab **Mappers** of each scope, add two mappers:
@@ -459,6 +459,14 @@ An LLM harness reads the metadata document of `/mcp`, registers its own client i
 3. In the list **Client scopes**, set the assigned type of the two scopes to **Optional**. A default scope also goes to the client of Custos, and its tokens then get the audience of `/mcp`.
 4. In **Clients**, on the tab **Client registration**, open the anonymous policy **Trusted Hosts**. Add the hosts of the redirect URIs of the harnesses that you permit, for example `localhost` and `127.0.0.1` for a harness on a computer. Set **Host Sending Client Registration Request Must Match** to off, and keep **Client URIs Must Match** on.
 5. In **Realm settings**, on the tab **Client policies**, add a profile with the executor `pkce-enforcer` (**Auto-configure** on), and a policy with the condition `any-client` for that profile. Each client then uses PKCE with S256.
+6. For a harness that uses a Client ID Metadata Document, such as Claude Code, extend the profile and the policy `custos-cimd` ([Client profile and client policy](#client-profile-and-client-policy)). Without this step, Keycloak shows `Client not found`, because the policy accepts only the host of the server. In the profile, add to the executor `client-id-metadata-document`:
+
+   ```json
+   "cimd-allow-permitted-domains": ["custos.example.com", "oauth2callback", "claude.ai", "localhost", "127.0.0.1"],
+   "cimd-resource-indicator-allow-list": ["https://custos.example.com/mcp"]
+   ```
+
+   `claude.ai` is the host of the client ID. `localhost` and `127.0.0.1` are the hosts of the redirect URIs. Without the allow list of resources, Keycloak refuses the parameter `resource` with `invalid_target`. In the policy, add `claude.ai` to `client-id-uri-allow-permitted-domains` of the condition. For another harness, add the host of its metadata document, and the hosts of its redirect URIs.
 
 To add the endpoint to a harness, give it the URL of the endpoint as a remote MCP server with the HTTP transport. For example, in Claude Code:
 

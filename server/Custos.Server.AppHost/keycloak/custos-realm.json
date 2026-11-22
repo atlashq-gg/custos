@@ -17,7 +17,7 @@
             "condition": "client-id-uri",
             "configuration": {
               "client-id-uri-scheme": ["http", "https"],
-              "client-id-uri-allow-permitted-domains": ["${CUSTOS_CIMD_HOST}"]
+              "client-id-uri-allow-permitted-domains": ["${CUSTOS_CIMD_HOST}", "claude.ai"]
             }
           }
         ],
@@ -47,7 +47,14 @@
             "executor": "client-id-metadata-document",
             "configuration": {
               "cimd-allow-http-scheme": "true",
-              "cimd-allow-permitted-domains": ["${CUSTOS_CIMD_HOST}", "oauth2callback"]
+              "cimd-allow-permitted-domains": [
+                "${CUSTOS_CIMD_HOST}",
+                "oauth2callback",
+                "claude.ai",
+                "localhost",
+                "127.0.0.1"
+              ],
+              "cimd-resource-indicator-allow-list": ["${CUSTOS_MCP_RESOURCE}"]
             }
           }
         ]
