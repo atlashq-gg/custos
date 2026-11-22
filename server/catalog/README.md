@@ -45,7 +45,7 @@ A shippable crate holds 3 packed vehicles or structures (wiki page "Shippable St
 - A vehicle is shippable when `shippable_size` of the wiki is `Medium`, `Large`, or `Extra Large`. `Unpackageable` and an empty size are not.
 - A structure is shippable when `construction_type` of the wiki is `Shippable`.
 
-A number in the wiki wins. `MediumTankC` has 5 in the wiki, so it has 5, not 3. The number is not checked against the game.
+A number in the wiki wins for a shippable entry. `MediumTankC` has 5 in the wiki, and the Maintainer confirmed it, so it has 5, not 3. A vehicle or a structure that is not shippable has no crate size, also when the wiki has a number.
 
 ## Update
 

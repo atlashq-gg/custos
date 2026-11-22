@@ -13,6 +13,7 @@ source="https://foxhole.wiki.gg/wiki/Special:CargoTables"
 
 # A shippable crate holds 3 packed vehicles or structures (wiki page "Shippable Structures"). The
 # tables have the number for one vehicle only, so a shippable entry without a number gets this one.
+# A vehicle or a structure that is not shippable has no crate size, also when the wiki has a number.
 shippable_crate_size=3
 
 # Table, the field with the category, the kind, and the extra field with its name in the row. The
@@ -51,7 +52,9 @@ def faction:
   | ((.name // "") | trim) as $name
   | select($code != "" and $name != "")
   | ((.category // "") | trim) as $category
-  | (number("crate_size") // (if shippable then $shippable_crate_size else null end)) as $crate
+  | (if .kind == "item" then number("crate_size")
+     elif shippable then (number("crate_size") // $shippable_crate_size)
+     else null end) as $crate
   | number("pallet_size") as $pallet
   | { code_name: $code,
       display_name: ($name | decode),
