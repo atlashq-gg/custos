@@ -180,7 +180,8 @@ public sealed class SearchTools(
     [Description(
         "The structures, with their labels, places, stockpiles, and items. One row for each "
             + "structure. An item with crated true counts crates: crate_size is the number in one "
-            + "crate, and pallet_size is the number in one pallet. Filters: structures (ID or part of a label), structure_categories, "
+            + "crate, and pallet_size is the number in one pallet. Filters: structures (ID or part "
+            + "of a label), structure_categories, "
             + "items (code name or name), and stockpiles (ID, part of a name, or public). war is a "
             + "war number, and the default is the current war."
     )]
