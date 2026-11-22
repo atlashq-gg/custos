@@ -209,7 +209,7 @@ The search tools take the argument `guild_id`, and the filters `items`, `stockpi
 - `set_structure_label` changes only a record of the guild of `guild_id`. It applies the rules of a user label ([Structure labels](#structure-labels)). Its audit line names MCP as the origin. A token without the write scope does not list it.
 - The names of reserve stockpiles and the labels are text from players. The results give them as values of JSON members only.
 
-The development realm has the optional client scopes `custos:read` and `custos:write`, each with an audience mapper for `CUSTOS_MCP_RESOURCE` and the `discord_id` mapper. It permits an anonymous client registration from `localhost` and `127.0.0.1`, and each client must use PKCE with S256. It also accepts the Client ID Metadata Document of Claude Code (`https://claude.ai/oauth/claude-code-client-metadata`): the profile `custos-cimd` permits the domains `claude.ai`, `localhost`, and `127.0.0.1`, and the resource of the MCP endpoint. Keycloak starts with the features `cimd` and `resource-indicators`.
+The development realm has the optional client scopes `custos:read` and `custos:write`, each with an audience mapper for `CUSTOS_MCP_RESOURCE` and the `discord_id` mapper. It permits an anonymous client registration from `localhost` and `127.0.0.1`, and each client must use PKCE with S256. The user `dev` has the realm role `offline_access`, because Claude Code requests that scope. It also accepts the Client ID Metadata Document of Claude Code (`https://claude.ai/oauth/claude-code-client-metadata`): the profile `custos-cimd` permits the domains `claude.ai`, `localhost`, and `127.0.0.1`, and the resource of the MCP endpoint. Keycloak starts with the features `cimd` and `resource-indicators`.
 
 ## Storage
 
@@ -351,7 +351,7 @@ The role needs no other privilege. Make sure that the container can reach Postgr
 1. Start Keycloak with the feature `cimd`: the option `--features=cimd`, or the environment variable `KC_FEATURES=cimd`. For the MCP endpoint, add the feature `resource-indicators`: `--features=cimd,resource-indicators`. Keep other features that you already enable in the same list.
 2. Select a realm for Custos, or create one. The issuer of the realm is the value of `Custos__Authority`.
 3. Add the client profile and the client policy of Custos to the realm (see below).
-4. Set the session lifetime of the realm. Keycloak refuses `offline_access` for a CIMD client, so the SSO session sets how long a login of Custos lasts. The development realm uses 7 days idle (`ssoSessionIdleTimeout` 604800) and 30 days at most (`ssoSessionMaxLifespan` 2592000).
+4. Set the session lifetime of the realm. Custos does not request `offline_access`, so the SSO session sets how long a login of Custos lasts. The development realm uses 7 days idle (`ssoSessionIdleTimeout` 604800) and 30 days at most (`ssoSessionMaxLifespan` 2592000).
 5. Add the claim `active_guild` (see below).
 6. Add the claim `discord_id` (see below).
 7. For the MCP endpoint, add the MCP scopes and the registration policies (see below).
@@ -467,6 +467,7 @@ An LLM harness reads the metadata document of `/mcp`, gets its own client in the
    ```
 
    `claude.ai` is the host of the client ID. `localhost` and `127.0.0.1` are the hosts of the redirect URIs. Without the allow list of resources, Keycloak refuses the parameter `resource` with `invalid_target`. In the policy, add `claude.ai` to `client-id-uri-allow-permitted-domains` of the condition. For another harness, add the host of its metadata document, and the hosts of its redirect URIs.
+7. Claude Code requests the scope `offline_access`. A user needs the realm role `offline_access`. Without it, Keycloak answers the token request with `Offline tokens not allowed for the user or client`. A new realm gives this role to each user in its default roles, so this step is for a realm that removed it.
 
 To add the endpoint to a harness, give it the URL of the endpoint as a remote MCP server with the HTTP transport. For example, in Claude Code:
 

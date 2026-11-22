@@ -273,6 +273,7 @@
       "email": "dev@example.invalid",
       "emailVerified": true,
       "firstName": "Dev",
+      "realmRoles": ["offline_access"],
       "lastName": "User",
       "credentials": [
         { "type": "password", "value": "dev", "temporary": false }
