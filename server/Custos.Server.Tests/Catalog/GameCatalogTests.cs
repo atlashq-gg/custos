@@ -55,6 +55,9 @@ public sealed class GameCatalogTests
             Assert.That(shipped.Find("Cloth")?.CrateSize, Is.EqualTo(100));
             Assert.That(shipped.Find("AAAmmo")?.PalletSize, Is.EqualTo(60));
             Assert.That(shipped.Find("TruckC")?.CrateSize, Is.EqualTo(3));
+            Assert.That(shipped.Find("BusC")?.CrateSize, Is.EqualTo(3));
+            Assert.That(shipped.Find("MediumTankC")?.CrateSize, Is.EqualTo(5));
+            Assert.That(shipped.Find("AircraftBomberC")?.CrateSize, Is.Null);
             Assert.That(shipped.Find("EmplacedATW")?.CrateSize, Is.EqualTo(3));
             Assert.That(shipped.Find("Seaport")?.CrateSize, Is.Null);
             Assert.That(shipped.Find("StorageFacility")?.CrateSize, Is.Null);

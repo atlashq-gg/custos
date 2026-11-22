@@ -37,15 +37,14 @@ The source is the Foxhole wiki. The file is under [CC BY-NC-SA 4.0](https://crea
 | `kind` | `item`, `vehicle`, or `structure`. |
 | `category` | `ItemCategory` of the wiki table `itemdata`, or `type` of the tables `vehicles` and `structures`. |
 | `faction` | `colonial`, `warden`, or `both`. |
-| `crate_size` | The number in one crate. For an item, the number in an item crate (`crate_amount` of the wiki). For a vehicle or a structure, the number in a shippable crate: 3 (see below). The member is not there when the catalog has no number. |
+| `crate_size` | The number in one crate. For an item, the number in an item crate (`crate_amount` of the wiki). For a vehicle or a structure, the number in a crate that the Mass Production Factory (MPF) makes: 3 (see below). The member is not there when the catalog has no number. |
 | `pallet_size` | The number of items in a pallet (`pallet_amount` of the wiki). Only an item has it. The member is not there when the wiki has no number. |
 
-A shippable crate holds 3 packed vehicles or structures (wiki page "Shippable Structures"). The wiki tables do not have that number, except for one vehicle. The script sets `crate_size` to 3 for each shippable entry that has no number of its own:
+A vehicle or a structure has a crate size only when the MPF can produce it. The wiki table `Production` has the flag `IsMPFable` for each recipe. The script matches the recipe with the entry by its display name and its type. The recipes show: 64 vehicles and 15 structures are MPF-able.
 
-- A vehicle is shippable when `shippable_size` of the wiki is `Medium`, `Large`, or `Extra Large`. `Unpackageable` and an empty size are not.
-- A structure is shippable when `construction_type` of the wiki is `Shippable`.
-
-A number in the wiki wins for a shippable entry. `MediumTankC` has 5 in the wiki, and the Maintainer confirmed it, so it has 5, not 3. A vehicle or a structure that is not shippable has no crate size, also when the wiki has a number.
+- A crate of such a vehicle or structure holds 3 packed vehicles or structures (wiki page "Shippable Structures"). The wiki tables do not have that number, so the script sets 3.
+- A number in the wiki wins: `CrateCapacity` of the recipe, or `crate_amount` of the vehicle table. `MediumTankC` has 5, and the Maintainer confirmed it.
+- A vehicle or a structure that the MPF cannot produce has no crate size, also when its wiki size is shippable. Examples are the aircraft, and the structures that a Small Assembly Station makes. `shippable_size` and `construction_type` of the wiki do not decide.
 
 ## Update
 
