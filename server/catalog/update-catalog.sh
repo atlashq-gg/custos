@@ -11,12 +11,18 @@ set -euo pipefail
 api="https://foxhole.wiki.gg/api.php"
 source="https://foxhole.wiki.gg/wiki/Special:CargoTables"
 
-# Table, the field with the category, and the kind. The first table with a code name wins: an
-# item before a vehicle before a structure.
+# A shippable crate holds 3 packed vehicles or structures (wiki page "Shippable Structures"). The
+# tables have the number for one vehicle only, so a shippable entry without a number gets this one.
+shippable_crate_size=3
+
+# Table, the field with the category, the kind, and the extra field with its name in the row. The
+# first table with a code name wins: an item before a vehicle before a structure.
+#   pallet_size  the number of items in a pallet
+#   shippable    the vehicle size or the construction type that says if the entry is shippable
 tables=(
-  "itemdata ItemCategory item"
-  "vehicles type vehicle"
-  "structures type structure"
+  "itemdata ItemCategory item pallet_amount=pallet_size"
+  "vehicles type vehicle shippable_size=shippable"
+  "structures type structure construction_type=shippable"
 )
 
 # Builds the file from the rows of the three tables, in the order of the list above. group_by is
@@ -26,6 +32,14 @@ def trim: gsub("^\\s+|\\s+$"; "");
 def decode:
   gsub("&#(?<d>[0-9]+);"; "\(.d | tonumber | [.] | implode)")
   | gsub("&quot;"; "\"") | gsub("&lt;"; "<") | gsub("&gt;"; ">") | gsub("&amp;"; "&");
+def shippable:
+  ((.shippable // "") | trim) as $s
+  | if .kind == "vehicle" then ($s == "Medium" or $s == "Large" or $s == "Extra Large")
+    elif .kind == "structure" then $s == "Shippable"
+    else false end;
+def number($field):
+  ((.[$field] // "") | trim | try tonumber catch null)
+  | if . != null and . > 0 then . else null end;
 def faction:
   ((. // "") | trim) as $f
   | if $f == "Col" then "colonial"
@@ -37,28 +51,30 @@ def faction:
   | ((.name // "") | trim) as $name
   | select($code != "" and $name != "")
   | ((.category // "") | trim) as $category
-  | ((.crate_size // "") | trim | try tonumber catch null) as $crate
+  | (number("crate_size") // (if shippable then $shippable_crate_size else null end)) as $crate
+  | number("pallet_size") as $pallet
   | { code_name: $code,
       display_name: ($name | decode),
       kind: .kind,
       category: (if $category == "" then $code else $category end),
       faction: (.faction | faction) }
-    + (if $crate != null and $crate > 0 then {crate_size: $crate} else {} end) ]
+    + (if $crate then {crate_size: $crate} else {} end)
+    + (if $pallet then {pallet_size: $pallet} else {} end) ]
 | group_by(.code_name) | map(.[0])
 | {source: $source, retrieved_at: $retrieved_at, entries: .}
 JQ
 
 # The Cargo API gives at most 500 rows for each request. Writes the rows of one table, each with
-# the fields codename, name, category, faction, crate_size, and kind.
+# the fields codename, name, category, faction, crate_size, the extra field, and kind.
 query() {
-  local table=$1 category=$2 kind=$3 offset=0 page count
+  local table=$1 category=$2 kind=$3 extra=$4 offset=0 page count
   while :; do
     page=$(curl --fail --silent --show-error --retry 3 --user-agent "custos-catalog/1.0" \
       --get "$api" \
       --data-urlencode "action=cargoquery" \
       --data-urlencode "format=json" \
       --data-urlencode "tables=$table" \
-      --data-urlencode "fields=codename,name,$category=category,faction,crate_amount=crate_size" \
+      --data-urlencode "fields=codename,name,$category=category,faction,crate_amount=crate_size,$extra" \
       --data-urlencode "limit=500" \
       --data-urlencode "offset=$offset")
     jq -c --arg kind "$kind" '.cargoquery[].title + {kind: $kind}' <<<"$page"
@@ -69,6 +85,7 @@ query() {
 }
 
 for entry in "${tables[@]}"; do
-  read -r table category kind <<<"$entry"
-  query "$table" "$category" "$kind"
-done | jq -s --arg source "$source" --arg retrieved_at "$(date -u +%F)" "$build"
+  read -r table category kind extra <<<"$entry"
+  query "$table" "$category" "$kind" "$extra"
+done | jq -s --arg source "$source" --arg retrieved_at "$(date -u +%F)" \
+  --argjson shippable_crate_size "$shippable_crate_size" "$build"

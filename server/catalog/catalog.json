@@ -8,7 +8,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 60
     },
     {
       "code_name": "AAGunAI",
@@ -60,7 +61,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "ATLaunchedGrenadeW",
@@ -138,7 +140,8 @@
       "kind": "item",
       "category": "HeavyArms",
       "faction": "warden",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "ATRPGUtilityW",
@@ -201,7 +204,8 @@
       "kind": "item",
       "category": "HeavyArms",
       "faction": "colonial",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "ATRifleW",
@@ -225,21 +229,24 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "AircraftBomberC",
       "display_name": "V-1 Tzykalia",
       "kind": "vehicle",
       "category": "Heavy Bomber Aircraft",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftBomberW",
       "display_name": "Tulka P4 Welkinrive",
       "kind": "vehicle",
       "category": "Heavy Bomber Aircraft",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftDepot",
@@ -253,7 +260,8 @@
       "display_name": "Mergo-4 “Myrmidon”",
       "kind": "vehicle",
       "category": "Dive Bomber Aircraft",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftFactory",
@@ -267,91 +275,104 @@
       "display_name": "Daimon aK-5 “Harpy”",
       "kind": "vehicle",
       "category": "Fighter Aircraft",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftFighterC",
       "display_name": "Toxot-902 “Blind Silver”",
       "kind": "vehicle",
       "category": "Fighter Aircraft",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftFighterW",
       "display_name": "Luminary Mk. II Harbinger",
       "kind": "vehicle",
       "category": "Fighter Aircraft",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftParatrooperC",
       "display_name": "V-5b Pegasus",
       "kind": "vehicle",
       "category": "Transport Aircraft",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftParatrooperW",
       "display_name": "Rinnspeir Mk. I Zealot",
       "kind": "vehicle",
       "category": "Transport Aircraft",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftPartLargeEngineC",
       "display_name": "Colonial Aircraft Engine (Large)",
       "kind": "item",
       "category": "Parts",
-      "faction": "colonial"
+      "faction": "colonial",
+      "pallet_size": 1
     },
     {
       "code_name": "AircraftPartLargeEngineW",
       "display_name": "Warden Aircraft Engine (Large)",
       "kind": "item",
       "category": "Parts",
-      "faction": "warden"
+      "faction": "warden",
+      "pallet_size": 1
     },
     {
       "code_name": "AircraftPartLargeEngineWreckedC",
       "display_name": "Damaged Colonial Aircraft Engine (Large)",
       "kind": "item",
       "category": "Parts",
-      "faction": "colonial"
+      "faction": "colonial",
+      "pallet_size": 1
     },
     {
       "code_name": "AircraftPartLargeEngineWreckedW",
       "display_name": "Damaged Warden Aircraft Engine (Large)",
       "kind": "item",
       "category": "Parts",
-      "faction": "warden"
+      "faction": "warden",
+      "pallet_size": 1
     },
     {
       "code_name": "AircraftPartLargeMechanicalC",
       "display_name": "Colonial Aircraft Mechanical Parts (Large)",
       "kind": "item",
       "category": "Parts",
-      "faction": "colonial"
+      "faction": "colonial",
+      "pallet_size": 2
     },
     {
       "code_name": "AircraftPartLargeMechanicalW",
       "display_name": "Warden Aircraft Mechanical Parts (Large)",
       "kind": "item",
       "category": "Parts",
-      "faction": "warden"
+      "faction": "warden",
+      "pallet_size": 2
     },
     {
       "code_name": "AircraftPartLargeMechanicalWreckedC",
       "display_name": "Damaged Colonial Aircraft Mechanical Parts (Large)",
       "kind": "item",
       "category": "Parts",
-      "faction": "colonial"
+      "faction": "colonial",
+      "pallet_size": 2
     },
     {
       "code_name": "AircraftPartLargeMechanicalWreckedW",
       "display_name": "Damaged Warden Aircraft Mechanical Parts (Large)",
       "kind": "item",
       "category": "Parts",
-      "faction": "warden"
+      "faction": "warden",
+      "pallet_size": 2
     },
     {
       "code_name": "AircraftPartSmallEngineC",
@@ -359,7 +380,8 @@
       "kind": "item",
       "category": "Parts",
       "faction": "colonial",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "AircraftPartSmallEngineW",
@@ -367,7 +389,8 @@
       "kind": "item",
       "category": "Parts",
       "faction": "warden",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "AircraftPartSmallEngineWreckedC",
@@ -375,7 +398,8 @@
       "kind": "item",
       "category": "Parts",
       "faction": "colonial",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "AircraftPartSmallEngineWreckedW",
@@ -383,7 +407,8 @@
       "kind": "item",
       "category": "Parts",
       "faction": "warden",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "AircraftPartSmallMechanicalC",
@@ -391,7 +416,8 @@
       "kind": "item",
       "category": "Parts",
       "faction": "colonial",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "AircraftPartSmallMechanicalW",
@@ -399,7 +425,8 @@
       "kind": "item",
       "category": "Parts",
       "faction": "warden",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "AircraftPartSmallMechanicalWreckedC",
@@ -407,7 +434,8 @@
       "kind": "item",
       "category": "Parts",
       "faction": "colonial",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "AircraftPartSmallMechanicalWreckedW",
@@ -415,14 +443,16 @@
       "kind": "item",
       "category": "Parts",
       "faction": "warden",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "AircraftRocketW",
       "display_name": "Tulka S2 Wyvern",
       "kind": "vehicle",
       "category": "Rocket-Armed Aircraft",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftRunwayT1",
@@ -443,56 +473,64 @@
       "display_name": "A59 Venti “Perdix”",
       "kind": "vehicle",
       "category": "Scout Aircraft",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftScout2W",
       "display_name": "Luminary Mk. VI Emissary",
       "kind": "vehicle",
       "category": "Scout Aircraft",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftScoutC",
       "display_name": "A51 Venti “Daedalus”",
       "kind": "vehicle",
       "category": "Amphibious Scout Aircraft",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftScoutW",
       "display_name": "Luminary Mk. IV Herald",
       "kind": "vehicle",
       "category": "Amphibious Scout Aircraft",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftTorpedoAmmo",
       "display_name": "Tenta Torpedo",
       "kind": "item",
       "category": "HeavyAmmo",
-      "faction": "warden"
+      "faction": "warden",
+      "pallet_size": 5
     },
     {
       "code_name": "AircraftTorpedoC",
       "display_name": "Daimon eO-1 “Siren”",
       "kind": "vehicle",
       "category": "Torpedo Bomber Aircraft",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftTorpedoW",
       "display_name": "M925 Austringer Man-O-War",
       "kind": "vehicle",
       "category": "Torpedo Bomber Aircraft",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "AircraftWaterW",
       "display_name": "Tulka I1.9 White Raven",
       "kind": "vehicle",
       "category": "Amphibious Fighter Aircraft",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "Aluminum",
@@ -514,28 +552,32 @@
       "display_name": "R-12 - “Salus” Ambulance",
       "kind": "vehicle",
       "category": "Ambulance",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "AmbulanceFlameC",
       "display_name": "R-12b - “Salva” Flame Truck",
       "kind": "vehicle",
       "category": "Fire Engine",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "AmbulanceFlameW",
       "display_name": "Dunne Dousing Engine 3r",
       "kind": "vehicle",
       "category": "Fire Engine",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "AmbulanceW",
       "display_name": "Dunne Responder 3e",
       "kind": "vehicle",
       "category": "Ambulance",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "AmmoRoomT2",
@@ -564,70 +606,80 @@
       "display_name": "O'Brien V.101 Freeman",
       "kind": "vehicle",
       "category": "Armoured Car",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "ArmoredCar2MultiW",
       "display_name": "O'Brien V.200 Squire",
       "kind": "vehicle",
       "category": "Armoured Car",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "ArmoredCar2TwinW",
       "display_name": "O'Brien V.190 Knave",
       "kind": "vehicle",
       "category": "Armoured Car",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "ArmoredCarATW",
       "display_name": "O'Brien V.113 Gravekeeper",
       "kind": "vehicle",
       "category": "Armoured Car",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "ArmoredCarC",
       "display_name": "T3 “Xiphos”",
       "kind": "vehicle",
       "category": "Armoured Car",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "ArmoredCarFlameW",
       "display_name": "O'Brien V.130 Wild Jack",
       "kind": "vehicle",
       "category": "Armoured Car",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "ArmoredCarMobilityW",
       "display_name": "O'Brien V.121 Highlander",
       "kind": "vehicle",
       "category": "Armoured Car",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "ArmoredCarOffensiveC",
       "display_name": "T5 “Percutio”",
       "kind": "vehicle",
       "category": "Armoured Car",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "ArmoredCarTwinC",
       "display_name": "T8 “Gemini”",
       "kind": "vehicle",
       "category": "Armoured Car",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "ArmoredCarW",
       "display_name": "O'Brien V.110",
       "kind": "vehicle",
       "category": "Armoured Car",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "ArmourMedicUniformC",
@@ -752,7 +804,8 @@
       "kind": "item",
       "category": "Utility",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "BarbedWireSpline",
@@ -781,28 +834,32 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "BattleTankAAC",
       "display_name": "Lance-50 “Lampades”",
       "kind": "vehicle",
       "category": "Battle Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "BattleTankAAW",
       "display_name": "Flood Veilcleave Mk. X",
       "kind": "vehicle",
       "category": "Battle Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "BattleTankATC",
       "display_name": "Lance-25 “Hasta”",
       "kind": "vehicle",
       "category": "Battle Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "BattleTankAmmo",
@@ -810,42 +867,48 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "BattleTankC",
       "display_name": "Lance-36",
       "kind": "vehicle",
       "category": "Battle Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "BattleTankDefensiveW",
       "display_name": "Flood Juggernaut Mk. VII",
       "kind": "vehicle",
       "category": "Battle Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "BattleTankHeavyArtilleryC",
       "display_name": "Lance-46 “Sarissa”",
       "kind": "vehicle",
       "category": "Battle Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "BattleTankHeavyArtilleryW",
       "display_name": "Flood Mk. IX Stain",
       "kind": "vehicle",
       "category": "Battle Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "BattleTankW",
       "display_name": "Flood Mk. I",
       "kind": "vehicle",
       "category": "Battle Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "Bayonet",
@@ -884,7 +947,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 60
     },
     {
       "code_name": "BorderBase",
@@ -969,7 +1033,8 @@
       "display_name": "Concrete Materials",
       "kind": "item",
       "category": "Supplies",
-      "faction": "both"
+      "faction": "both",
+      "pallet_size": 120
     },
     {
       "code_name": "ConcreteBridge",
@@ -983,28 +1048,32 @@
       "display_name": "Concrete Mixer",
       "kind": "structure",
       "category": "Production",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "Construction",
       "display_name": "BMS - Universal Assembly Rig",
       "kind": "vehicle",
       "category": "Construction Vehicle",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "ConstructionEquipment",
       "display_name": "Construction Equipment",
       "kind": "structure",
       "category": "Shippable Construction Equipment",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "ConstructionUtility",
       "display_name": "BMS - Fabricator",
       "kind": "vehicle",
       "category": "Advanced Construction Vehicle",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "ConstructionYard",
@@ -1062,7 +1131,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 60
     },
     {
       "code_name": "DeployedATRPGTW",
@@ -1175,21 +1245,24 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "DestroyerTankFlameW",
       "display_name": "Noble Firebrand Mk. XVII",
       "kind": "vehicle",
       "category": "Destroyer Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "DestroyerTankW",
       "display_name": "Noble Widow MK. XIV",
       "kind": "vehicle",
       "category": "Destroyer Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "Diesel",
@@ -1205,7 +1278,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "colonial",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 60
     },
     {
       "code_name": "DrawbridgeA",
@@ -1233,84 +1307,96 @@
       "display_name": "DAE 5b “Zeal”",
       "kind": "structure",
       "category": "Player Manned Defense",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "EmplacedAAW",
       "display_name": "Leary AA-70 Bolas",
       "kind": "structure",
       "category": "Player Manned Defense",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "EmplacedATLargeW",
       "display_name": "Huber Starbreaker 94.5mm",
       "kind": "structure",
       "category": "Player Manned Defense",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "EmplacedATW",
       "display_name": "Leary Shellbore 68mm",
       "kind": "structure",
       "category": "Player Manned Defense",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "EmplacedCannonLargeC",
       "display_name": "DAE 2a-1 “Ruptura”",
       "kind": "structure",
       "category": "Player Manned Defense",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "EmplacedHeavyArtilleryC",
       "display_name": "50-500 “Thunderbolt” Cannon",
       "kind": "structure",
       "category": "Player Manned Defense",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "EmplacedHeavyArtilleryW",
       "display_name": "Huber Exalt 150mm",
       "kind": "structure",
       "category": "Player Manned Defense",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "EmplacedIndirectC",
       "display_name": "DAE 1o-3 “Polybolos”",
       "kind": "structure",
       "category": "Player Manned Defense",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "EmplacedInfantryC",
       "display_name": "DAE 1b-2 “Serra”",
       "kind": "structure",
       "category": "Player Manned Defense",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "EmplacedInfantryW",
       "display_name": "Leary Snare Trap 20",
       "kind": "structure",
       "category": "Player Manned Defense",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "EmplacedLightArtilleryW",
       "display_name": "Huber Lariat 120mm",
       "kind": "structure",
       "category": "Player Manned Defense",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "EmplacedMultiC",
       "display_name": "DAE 3b-2 “Hades' Net”",
       "kind": "structure",
       "category": "Player Manned Defense",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "EngineRoomT2",
@@ -1442,7 +1528,8 @@
       "kind": "item",
       "category": "Supplies",
       "faction": "both",
-      "crate_size": 20
+      "crate_size": 20,
+      "pallet_size": 120
     },
     {
       "code_name": "FacilityMaterials10",
@@ -1450,7 +1537,8 @@
       "kind": "item",
       "category": "Supplies",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 120
     },
     {
       "code_name": "FacilityMaterials11",
@@ -1458,7 +1546,8 @@
       "kind": "item",
       "category": "Supplies",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 120
     },
     {
       "code_name": "FacilityMaterials12",
@@ -1474,7 +1563,8 @@
       "kind": "item",
       "category": "Supplies",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 120
     },
     {
       "code_name": "FacilityMaterials3",
@@ -1482,7 +1572,8 @@
       "kind": "item",
       "category": "Supplies",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 120
     },
     {
       "code_name": "FacilityMaterials4",
@@ -1490,7 +1581,8 @@
       "kind": "item",
       "category": "Supplies",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 120
     },
     {
       "code_name": "FacilityMaterials5",
@@ -1498,7 +1590,8 @@
       "kind": "item",
       "category": "Supplies",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 120
     },
     {
       "code_name": "FacilityMaterials6",
@@ -1506,7 +1599,8 @@
       "kind": "item",
       "category": "Supplies",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 120
     },
     {
       "code_name": "FacilityMaterials7",
@@ -1514,7 +1608,8 @@
       "kind": "item",
       "category": "Supplies",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 120
     },
     {
       "code_name": "FacilityMaterials8",
@@ -1522,7 +1617,8 @@
       "kind": "item",
       "category": "Supplies",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 120
     },
     {
       "code_name": "FacilityMaterials9",
@@ -1530,7 +1626,8 @@
       "kind": "item",
       "category": "Supplies",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 120
     },
     {
       "code_name": "FacilityMineOil",
@@ -1763,35 +1860,40 @@
       "display_name": "GA6 “Cestus”",
       "kind": "vehicle",
       "category": "Field AT Rifle",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "FieldAT2W",
       "display_name": "Duncan's Coin 14.5mm",
       "kind": "vehicle",
       "category": "Field AT Rifle",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "FieldATC",
       "display_name": "AA-2 “Battering Ram”",
       "kind": "vehicle",
       "category": "Field AT Gun",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "FieldATDamageW",
       "display_name": "Balfour Rampart 68mm",
       "kind": "vehicle",
       "category": "Heavy Field Cannon",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "FieldATW",
       "display_name": "Collins Cannon 68mm",
       "kind": "vehicle",
       "category": "Field AT Gun",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "FieldBridge",
@@ -1805,14 +1907,16 @@
       "display_name": "40-45 “Smelter”",
       "kind": "vehicle",
       "category": "Heavy Field Gun",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "FieldCannonW",
       "display_name": "Balfour Wolfhound 40mm",
       "kind": "vehicle",
       "category": "Field Cannon",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "FieldHospital",
@@ -1833,28 +1937,32 @@
       "display_name": "G40 “Sagittarii”",
       "kind": "vehicle",
       "category": "Field Machine Gun",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "FieldMGW",
       "display_name": "Swallowtail 988/127-2",
       "kind": "vehicle",
       "category": "Field Machine Gun",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "FieldMortarC",
       "display_name": "30-250 “Tisiphone” Field Cannon",
       "kind": "vehicle",
       "category": "Field Mortar",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "FieldMortarW",
       "display_name": "Balfour Falconer 250mm",
       "kind": "vehicle",
       "category": "Field Mortar",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "FieldPier",
@@ -1883,7 +1991,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "FirstAidKit",
@@ -1899,7 +2008,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "FlameBackpackC",
@@ -1987,7 +2097,8 @@
       "display_name": "Construction Parts",
       "kind": "structure",
       "category": "Large Structure Part",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "FortCornerT1",
@@ -2064,7 +2175,8 @@
       "display_name": "Underground Fortress Parts",
       "kind": "structure",
       "category": "Large Structure Part",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "FortISGAIT1",
@@ -2092,14 +2204,16 @@
       "display_name": "Intelligence Center Parts",
       "kind": "structure",
       "category": "Large Structure Part",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "FortLRArtilleryPart",
       "display_name": "Storm Cannon Parts",
       "kind": "structure",
       "category": "Large Structure Part",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "FortLargeRadar",
@@ -2113,7 +2227,8 @@
       "display_name": "SC-3 Aerial Interceptor Array Parts",
       "kind": "structure",
       "category": "Large Structure Part",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "FortRadarT1",
@@ -2162,7 +2277,8 @@
       "display_name": "Structure Parts",
       "kind": "structure",
       "category": "Large Structure Part",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "FortT1",
@@ -2190,7 +2306,8 @@
       "display_name": "Weather Station Parts",
       "kind": "structure",
       "category": "Large Structure Part",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "ForwardBase1",
@@ -2351,7 +2468,8 @@
       "kind": "item",
       "category": "HeavyArms",
       "faction": "colonial",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "GrenadeUniformC",
@@ -2427,63 +2545,72 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "HalfTrackArtilleryC",
       "display_name": "HH-d “Peltast”",
       "kind": "vehicle",
       "category": "Half-Track",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "HalfTrackC",
       "display_name": "HH-a “Javelin”",
       "kind": "vehicle",
       "category": "Half-Track",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "HalfTrackDefensiveC",
       "display_name": "HH-b “Hoplite”",
       "kind": "vehicle",
       "category": "Half-Track",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "HalfTrackOffensiveW",
       "display_name": "Niska Mk. II Blinder",
       "kind": "vehicle",
       "category": "Half-Track",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "HalfTrackTwinW",
       "display_name": "Niska Mk. III Scar Twin",
       "kind": "vehicle",
       "category": "Half-Track",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "HalfTrackW",
       "display_name": "Niska Mk. I Gun Motor Carriage",
       "kind": "vehicle",
       "category": "Half-Track",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "HalftrackMultiW",
       "display_name": "Niska-Rycker Mk. IX Skycaller",
       "kind": "vehicle",
       "category": "Half-Track",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "Harvester",
       "display_name": "BMS - Scrap Hauler",
       "kind": "vehicle",
       "category": "Harvester",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "HeavyArtilleryAmmo",
@@ -2491,7 +2618,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "HeavyExplosive",
@@ -2535,7 +2663,8 @@
       "kind": "item",
       "category": "HeavyArms",
       "faction": "colonial",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "In01KItem",
@@ -2592,7 +2721,8 @@
       "kind": "item",
       "category": "Utility",
       "faction": "both",
-      "crate_size": 10
+      "crate_size": 10,
+      "pallet_size": 120
     },
     {
       "code_name": "InfantryMineProxy",
@@ -2650,28 +2780,32 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 120
     },
     {
       "code_name": "LandingCraftC",
       "display_name": "AB-8 “Acheron”",
       "kind": "vehicle",
       "category": "Landing APC",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "LandingCraftOffensiveC",
       "display_name": "AB-11 “Doru”",
       "kind": "vehicle",
       "category": "Landing APC",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "LandingCraftW",
       "display_name": "Mulloy LPC",
       "kind": "vehicle",
       "category": "Landing APC",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "LandingDock",
@@ -2706,35 +2840,40 @@
       "display_name": "945g “Stygian Bolt”",
       "kind": "vehicle",
       "category": "Large Field Gun",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "LargeFieldCannonW",
       "display_name": "Balfour Stockade 75mm",
       "kind": "vehicle",
       "category": "Large Field Gun",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "LargeFieldLightArtilleryC",
       "display_name": "120-68 “Koronides” Field Gun",
       "kind": "vehicle",
       "category": "Field Artillery",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "LargeFieldMortarC",
       "display_name": "40-250 “Alekto” Heavy Cannon",
       "kind": "vehicle",
       "category": "Large Field Mortar",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "LargeFieldMultiW",
       "display_name": "Rycker 4/3-F Wasp Nest",
       "kind": "vehicle",
       "category": "Field Launcher",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "LargeShipAircraftC",
@@ -2826,7 +2965,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 60
     },
     {
       "code_name": "LightArtilleryAmmo",
@@ -2834,7 +2974,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "LightBoatInfantryC",
@@ -2869,21 +3010,24 @@
       "display_name": "HC-2 “Scorpion”",
       "kind": "vehicle",
       "category": "Light Infantry Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "LightTank3C",
       "display_name": "HA-1 “Sagaris”",
       "kind": "vehicle",
       "category": "Light Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "LightTank3W",
       "display_name": "Sharkey-Devitt Birdeater Mk. I",
       "kind": "vehicle",
       "category": "Light Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "LightTankAmmo",
@@ -2898,56 +3042,64 @@
       "display_name": "Devitt-Caine Mk. IV MMR",
       "kind": "vehicle",
       "category": "Light Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "LightTankC",
       "display_name": "H-5 “Hatchet”",
       "kind": "vehicle",
       "category": "Light Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "LightTankDefensiveW",
       "display_name": "Devitt Ironhide Mk. IV",
       "kind": "vehicle",
       "category": "Light Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "LightTankFlameC",
       "display_name": "H-19 “Vulcan”",
       "kind": "vehicle",
       "category": "Light Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "LightTankMobilityC",
       "display_name": "H-8 “Kranesca”",
       "kind": "vehicle",
       "category": "Light Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "LightTankOffensiveC",
       "display_name": "H-10 “Pelekys”",
       "kind": "vehicle",
       "category": "Light Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "LightTankW",
       "display_name": "Devitt Mk. III",
       "kind": "vehicle",
       "category": "Light Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "LiquidContainer",
       "display_name": "Liquid Container",
       "kind": "structure",
       "category": "Storage",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "ListeningKit",
@@ -3049,7 +3201,8 @@
       "kind": "item",
       "category": "HeavyArms",
       "faction": "colonial",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "MGTW",
@@ -3057,7 +3210,8 @@
       "kind": "item",
       "category": "HeavyArms",
       "faction": "warden",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "MGW",
@@ -3109,21 +3263,24 @@
       "display_name": "Material Pallet",
       "kind": "structure",
       "category": "Storage",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "Mech",
       "display_name": "Centurion MV-2",
       "kind": "vehicle",
       "category": "Mech",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "MechW",
       "display_name": "Herne QMW 1a Scourge Hunter",
       "kind": "vehicle",
       "category": "Mech",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "MedicUniformC",
@@ -3181,56 +3338,64 @@
       "display_name": "86K-a “Bardiche”",
       "kind": "vehicle",
       "category": "Assault Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "MediumTank2IndirectW",
       "display_name": "Gallagher Thornfall Mk. VI",
       "kind": "vehicle",
       "category": "Cruiser Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "MediumTank2MultiW",
       "display_name": "Gallagher Highwayman Mk. III",
       "kind": "vehicle",
       "category": "Cruiser Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "MediumTank2RangeW",
       "display_name": "Gallagher Outlaw Mk. II",
       "kind": "vehicle",
       "category": "Cruiser Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "MediumTank2TwinC",
       "display_name": "86K-c “Ranseur”",
       "kind": "vehicle",
       "category": "Assault Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "MediumTank2W",
       "display_name": "Gallagher Brigand Mk. I",
       "kind": "vehicle",
       "category": "Cruiser Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "MediumTank3C",
       "display_name": "90T-v “Nemesis”",
       "kind": "vehicle",
       "category": "Assault Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "MediumTankATW",
       "display_name": "Silverhand Lordscar - Mk. X",
       "kind": "vehicle",
       "category": "Assault Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "MediumTankC",
@@ -3245,28 +3410,32 @@
       "display_name": "85V-g “Talos”",
       "kind": "vehicle",
       "category": "Assault Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "MediumTankOffensiveC",
       "display_name": "85K-a “Spatha”",
       "kind": "vehicle",
       "category": "Assault Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "MediumTankSiegeW",
       "display_name": "Silverhand Chieftain - Mk. VI",
       "kind": "vehicle",
       "category": "Assault Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "MediumTankW",
       "display_name": "Silverhand - Mk. IV",
       "kind": "vehicle",
       "category": "Assault Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "Metal",
@@ -3281,7 +3450,8 @@
       "kind": "item",
       "category": "Utility",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "MineBoat",
@@ -3318,7 +3488,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 60
     },
     {
       "code_name": "Mortar",
@@ -3381,7 +3552,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 60
     },
     {
       "code_name": "MortarTankAmmoBR",
@@ -3389,14 +3561,16 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 60
     },
     {
       "code_name": "MortarTankC",
       "display_name": "HC-7 “Ballista”",
       "kind": "vehicle",
       "category": "Siege Tank",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "Motorboat",
@@ -3410,35 +3584,40 @@
       "display_name": "Kb-12 “Oracle”",
       "kind": "vehicle",
       "category": "Motorcycle",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "Motorcycle2IntelW",
       "display_name": "Faden & Co. Augur Relay Bike",
       "kind": "vehicle",
       "category": "Motorcycle",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "MotorcycleC",
       "display_name": "03MM “Caster”",
       "kind": "vehicle",
       "category": "Motorcycle",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "MotorcycleOffensiveC",
       "display_name": "00MS “Stinger”",
       "kind": "vehicle",
       "category": "Motorcycle",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "MotorcycleW",
       "display_name": "Kivela Power Wheel 80-1",
       "kind": "vehicle",
       "category": "Motorcycle",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "NavalUniformC",
@@ -3577,7 +3756,8 @@
       "kind": "item",
       "category": "Supplies",
       "faction": "both",
-      "crate_size": 2
+      "crate_size": 2,
+      "pallet_size": 120
     },
     {
       "code_name": "PistolAmmo",
@@ -3643,7 +3823,8 @@
       "kind": "item",
       "category": "HeavyArms",
       "faction": "warden",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "Radio",
@@ -3803,7 +3984,8 @@
       "display_name": "Resource Container",
       "kind": "structure",
       "category": "Storage",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "Revolver",
@@ -3957,21 +4139,24 @@
       "display_name": "A0E-9 Rocket Booster",
       "kind": "structure",
       "category": "Rocket Part",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "RocketPartCenter",
       "display_name": "A0E-9 Rocket Body",
       "kind": "structure",
       "category": "Rocket Part",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "RocketPartTop",
       "display_name": "A0E-9 Rocket Warhead",
       "kind": "structure",
       "category": "Rocket Part",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "RocketSite",
@@ -4063,7 +4248,8 @@
       "kind": "item",
       "category": "Utility",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "SatchelChargeT",
@@ -4086,21 +4272,24 @@
       "display_name": "King Jester Mk. I-1",
       "kind": "vehicle",
       "category": "Scout Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "ScoutTankOffensiveW",
       "display_name": "King Gallant Mk. II",
       "kind": "vehicle",
       "category": "Scout Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "ScoutTankW",
       "display_name": "King Spire Mk. I",
       "kind": "vehicle",
       "category": "Scout Tank",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "ScoutUniformC",
@@ -4123,42 +4312,48 @@
       "display_name": "UV-05a “Argonaut”",
       "kind": "vehicle",
       "category": "Light Utility Vehicle",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "ScoutVehicleOffensiveC",
       "display_name": "UV-24 “Icarus”",
       "kind": "vehicle",
       "category": "Light Utility Vehicle",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "ScoutVehicleOffensiveW",
       "display_name": "Drummond Spitfire 100d",
       "kind": "vehicle",
       "category": "Light Utility Vehicle",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "ScoutVehicleUtilityC",
       "display_name": "UV-5c “Odyssey”",
       "kind": "vehicle",
       "category": "Light Utility Vehicle",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "ScoutVehicleUtilityW",
       "display_name": "Drummond Loscann 55c",
       "kind": "vehicle",
       "category": "Light Utility Vehicle",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "ScoutVehicleW",
       "display_name": "Drummond 100a",
       "kind": "vehicle",
       "category": "Light Utility Vehicle",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "ScrapMine",
@@ -4179,28 +4374,32 @@
       "display_name": "Naval Hull Segments",
       "kind": "structure",
       "category": "Ship Part",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "ShipPart2",
       "display_name": "Naval Shell Plating",
       "kind": "structure",
       "category": "Ship Part",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "ShipPart3",
       "display_name": "Naval Turbine Components",
       "kind": "structure",
       "category": "Ship Part",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "ShippingContainer",
       "display_name": "Shipping Container",
       "kind": "structure",
       "category": "Storage",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "Shipyard",
@@ -4282,35 +4481,40 @@
       "display_name": "BMS Mineseeker",
       "kind": "vehicle",
       "category": "Small Train Locomotive",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "SmallTrainLiquid",
       "display_name": "BMS Tinderbox",
       "kind": "vehicle",
       "category": "Small Liquid Container Car",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "SmallTrainMaterial",
       "display_name": "BMS Linerunner",
       "kind": "vehicle",
       "category": "Small Flatbed Car",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "SmallTrainResource",
       "display_name": "BMS Railtruck",
       "kind": "vehicle",
       "category": "Small Container Car",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "SmallTrainShipping",
       "display_name": "BMS Stowheel",
       "kind": "vehicle",
       "category": "Small Box Car",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "SmokeGrenade",
@@ -4415,7 +4619,8 @@
       "display_name": "Shippable Crate",
       "kind": "structure",
       "category": "Storage",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "SubmarineLightC",
@@ -4472,7 +4677,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 60
     },
     {
       "code_name": "SurfaceWaterMineSpline",
@@ -4495,7 +4701,8 @@
       "kind": "item",
       "category": "Utility",
       "faction": "both",
-      "crate_size": 10
+      "crate_size": 10,
+      "pallet_size": 60
     },
     {
       "code_name": "TankMineProxy",
@@ -4546,35 +4753,40 @@
       "display_name": "T12 “Actaeon” Tankette",
       "kind": "vehicle",
       "category": "Tankette",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "TanketteFlameC",
       "display_name": "T14 “Vesta” Tankette",
       "kind": "vehicle",
       "category": "Tankette",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "TanketteMultiC",
       "display_name": "T13 “Deioneus” Rocket Battery",
       "kind": "vehicle",
       "category": "Tankette",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "TanketteOffensiveC",
       "display_name": "T20 “Ixion” Tankette",
       "kind": "vehicle",
       "category": "Tankette",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "TorpedoAmmo",
       "display_name": "Moray Torpedo",
       "kind": "item",
       "category": "HeavyAmmo",
-      "faction": "both"
+      "faction": "both",
+      "pallet_size": 5
     },
     {
       "code_name": "TownBase1",
@@ -4609,21 +4821,24 @@
       "display_name": "Rooster - Lamploader",
       "kind": "vehicle",
       "category": "Trailer",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "TrailerMaterial",
       "display_name": "Rooster - Tumblebox",
       "kind": "vehicle",
       "category": "Trailer",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "TrailerResource",
       "display_name": "Rooster - Junkwagon",
       "kind": "vehicle",
       "category": "Trailer",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "TrainBridgeA",
@@ -4644,63 +4859,72 @@
       "display_name": "BMS Roadhouse",
       "kind": "vehicle",
       "category": "Caboose",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "TrainCoal",
       "display_name": "BMS Rockhold",
       "kind": "vehicle",
       "category": "Container Car",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "TrainCombatCarC",
       "display_name": "Aegis Steelbreaker K5a",
       "kind": "vehicle",
       "category": "Combat Car",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "TrainCombatCarW",
       "display_name": "O'Brien Warsmith v.215",
       "kind": "vehicle",
       "category": "Combat Car",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "TrainEngine",
       "display_name": "BMS Black Bolt",
       "kind": "vehicle",
       "category": "Locomotive",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "TrainFlatbed",
       "display_name": "BMS Longrider",
       "kind": "vehicle",
       "category": "Flatbed Car",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "TrainHospital",
       "display_name": "BMS Bloodtender",
       "kind": "vehicle",
       "category": "First Aid Car",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "TrainInfantry",
       "display_name": "BMS Holdout",
       "kind": "vehicle",
       "category": "Infantry Car",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "TrainLRArtillery",
       "display_name": "Tempest Cannon RA-2",
       "kind": "vehicle",
       "category": "Long-Range Artillery Car",
-      "faction": "both"
+      "faction": "both",
+      "crate_size": 3
     },
     {
       "code_name": "TraumaKit",
@@ -4800,84 +5024,96 @@
       "kind": "item",
       "category": "Utility",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 120
     },
     {
       "code_name": "TruckC",
       "display_name": "R-1 Hauler",
       "kind": "vehicle",
       "category": "Truck",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "TruckDefensiveW",
       "display_name": "Dunne Leatherback 2a",
       "kind": "vehicle",
       "category": "Truck",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "TruckLiquidC",
       "display_name": "RR-3 “Stolon” Tanker",
       "kind": "vehicle",
       "category": "Fuel Tanker",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "TruckLiquidW",
       "display_name": "Dunne Fuelrunner 2d",
       "kind": "vehicle",
       "category": "Fuel Tanker",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "TruckMobilityC",
       "display_name": "R-5b “Sisyphus” Hauler",
       "kind": "vehicle",
       "category": "Truck",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "TruckMobilityW",
       "display_name": "Dunne Landrunner 12c",
       "kind": "vehicle",
       "category": "Truck",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "TruckMultiC",
       "display_name": "R-17 “Retiarius” Skirmisher",
       "kind": "vehicle",
       "category": "Truck",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "TruckOffensiveC",
       "display_name": "R-9 “Speartip” Escort",
       "kind": "vehicle",
       "category": "Truck",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "TruckResourceC",
       "display_name": "R-5 “Atlas” Hauler",
       "kind": "vehicle",
       "category": "Truck",
-      "faction": "colonial"
+      "faction": "colonial",
+      "crate_size": 3
     },
     {
       "code_name": "TruckResourceW",
       "display_name": "Dunne Loadlugger 3c",
       "kind": "vehicle",
       "category": "Truck",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "TruckW",
       "display_name": "Dunne Transport",
       "kind": "vehicle",
       "category": "Truck",
-      "faction": "warden"
+      "faction": "warden",
+      "crate_size": 3
     },
     {
       "code_name": "UnexplodedOrdnance",
@@ -4943,7 +5179,8 @@
       "kind": "item",
       "category": "Utility",
       "faction": "both",
-      "crate_size": 1
+      "crate_size": 1,
+      "pallet_size": 60
     },
     {
       "code_name": "WaterMineSpline",
@@ -4958,7 +5195,8 @@
       "kind": "item",
       "category": "HeavyAmmo",
       "faction": "both",
-      "crate_size": 5
+      "crate_size": 5,
+      "pallet_size": 60
     },
     {
       "code_name": "WaterWallSplineT1",

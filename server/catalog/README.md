@@ -37,9 +37,15 @@ The source is the Foxhole wiki. The file is under [CC BY-NC-SA 4.0](https://crea
 | `kind` | `item`, `vehicle`, or `structure`. |
 | `category` | `ItemCategory` of the wiki table `itemdata`, or `type` of the tables `vehicles` and `structures`. |
 | `faction` | `colonial`, `warden`, or `both`. |
-| `crate_size` | The number in one crate. For an item, the number in an item crate. For a vehicle or a structure, the number in a shippable crate. The member is not there when the wiki has no number. It is `crate_amount` of the wiki tables. |
+| `crate_size` | The number in one crate. For an item, the number in an item crate (`crate_amount` of the wiki). For a vehicle or a structure, the number in a shippable crate: 3 (see below). The member is not there when the catalog has no number. |
+| `pallet_size` | The number of items in a pallet (`pallet_amount` of the wiki). Only an item has it. The member is not there when the wiki has no number. |
 
-The wiki has the crate size for 200 of the 253 items. For the vehicles it has one number (`MediumTankC`, 5), and for the structures none. The wiki page "Shippable Structures" says that a shippable crate holds 3 packed structures, but the tables do not have that number, so the catalog does not have it. The table `itemdata` has `pallet_amount` too (the number in a pallet). The catalog does not keep it.
+A shippable crate holds 3 packed vehicles or structures (wiki page "Shippable Structures"). The wiki tables do not have that number, except for one vehicle. The script sets `crate_size` to 3 for each shippable entry that has no number of its own:
+
+- A vehicle is shippable when `shippable_size` of the wiki is `Medium`, `Large`, or `Extra Large`. `Unpackageable` and an empty size are not.
+- A structure is shippable when `construction_type` of the wiki is `Shippable`.
+
+A number in the wiki wins. `MediumTankC` has 5 in the wiki, so it has 5, not 3. The number is not checked against the game.
 
 ## Update
 
