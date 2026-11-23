@@ -10,3 +10,4 @@ First version. It has no minor or patch versions.
 - Upload result document, marked unstable.
 - Upload response `403`: the service does not accept uploads from the user.
 - The example `client_id` in `01-discovery.md` uses the path of the reference server, `/.well-known/custos-client`.
+- Optional stream and query in `05-stream.md`, marked unstable: the discovery members `stream_endpoint` and `query_endpoint`, the message, the query, and the answer to a confirmation.
