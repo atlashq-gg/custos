@@ -32,6 +32,8 @@ The schema is [schemas/discovery.schema.json](schemas/discovery.schema.json).
 | `openid_configuration` | string (URL) | yes | The URL of the metadata document of the authorization server ([Authorization server](#authorization-server)). |
 | `client_id` | string | yes | The client ID that Custos uses at the authorization server. |
 | `scopes` | array of strings | yes | The scopes that Custos requests. It can be empty. |
+| `stream_endpoint` | string (URL) | no | The endpoint of the stream ([05-stream.md](05-stream.md)). |
+| `query_endpoint` | string (URL) | no | The endpoint of the query ([05-stream.md](05-stream.md)). It needs `stream_endpoint`. |
 
 Each URL in the document MUST use HTTPS, with the same exception for loopback hosts. The URLs can point to a different host than the service URL, for example to an identity provider.
 
