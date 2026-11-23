@@ -24,14 +24,42 @@ Accept: text/event-stream
 Last-Event-ID: {id}
 ```
 
+- `Last-Event-ID` is optional. Custos sends it only when it has the `id` of an event from an earlier connection ([Resume](#resume)).
 - The response is `200` with `Content-Type: text/event-stream`, as in the [Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html) standard.
-- Each event has an `id` and one `data` field. The `data` is one [message](#message) as JSON.
 - The service MUST send a comment line at least each 30 seconds, also when it has no message.
 - The service MAY close the stream at any time. It MUST close the stream when the access token expires, or before.
+
+### Event
+
+An event is a group of text lines, not a JSON document. Each line is one field, and an empty line ends the event. Thus the event has no JSON Schema. Only the value of `data` is JSON.
+
+| Field | Required | Content |
+|---|---|---|
+| `id` | yes | An opaque value from the service. Custos sends it back in `Last-Event-ID` ([Resume](#resume)). It is one line of text with no line break. |
+| `data` | yes | One [message](#message) as JSON on one line. The JSON encoding writes a line break in a string as `\n`, so the message needs no second `data` line. |
+
+- The service MUST NOT send other fields. Custos MUST ignore a field that it does not know, for example `event` or `retry`.
+- A line that starts with `:` is a comment. Custos ignores it. The service uses it to keep the connection open.
+
+A stream with two events and a comment, as the service sends it:
+
+```text
+id: eyJjdXN0b3MiOiIxNDIifQ
+data: {"kind":"event","reference":"stockpile:5f0c","text":"Fort Barley Seaport: 4 items changed.","source":"custos"}
+
+: keep-alive
+
+id: eyJjdXN0b3MiOiIxNDMifQ
+data: {"kind":"event","reference":"stockpile:77a1","text":"Callahan's Gate depot: 2 items changed.","source":"custos"}
+
+```
+
+After these events, Custos keeps `eyJjdXN0b3MiOiIxNDMifQ`. When it connects again, it sends `Last-Event-ID: eyJjdXN0b3MiOiIxNDMifQ`.
 
 ### Resume
 
 - Custos keeps the `id` of the last event that it got. When it connects again, it sends that `id` in `Last-Event-ID`.
+- Custos MAY keep the `id` in memory only. After a restart, Custos connects without `Last-Event-ID`.
 - The `id` is opaque to Custos.
 - The service sends the messages after that `id` that it still has. The service decides how far back it goes.
 - With an `id` that it does not accept, the service starts from now.
