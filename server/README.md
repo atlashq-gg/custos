@@ -34,6 +34,8 @@ With the bot token, the server connects to Discord, and the MCP endpoint is at `
 
 Keycloak imports [the realm](Custos.Server.AppHost/keycloak/custos-realm.json) on each start. Changes in the Keycloak console last for one run. The realm declares the user attribute `discord_id`, and its default client scopes `basic` and `custos-discord` put the claims `sub` and `discord_id` into each access token. A realm file that lists client scopes replaces all built-in scopes of Keycloak, so the file holds `basic` too.
 
+For `optio` ([#48](https://github.com/atlashq-gg/custos/issues/48)), the realm also holds the confidential client `optio` with the standard token exchange, and the optional scope `custos:client`. That scope adds the audience `optio` to the token of Custos, so that `optio` can exchange the token for a token of `/mcp`. The AppHost makes a new secret for `optio` on each start. The file [rabbitmq/definitions.json](Custos.Server.AppHost/rabbitmq/definitions.json) holds the users, the permissions, and the exchange of the event broker. Its development passwords are equal to the user names.
+
 ## Endpoints
 
 | Endpoint | Content |

@@ -19,12 +19,21 @@ var clientId = $"http://{tunnelHost}:{apiPort}/.well-known/custos-client";
 // server maps the endpoint only with the Discord connection on.
 var mcpResource = $"http://localhost:{apiPort}/mcp";
 
+// The secret of the client optio, for the token exchange (issue #48). Aspire makes a new value on
+// each start, so no user secret is necessary.
+var optioSecret = builder.AddParameter(
+    "optio-client-secret",
+    new GenerateParameterDefault { MinLength = 32, Special = false },
+    secret: true
+);
+
 // No volume: Keycloak imports the realm on every start. What the console changes lasts one run.
 var keycloak = builder
     .AddKeycloak("keycloak", keycloakPort)
     .WithImageTag("26.8.2")
     .WithArgs("--features=cimd,resource-indicators")
     .WithEnvironment("CUSTOS_MCP_RESOURCE", mcpResource)
+    .WithEnvironment("OPTIO_CLIENT_SECRET", optioSecret)
     .WithRealmImport(Path.Combine(builder.AppHostDirectory, "keycloak", "custos-realm.json"))
     .WithoutHttpsCertificate();
 

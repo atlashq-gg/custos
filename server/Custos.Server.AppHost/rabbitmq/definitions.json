@@ -1,0 +1,48 @@
+{
+  "users": [
+    {
+      "name": "custos",
+      "password_hash": "HlVq/jeS1AtFqau7MpMugDBlAFwFc/T+TRVErrxO5rWGcOnH",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": []
+    },
+    {
+      "name": "optio",
+      "password_hash": "kZ9Si8yKDtAPeHgPDDf6nTPx9Hl43hiaYCuEe+pH5XUfRLGn",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": []
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "custos",
+      "vhost": "/",
+      "configure": "^$",
+      "write": "^events\\.custos$",
+      "read": "^$"
+    },
+    {
+      "user": "optio",
+      "vhost": "/",
+      "configure": "^amq\\.gen-.*$",
+      "write": "^amq\\.gen-.*$",
+      "read": "^(amq\\.gen-.*|events\\..+)$"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "events.custos",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ]
+}
