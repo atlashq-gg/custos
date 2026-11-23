@@ -2,7 +2,7 @@
 
 Version `v0`. The specification has no minor or patch versions ([04-versioning.md](04-versioning.md)).
 
-This project defines the contract between Custos and a compliant service. Custos and the reference server conform to it. A third party can implement a compliant service from these documents alone ([ADR 0004](../docs/adr/0004-the-specification-is-the-authority.md)).
+This project defines the contract between Custos and a compliant service. Custos and `optio` conform to it. A third party can implement a compliant service from these documents alone ([ADR 0004](../docs/adr/0004-the-specification-is-the-authority.md)).
 
 ## Documents
 

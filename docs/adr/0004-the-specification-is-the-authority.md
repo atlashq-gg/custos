@@ -39,3 +39,4 @@ Custos reports to a remote server. It finds the configuration and the authentica
 ## Log
 
 - 2026-11-17: Created.
+- 2026-11-23: [ADR 0006](0006-optio-is-the-service-of-the-contract.md) makes `optio` the implementation of the contract. The server becomes a domain service behind it and is no longer the reference implementation. `spec/` stays the authority.
