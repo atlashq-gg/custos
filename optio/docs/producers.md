@@ -96,7 +96,7 @@ When a guild shares its records with other guilds, the producer MUST publish one
       "roles": ["300000000000000010", "300000000000000011"]
     },
     "message": {
-      "text": "Fort Barley Seaport, Main\nBasic Materials -400\nRifle crates +20",
+      "text": "Fort Barley Seaport, Main\nBasic Materials -400 (0)\nRifle crates +20 (40)",
       "reference": "stockpile:5f0c0d1e-2f3a-4b5c-8d6e-7f8091a2b3c4"
     },
     "origin_guild": "300000000000000001"

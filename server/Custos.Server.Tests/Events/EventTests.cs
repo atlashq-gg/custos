@@ -115,9 +115,9 @@ public sealed class EventTests
         {
             Assert.That(
                 texts[$"{Reader}.stockpile.changed"],
-                Is.EqualTo($"Reader Depot, {Stockpile}\nTest Rifle +2")
+                Is.EqualTo($"Reader Depot, {Stockpile}\nTest Rifle +2 (7)")
             );
-            Assert.That(texts[$"{Sharer}.stockpile.changed"], Does.EndWith("\nTest Rifle +2"));
+            Assert.That(texts[$"{Sharer}.stockpile.changed"], Does.EndWith("\nTest Rifle +2 (7)"));
             Assert.That(texts[$"{Sharer}.stockpile.changed"], Does.Not.StartWith("Reader Depot"));
         }
     }

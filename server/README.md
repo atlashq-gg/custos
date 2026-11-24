@@ -215,7 +215,7 @@ An event of the type `stockpile.changed` has these members in `data`, after `pol
 
 | Member | Content |
 |---|---|
-| `message.text` | The text for a person. The first line holds the label and the stockpile. Then come at most 5 changes, each with its signed difference, for example `Rifle crates +20` or `Basic Materials -400`. Then comes `+N more`. A new stockpile gives one line, for example `Fort Barley Seaport, Main: new, 12 items`. At most 500 characters. |
+| `message.text` | The text for a person. The first line holds the label and the stockpile. Then come at most 5 changes, each with its signed difference and the new total in parentheses, for example `Rifle crates +20 (40)` or `Basic Materials -400 (0)`. Then comes `+N more`. A new stockpile gives one line, for example `Fort Barley Seaport, Main: new, 12 items`. At most 500 characters. |
 | `message.reference` | `stockpile:<stockpile ID>`, so that a new change of the stockpile replaces its message in Custos. |
 | `guild_id` | The guild of the policy. |
 | `origin_guild` | The guild of the upload. |
