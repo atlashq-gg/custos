@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using Custos.Server.Events;
 
 namespace Custos.Server.Telemetry;
 
@@ -12,6 +13,7 @@ internal sealed class ServerMetrics
     public const string DiscordRequestDuration = "custos.discord.request.duration";
     public const string McpToolCalls = "custos.mcp.tool.calls";
     public const string McpToolDuration = "custos.mcp.tool.duration";
+    public const string Events = "custos.events";
     public const string OutcomeTag = "outcome";
 
     private readonly Counter<long> _uploads;
@@ -20,6 +22,7 @@ internal sealed class ServerMetrics
     private readonly Histogram<double> _discordRequestDuration;
     private readonly Counter<long> _mcpToolCalls;
     private readonly Histogram<double> _mcpToolDuration;
+    private readonly Counter<long> _events;
 
     public ServerMetrics(Meter meter)
     {
@@ -55,7 +58,16 @@ internal sealed class ServerMetrics
             "s",
             "The duration of the calls of MCP tools, by tool, outcome, and access of the caller."
         );
+        _events = meter.CreateCounter<long>(
+            Events,
+            "{event}",
+            "The events for the broker, by outcome: published, returned (no stream got it), "
+                + "dropped (the queue was full), or failed (the broker did not accept it)."
+        );
     }
+
+    public void Event(EventOutcome outcome) =>
+        _events.Add(1, Outcome(outcome.ToString().ToLowerInvariant()));
 
     /// <summary>
     /// Counts an upload that reached the handler. The outcome comes from the HTTP status of the

@@ -3,18 +3,22 @@ using Json.Schema;
 
 namespace Custos.Server.Tests.Infrastructure;
 
-/// <summary>The JSON Schemas of spec/, copied next to the test assembly.</summary>
+/// <summary>The JSON Schemas of spec/ and of the producer contract in optio/, copied next to the
+/// test assembly.</summary>
 internal static class SpecSchemas
 {
     private static readonly Lazy<JsonSchema> UploadResult = new(() =>
-        Load("upload-result.schema.json")
+        Load("spec", "upload-result.schema.json")
     );
+    private static readonly Lazy<JsonSchema> Event = new(() => Load("optio", "event.schema.json"));
 
     public static void AssertUploadResult(JsonElement document) =>
         AssertValid(UploadResult.Value, document);
 
-    private static JsonSchema Load(string name) =>
-        JsonSchema.FromFile(Path.Combine(AppContext.BaseDirectory, "spec", name));
+    public static void AssertEvent(JsonElement document) => AssertValid(Event.Value, document);
+
+    private static JsonSchema Load(string folder, string name) =>
+        JsonSchema.FromFile(Path.Combine(AppContext.BaseDirectory, folder, name));
 
     private static void AssertValid(JsonSchema schema, JsonElement document)
     {
