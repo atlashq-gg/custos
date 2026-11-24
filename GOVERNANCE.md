@@ -22,7 +22,7 @@ Discussions happen in GitHub issues and pull requests. A decision that does not 
 
 ## The specification
 
-`spec/` is the authority for the contract between Custos and a service. Custos and `optio` conform to it. `optio` is an implementation, not the definition of the contract ([ADR 0004](docs/adr/0004-the-specification-is-the-authority.md)). The server is a domain service behind `optio` ([ADR 0006](docs/adr/0006-optio-is-the-service-of-the-contract.md)).
+`spec/` is the authority for the contract between Custos and a service. Custos and `optio` conform to it. `optio` is an implementation, not the definition of the contract. The server is a domain service behind `optio` ([ADR 0006](docs/adr/0006-optio-is-the-service-of-the-contract.md)).
 
 ## Changes
 
