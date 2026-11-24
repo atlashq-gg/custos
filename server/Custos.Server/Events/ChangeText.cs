@@ -5,12 +5,12 @@ namespace Custos.Server.Events;
 
 /// <summary>
 /// The text of a stockpile change for a person. The first line names the place. Each next line
-/// gives one change with the quantity before and after, the most important change first. The last
+/// gives one change as a signed difference, the most important change first. The last
 /// line gives the number of changes that the text leaves out:
 /// <code>
 /// Fort Barley Seaport, Main
-/// Basic Materials 400 → 0
-/// Rifle crates 20 → 40
+/// Basic Materials -400
+/// Rifle crates +20
 /// +5 more
 /// </code>
 /// A new stockpile gets one line: <c>Fort Barley Seaport, Main: new, 12 items</c>.
@@ -41,7 +41,7 @@ internal static class ChangeText
         }
 
         var changes = Rank(before, after, catalog)
-            .Select(c => $"{Name(c.Key, catalog)} {Number(c.Before)} → {Number(c.After)}")
+            .Select(c => $"{Name(c.Key, catalog)} {Signed(c.After - c.Before)}")
             .ToList();
         if (changes.Count == 0)
             return null;
@@ -92,6 +92,9 @@ internal static class ChangeText
     }
 
     private static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    private static string Signed(int value) =>
+        value.ToString("+0;-0", CultureInfo.InvariantCulture);
 
     private static string Cut(string text) =>
         text.Length <= MaxLength ? text : text[..(MaxLength - 1)] + "…";

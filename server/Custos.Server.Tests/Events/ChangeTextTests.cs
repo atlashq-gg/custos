@@ -24,7 +24,7 @@ public sealed class ChangeTextTests
                 ("item_crate", "RifleC", 40),
                 ("vehicle", "TruckC", 2)
             ),
-            Is.EqualTo("Depot, Main\nTest Rifle 3 → 0\nTest Rifle crates 20 → 40")
+            Is.EqualTo("Depot, Main\nTest Rifle -3\nTest Rifle crates +20")
         );
 
     [Test]
@@ -36,7 +36,7 @@ public sealed class ChangeTextTests
                     ("item_crate", "RifleC", 100)
                 )
             ),
-            Is.EqualTo(new[] { "Depot, Main", "Test Truck 1 → 0", "Test Rifle crates 1 → 100" })
+            Is.EqualTo(new[] { "Depot, Main", "Test Truck -1", "Test Rifle crates +99" })
         );
 
     [Test]
@@ -50,7 +50,7 @@ public sealed class ChangeTextTests
                     ("item_crate", "RifleC", 15)
                 )
             ),
-            Is.EqualTo(new[] { "Depot, Main", "Test Rifle crates 10 → 15", "Test Rifle 100 → 160" })
+            Is.EqualTo(new[] { "Depot, Main", "Test Rifle crates +5", "Test Rifle +60" })
         );
 
     [Test]
@@ -63,7 +63,7 @@ public sealed class ChangeTextTests
                     ("item_crate", "B", 5)
                 )
             ),
-            Is.EqualTo(new[] { "Depot, Main", "B crates 10 → 5", "A crates 10 → 15" })
+            Is.EqualTo(new[] { "Depot, Main", "B crates -5", "A crates +5" })
         );
 
     [Test]
@@ -78,11 +78,11 @@ public sealed class ChangeTextTests
                 new[]
                 {
                     "Depot, Main",
-                    "I8 crates 8 → 16",
-                    "I7 crates 7 → 14",
-                    "I6 crates 6 → 12",
-                    "I5 crates 5 → 10",
-                    "I4 crates 4 → 8",
+                    "I8 crates +8",
+                    "I7 crates +7",
+                    "I6 crates +6",
+                    "I5 crates +5",
+                    "I4 crates +4",
                     "+3 more",
                 }
             )
