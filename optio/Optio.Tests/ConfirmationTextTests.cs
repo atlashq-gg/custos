@@ -87,26 +87,26 @@ public sealed class ConfirmationTextTests
     [Test]
     public void Long_text_value_need_not_be_in_the_question_and_a_short_one_in_any_case() =>
         Assert.That(
-            Confirmations.Text("Post Progress Log?", [Post("progress", LongText)], []),
-            Is.EqualTo("Post Progress Log?")
+            Confirmations.Text("Post Progress Note?", [Post("progress", LongText)], []),
+            Is.EqualTo("Post Progress Note?")
         );
 
     [Test]
     public void Quoted_start_of_a_long_value_ends_in_an_ellipsis() =>
         Assert.That(
             Confirmations.Text(
-                "Post Progress Log? \"Fuel run done at…\"",
+                "Post Progress Note? \"Fuel run done at…\"",
                 [Post("progress", LongText)],
                 []
             ),
-            Is.EqualTo("Post Progress Log? \"Fuel run done at…\"")
+            Is.EqualTo("Post Progress Note? \"Fuel run done at…\"")
         );
 
     [Test]
     public void Code_text_cuts_a_long_value() =>
         Assert.That(
-            Confirmations.Text("Post Log?", [Post("progress", LongText)], []),
-            Is.EqualTo($"Post a log? \"progress\" and \"{LongText[..39]}…\"")
+            Confirmations.Text("Post Note?", [Post("progress", LongText)], []),
+            Is.EqualTo($"Post a note? \"progress\" and \"{LongText[..39]}…\"")
         );
 
     private const string LongText =
@@ -114,14 +114,14 @@ public sealed class ConfirmationTextTests
 
     private static WriteCall Post(string type, string text) =>
         new(
-            "crews",
-            "Post a log",
+            "second",
+            "Post a note",
             new ToolCall(
                 "call-1",
-                "post_crew_log",
+                "post_note",
                 new Dictionary<string, JsonElement>
                 {
-                    ["crew_id"] = JsonSerializer.SerializeToElement("c-1"),
+                    ["team_id"] = JsonSerializer.SerializeToElement("c-1"),
                     ["type"] = JsonSerializer.SerializeToElement(type),
                     ["text"] = JsonSerializer.SerializeToElement(text),
                 }

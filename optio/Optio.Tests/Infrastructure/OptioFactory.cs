@@ -77,7 +77,7 @@ internal sealed class OptioFactory(
     /// <see cref="McpServer"/>.</summary>
     public HttpMessageHandler? SecondMcpServer { get; set; }
 
-    public const string SecondService = "crews";
+    public const string SecondService = "second";
 
     public HttpMessageHandler? McpServer { get; set; }
 
@@ -109,8 +109,8 @@ internal sealed class OptioFactory(
             {
                 builder.UseSetting("Optio:McpServices:1:Name", SecondService);
                 builder.UseSetting("Optio:McpServices:1:Url", $"http://{SecondService}.test/mcp");
-                builder.UseSetting("Optio:McpServices:1:ReadScope", "crews:read");
-                builder.UseSetting("Optio:McpServices:1:WriteScope", "crews:write");
+                builder.UseSetting("Optio:McpServices:1:ReadScope", "second:read");
+                builder.UseSetting("Optio:McpServices:1:WriteScope", "second:write");
             }
         }
         if (stream)

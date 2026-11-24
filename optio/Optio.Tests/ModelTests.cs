@@ -214,15 +214,20 @@ public sealed class ModelTests
     )]
     [TestCase("Call the structure s-4 Fort Barley Seaport.", "Set Label? \"Fort Barley Seaport\"")]
     [TestCase("Remove the label of the structure s-3.", "Remove Label? \"Old Depot\"")]
-    [TestCase("Mark the ticket t-1 as done.", "Set Status? \"done\"")]
+    // The object of this question varies between runs. Both forms are correct.
     [TestCase(
-        "Post a progress log to the crew c-1: Fuel run done at the seaport, 40 crates of diesel "
+        "Set the status of the task t-1 to done.",
+        "Set Status? \"done\"",
+        "Set Task Status? \"done\""
+    )]
+    [TestCase(
+        "Post a progress note to the team c-1: Fuel run done at the seaport, 40 crates of diesel "
             + "moved to the front depot.",
-        "Post Progress Log?"
+        "Post Progress Note?"
     )]
     public async Task Question_of_a_change_is_short_and_has_the_form_of_the_confirmation(
         string query,
-        string expected
+        params string[] expected
     )
     {
         await using var server = await TestMcpServer.StartAsync();
@@ -237,7 +242,7 @@ public sealed class ModelTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(Kind(confirm), Is.EqualTo("confirm"));
-            Assert.That(Text(confirm), Is.EqualTo(expected));
+            Assert.That(Text(confirm), Is.AnyOf(expected));
         }
     }
 

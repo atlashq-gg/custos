@@ -94,11 +94,11 @@ internal sealed class TestMcpServer : IAsyncDisposable
     }
 
     public const string LabelTool = "set_structure_label";
-    public const string StatusTool = "set_ticket_status";
-    public const string LogTool = "post_crew_log";
+    public const string StatusTool = "set_task_status";
+    public const string LogTool = "post_note";
 
-    /// <summary>The arguments of each call of <c>set_ticket_status</c>.</summary>
-    public static List<(string TicketId, string Status, bool Confirm)> StatusCalls { get; } = [];
+    /// <summary>The arguments of each call of <c>set_task_status</c>.</summary>
+    public static List<(string TaskId, string Status, bool Confirm)> StatusCalls { get; } = [];
 
     /// <summary>The structures of <c>find_structures</c>: the ID and the current label.</summary>
     public static readonly Dictionary<string, string> Structures = new()
@@ -196,37 +196,37 @@ internal sealed class TestMcpServer : IAsyncDisposable
             return JsonSerializer.Serialize(new { structure_id, new_label = label });
         }
 
-        [McpServerTool(Name = StatusTool, Title = "Set the status of a ticket", ReadOnly = false)]
+        [McpServerTool(Name = StatusTool, Title = "Set the status of a task", ReadOnly = false)]
         [System.ComponentModel.Description(
-            "Change the status of a ticket. Without confirm, it gives a preview."
+            "Change the status of a task. Without confirm, it gives a preview."
         )]
-        public static string SetTicketStatus(
+        public static string SetTaskStatus(
             string guild_id,
-            string ticket_id,
+            string task_id,
             string status,
             bool confirm = false
         )
         {
             lock (StatusCalls)
-                StatusCalls.Add((ticket_id, status, confirm));
-            return confirm ? $"The ticket is {status}." : "Preview: nothing changed.";
+                StatusCalls.Add((task_id, status, confirm));
+            return confirm ? $"The task is {status}." : "Preview: nothing changed.";
         }
 
-        [McpServerTool(Name = LogTool, Title = "Post a crew log", ReadOnly = false)]
-        [System.ComponentModel.Description("Post a log to a crew.")]
-        public static string PostCrewLog(
+        [McpServerTool(Name = LogTool, Title = "Post a note", ReadOnly = false)]
+        [System.ComponentModel.Description("Post a note to a team.")]
+        public static string PostNote(
             string guild_id,
-            string crew_id,
-            [System.ComponentModel.Description("The log type: progress, status or description.")]
+            string team_id,
+            [System.ComponentModel.Description("The note type: progress, status or description.")]
                 string type,
-            [System.ComponentModel.Description("The text of the log, up to 1024 characters.")]
+            [System.ComponentModel.Description("The text of the note, up to 1024 characters.")]
                 string text
         ) =>
             JsonSerializer.Serialize(
                 new
                 {
-                    log_id = "l-1",
-                    crew = "Logi Crew",
+                    note_id = "n-1",
+                    team = "Logi Team",
                     type,
                 }
             );

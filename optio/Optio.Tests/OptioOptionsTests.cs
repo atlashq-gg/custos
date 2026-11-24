@@ -7,7 +7,7 @@ public sealed class OptioOptionsTests
 {
     [Test]
     public void Valid_services_have_no_error() =>
-        Assert.That(Errors(Service("custos"), Service("crews")), Is.Empty);
+        Assert.That(Errors(Service("custos"), Service("second")), Is.Empty);
 
     [TestCase("custos server")]
     [TestCase("")]

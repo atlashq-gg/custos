@@ -152,7 +152,7 @@ public sealed class McpToolSourceTests
         );
 
         var result = await session.CallAsync(
-            new ToolCall("call-1", "crews_list_guilds", new Dictionary<string, JsonElement>()),
+            new ToolCall("call-1", "second_list_guilds", new Dictionary<string, JsonElement>()),
             default
         );
 
@@ -167,9 +167,9 @@ public sealed class McpToolSourceTests
                         "server_find_items",
                         "server_find_structures",
                         "server_list_guilds",
-                        "crews_find_items",
-                        "crews_find_structures",
-                        "crews_list_guilds",
+                        "second_find_items",
+                        "second_find_structures",
+                        "second_list_guilds",
                         TestMcpServer.LabelTool,
                         TestMcpServer.StatusTool,
                         TestMcpServer.LogTool,
@@ -177,7 +177,7 @@ public sealed class McpToolSourceTests
                 )
             );
             Assert.That(result.Content, Is.EqualTo("no guilds"));
-            Assert.That(factory.AuthorizationServer.ScopeOf(token), Is.EqualTo("crews:read"));
+            Assert.That(factory.AuthorizationServer.ScopeOf(token), Is.EqualTo("second:read"));
         }
     }
 
@@ -198,7 +198,7 @@ public sealed class McpToolSourceTests
                 TestMcpServer.StatusTool,
                 new Dictionary<string, JsonElement>
                 {
-                    ["ticket_id"] = JsonSerializer.SerializeToElement("t-1"),
+                    ["task_id"] = JsonSerializer.SerializeToElement("t-1"),
                     ["status"] = JsonSerializer.SerializeToElement("done"),
                 }
             )
@@ -218,7 +218,7 @@ public sealed class McpToolSourceTests
                 Is.False
             );
             Assert.That(write.Shown, Is.EqualTo(new[] { "status" }));
-            Assert.That(result.Content, Is.EqualTo("The ticket is done."));
+            Assert.That(result.Content, Is.EqualTo("The task is done."));
             Assert.That(TestMcpServer.StatusCalls, Is.EqualTo(new[] { ("t-1", "done", true) }));
         }
     }
