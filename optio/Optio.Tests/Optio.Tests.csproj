@@ -25,6 +25,11 @@
       CopyToOutputDirectory="PreserveNewest"
     />
     <None
+      Include="..\docs\system-prompt.example.txt"
+      Link="docs\system-prompt.example.txt"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <None
       Include="..\rabbitmq\definitions.json"
       Link="rabbitmq\definitions.json"
       CopyToOutputDirectory="PreserveNewest"

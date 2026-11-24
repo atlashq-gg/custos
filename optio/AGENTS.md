@@ -12,5 +12,5 @@
 - The harness calls the model only through `IModelClient`, so that another provider needs only one more implementation. The model sees no token.
 - Never write a token, a client secret, or a model key to a log.
 - Read a secret from the environment or from a file in `/run/secrets`. Examine the options when the host starts.
-- No automated test calls a model provider.
+- No test in CI calls a model provider. Only the tests in the category `Model` call it, with the key in `Optio__ClaudeApiKey`. Run them by hand when the harness, the model client, or the example system prompt changes.
 - The content of this folder is under AGPL-3.0-or-later.

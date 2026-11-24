@@ -172,6 +172,19 @@ CSharpier does not wrap comments and strings. CI fails on a line of more than 10
 dotnet test Optio.slnx
 ```
 
+The tests need Docker. Three categories need more, and CI does not run them. Without their variables, they skip.
+
+| Category | Needs | Content |
+|---|---|---|
+| `Discord` | `Discord__Token`, `Discord__TestUserId` | The member directory against the real Discord gateway. |
+| `Feasibility` | (none) | The tests of M37 against the broker. They take about 2 minutes. |
+| `Model` | `Optio__ClaudeApiKey` | The query with the real model, the example system prompt, and a small MCP server. Each run costs a few cents. |
+
+```sh
+set -a; . ./.env; set +a
+dotnet test Optio.Tests --filter "TestCategory=Model"
+```
+
 ## Container
 
 The image is `ghcr.io/atlashq-gg/custos-optio`. The container serves HTTP on port 8080.

@@ -35,8 +35,14 @@ namespace Optio.Tests.Infrastructure;
 /// </summary>
 /// With <paramref name="query"/>, the stream, a database, and the query are on, with
 /// <see cref="Model"/> and <see cref="Tools"/>.
-internal sealed class OptioFactory(bool stream = false, string? broker = null, bool query = false)
-    : WebApplicationFactory<Program>
+/// With <paramref name="modelKey"/>, the query uses the real model of Anthropic. With
+/// <see cref="McpServer"/>, it uses the real tool source.
+internal sealed class OptioFactory(
+    bool stream = false,
+    string? broker = null,
+    bool query = false,
+    string? modelKey = null
+) : WebApplicationFactory<Program>
 {
     public const string SystemPrompt = "Answer the questions of the guild.";
 
@@ -60,6 +66,10 @@ internal sealed class OptioFactory(bool stream = false, string? broker = null, b
 
     public FakeTools Tools { get; } = new();
 
+    /// <summary>The system prompt instead of <see cref="SystemPrompt"/>. Set it before the first
+    /// use of the factory.</summary>
+    public string? SystemPromptOverride { get; set; }
+
     /// <summary>The handler of the MCP services, for a test of the real tool source. Set it
     /// before the first use of the factory.</summary>
     public HttpMessageHandler? McpServer { get; set; }
@@ -82,8 +92,8 @@ internal sealed class OptioFactory(bool stream = false, string? broker = null, b
         if (query)
         {
             builder.UseSetting("ConnectionStrings:optio", Postgres.NewDatabase());
-            builder.UseSetting("Optio:ModelApiKey", "test");
-            builder.UseSetting("Optio:SystemPrompt", SystemPrompt);
+            builder.UseSetting("Optio:ModelApiKey", modelKey ?? "test");
+            builder.UseSetting("Optio:SystemPrompt", SystemPromptOverride ?? SystemPrompt);
             builder.UseSetting("Optio:McpServices:0:Name", "server");
             builder.UseSetting("Optio:McpServices:0:Url", "http://server.test/mcp");
             builder.UseSetting("Optio:McpServices:0:ReadScope", "custos:read");
@@ -120,9 +130,11 @@ internal sealed class OptioFactory(bool stream = false, string? broker = null, b
                     services.AddHostedService<DatabaseMigrator>();
                 if (broker is not null)
                     services.AddHostedService<EventConsumer>();
-                services.AddSingleton<IModelClient>(Model);
-                services.AddScoped<IToolSource>(_ => Tools);
-                if (McpServer is not null)
+                if (modelKey is null)
+                    services.AddSingleton<IModelClient>(Model);
+                if (McpServer is null)
+                    services.AddScoped<IToolSource>(_ => Tools);
+                else
                 {
                     services
                         .AddHttpClient(McpToolSource.HttpClientName)
