@@ -33,7 +33,9 @@ The services:
 - Custos calls only `optio` and the authorization server.
 - `optio` serves the discovery document and the Client ID Metadata Document of Custos. It relays the upload, sends the stream, and answers the query.
 - `optio` calls a domain service only with a token of the user for that service. It gets that token through a token exchange (RFC 8693). It has no service account at a domain service.
-- Each domain service decides the access of each request. `optio` holds no access rules and no records of a domain service.
+- Each domain service decides the access to its own APIs. `optio` holds no records and no access settings of a domain service.
+- `optio` controls the access to the stream. It applies the policy that a domain service sends with each event ([ADR 0007](0007-a-broker-carries-domain-events.md)).
+- `optio` has its own Discord bot token. It uses the bot for the roles of the users of the stream, and later for a Discord front end.
 - The upload, the stream, and the query do not depend on each other. The upload and the stream work with no model key.
 - `optio/` is under AGPL-3.0-or-later, because an operator hosts it.
 
@@ -53,6 +55,7 @@ The services:
 - Custos and `optio` each test against `spec/`, not against each other.
 - The server is no longer the implementation of the contract. Its upload API is internal, and it needs no public route except `/mcp` and its metadata.
 - The realm gets the confidential client `optio` and the scope `custos:client`.
+- The operator adds the bot of `optio` to each guild that uses the stream.
 - The repository has four projects, each with its own version and release tag.
 
 ## Log

@@ -43,6 +43,12 @@ The server needs a Discord bot token in the user secrets of the AppHost ([server
 
 When the authorization server refuses the exchange, or the server does not answer, the upload gets `503`. The server applies the upload interval and the Discord roles.
 
+## Producers
+
+A domain service sends events to `optio` through a RabbitMQ broker. Each event holds the text for the user and the policy that tells who can read it. The broker keeps the events of each producer in a stream, from which `optio` replays. The contract for such a producer is [docs/producers.md](docs/producers.md), with the schema [schemas/event.schema.json](schemas/event.schema.json).
+
+The development definitions of the broker are [rabbitmq/definitions.json](rabbitmq/definitions.json). They hold the exchange and the stream of the server, and the users `custos` and `optio`, each with the password of its name.
+
 ## Configuration
 
 The section `Optio` in `appsettings.json` or environment variables (`Optio__PublicBaseUrl`). A secret can be a file in `/run/secrets`, for example `/run/secrets/Optio__OptioClientSecret`.

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/atlashq-gg/custos/optio/schemas/event.schema.json",
+  "title": "optio producer event (unstable)",
+  "description": "A CloudEvents 1.0 event with its access policy (optio/docs/producers.md).",
+  "type": "object",
+  "required": ["specversion", "id", "source", "type", "time", "data"],
+  "properties": {
+    "specversion": { "const": "1.0" },
+    "id": { "type": "string", "minLength": 1 },
+    "source": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "type": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$" },
+    "time": { "type": "string", "format": "date-time" },
+    "datacontenttype": { "const": "application/json" },
+    "traceparent": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
+    },
+    "data": {
+      "type": "object",
+      "required": ["policy", "message"],
+      "properties": {
+        "policy": {
+          "type": "object",
+          "required": ["version", "guild", "roles"],
+          "properties": {
+            "version": { "const": 1 },
+            "guild": { "$ref": "#/$defs/id" },
+            "roles": { "type": "array", "items": { "$ref": "#/$defs/id" }, "uniqueItems": true },
+            "users": { "type": "array", "items": { "$ref": "#/$defs/id" }, "uniqueItems": true }
+          }
+        },
+        "message": {
+          "type": "object",
+          "required": ["text"],
+          "properties": {
+            "text": { "type": "string", "minLength": 1, "maxLength": 500 },
+            "reference": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  },
+  "not": { "required": ["data_base64"] },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[0-9]{1,20}$" }
+  }
+}
