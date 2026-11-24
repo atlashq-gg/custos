@@ -21,20 +21,23 @@ public sealed class TokenExchangeTests
     [Test]
     public async Task Token_of_custos_with_the_scope_custos_client_has_the_audience_optio()
     {
-        var (clientId, token) = await LoginAsCustosAsync("openid custos:client");
+        var token = await _realm.CustosTokenAsync("openid custos:client");
 
         var claims = KeycloakRealm.Payload(token);
         using (Assert.EnterMultipleScope())
         {
             Assert.That(Audiences(claims), Is.EquivalentTo(new[] { "optio" }), claims.ToString());
-            Assert.That(claims.GetProperty("azp").GetString(), Is.EqualTo(clientId));
+            Assert.That(
+                claims.GetProperty("azp").GetString(),
+                Is.EqualTo(KeycloakRealm.CustosClient)
+            );
         }
     }
 
     [Test]
     public async Task Exchanged_token_is_only_for_the_mcp_endpoint_and_the_endpoint_accepts_it()
     {
-        var (_, subject) = await LoginAsCustosAsync("openid custos:client");
+        var subject = await _realm.CustosTokenAsync("openid custos:client");
 
         var (status, body) = await _realm.ExchangeAsync(subject, "custos:read");
 
@@ -71,7 +74,7 @@ public sealed class TokenExchangeTests
     [Test]
     public async Task Exchange_of_a_token_without_the_audience_optio_is_refused()
     {
-        var (_, subject) = await LoginAsCustosAsync("openid");
+        var subject = await _realm.CustosTokenAsync("openid");
 
         var (status, body) = await _realm.ExchangeAsync(subject, "custos:read");
 
@@ -117,8 +120,7 @@ public sealed class TokenExchangeTests
         Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.Created));
         var scope = created.Headers.Location!.Segments[^1];
 
-        var (clientId, _) = await LoginAsCustosAsync("openid custos:client");
-        var custos = await _realm.ClientUuidAsync(admin, clientId);
+        var custos = await _realm.ClientUuidAsync(admin, KeycloakRealm.CustosClient);
         var optio = await _realm.ClientUuidAsync(admin, "optio");
         string ScopeOf(string client) =>
             _realm.AdminUrl($"clients/{client}/default-client-scopes/{scope}");
@@ -126,7 +128,7 @@ public sealed class TokenExchangeTests
         try
         {
             (await admin.PutAsync(ScopeOf(custos), null)).EnsureSuccessStatusCode();
-            var (_, subject) = await LoginAsCustosAsync("openid custos:client");
+            var subject = await _realm.CustosTokenAsync("openid custos:client");
             var exchanged = await ExchangedClaimsAsync(subject);
             using (Assert.EnterMultipleScope())
             {
@@ -159,31 +161,6 @@ public sealed class TokenExchangeTests
         var (status, body) = await _realm.ExchangeAsync(subject, "custos:read");
         Assert.That(status, Is.EqualTo(HttpStatusCode.OK), body.ToString());
         return KeycloakRealm.Payload(body.GetProperty("access_token").GetString()!);
-    }
-
-    /// <summary>
-    /// The login of Custos through its metadata document. Gives the client ID and the access token.
-    /// </summary>
-    private async Task<(string ClientId, string AccessToken)> LoginAsCustosAsync(string scope)
-    {
-        using var http = new HttpClient(new KeycloakRealm.CookieJar());
-        var discovery = await http.GetFromJsonAsync<JsonElement>(
-            $"{_realm.ServerOrigin}/.well-known/custos-configuration"
-        );
-        var openid = await KeycloakRealm.OpenIdAsync(
-            http,
-            discovery.GetProperty("openid_configuration").GetString()!
-        );
-        var clientId = discovery.GetProperty("client_id").GetString()!;
-        var token = await _realm.LoginAsync(
-            http,
-            openid,
-            clientId,
-            "custos://oauth2callback",
-            scope,
-            resource: null
-        );
-        return (clientId, token.GetProperty("access_token").GetString()!);
     }
 
     private static string[] Audiences(JsonElement claims) =>

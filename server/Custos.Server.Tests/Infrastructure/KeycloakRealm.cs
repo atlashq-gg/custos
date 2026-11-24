@@ -20,8 +20,8 @@ namespace Custos.Server.Tests.Infrastructure;
 
 /// <summary>
 /// One Keycloak container with the development realm, and one server on Kestrel, for the test
-/// run. Keycloak gets the Client ID Metadata Document from the server. The browser part of a
-/// login is done with plain HTTP requests. Testcontainers removes the container after the run.
+/// run. The browser part of a login is done with plain HTTP requests. Testcontainers removes the
+/// container after the run.
 /// </summary>
 internal sealed partial class KeycloakRealm
 {
@@ -29,6 +29,14 @@ internal sealed partial class KeycloakRealm
     public const string ContainerHost = "host.testcontainers.internal";
     public const string DevDiscordId = "123456789012345678";
     public const string OptioSecret = "optio-test-secret";
+
+    /// <summary>
+    /// A public client that stands in for Custos. optio serves the Client ID Metadata Document of
+    /// Custos, and the tests of optio log in through it.
+    /// </summary>
+    public const string CustosClient = "custos-test";
+
+    private const string CustosRedirectUri = "http://localhost:33419/callback";
 
     private static readonly Lazy<Task<KeycloakRealm>> Shared = new(StartAsync);
 
@@ -81,12 +89,12 @@ internal sealed partial class KeycloakRealm
 
         var realm = new KeycloakRealm(serverPort, keycloak);
         await realm.SetDiscordIdAsync("dev", DevDiscordId);
+        await realm.AddCustosClientAsync();
 
         var server = new KestrelFactory(
             discordId: ulong.Parse(DevDiscordId),
             port: serverPort,
-            authority: $"{realm.Origin}/realms/{Realm}",
-            clientId: $"http://{ContainerHost}:{serverPort}/.well-known/custos-client"
+            authority: $"{realm.Origin}/realms/{Realm}"
         );
         server.UseKestrel(serverPort);
         server.StartServer();
@@ -95,6 +103,28 @@ internal sealed partial class KeycloakRealm
 
     public static async Task<JsonElement> OpenIdAsync(HttpClient http, string url) =>
         await http.GetFromJsonAsync<JsonElement>(url);
+
+    /// <summary>
+    /// The login of the user <c>dev</c> through <see cref="CustosClient"/> with
+    /// <paramref name="scope"/>. Gives the access token.
+    /// </summary>
+    public async Task<string> CustosTokenAsync(string scope)
+    {
+        using var http = new HttpClient(new CookieJar());
+        var openid = await OpenIdAsync(
+            http,
+            $"{Origin}/realms/{Realm}/.well-known/openid-configuration"
+        );
+        var token = await LoginAsync(
+            http,
+            openid,
+            CustosClient,
+            CustosRedirectUri,
+            scope,
+            resource: null
+        );
+        return token.GetProperty("access_token").GetString()!;
+    }
 
     /// <summary>
     /// The login of a browser and the code exchange, with PKCE: the login page, the form, the
@@ -238,6 +268,31 @@ internal sealed partial class KeycloakRealm
     }
 
     /// <summary>
+    /// The public client <see cref="CustosClient"/>, with the scopes of the realm.
+    /// </summary>
+    private async Task AddCustosClientAsync()
+    {
+        using var http = await AdminAsync();
+        using var response = await http.PostAsJsonAsync(
+            AdminUrl("clients"),
+            new
+            {
+                clientId = CustosClient,
+                publicClient = true,
+                standardFlowEnabled = true,
+                directAccessGrantsEnabled = false,
+                consentRequired = false,
+                redirectUris = new[] { CustosRedirectUri },
+            }
+        );
+        Assert.That(
+            response.IsSuccessStatusCode,
+            Is.True,
+            await response.Content.ReadAsStringAsync()
+        );
+    }
+
+    /// <summary>
     /// Sets the user attribute <c>discord_id</c> through the admin API. Keycloak keeps the
     /// attribute only because the user profile of the realm declares it.
     /// </summary>
@@ -329,7 +384,7 @@ internal sealed partial class KeycloakRealm
         }
     }
 
-    public sealed class KestrelFactory(ulong discordId, int port, string authority, string clientId)
+    public sealed class KestrelFactory(ulong discordId, int port, string authority)
         : WebApplicationFactory<Program>
     {
         public const ulong Guild = 300000000000000001;
@@ -339,15 +394,12 @@ internal sealed partial class KeycloakRealm
             // Development: the realm sets no claim active_guild, so the server uses
             // DevelopmentGuildId. The fake Discord has the user dev in that guild.
             builder.UseEnvironment("Development");
-            builder.UseSetting("Custos:PublicBaseUrl", $"http://localhost:{port}");
             builder.UseSetting("Custos:Authority", authority);
-            builder.UseSetting("Custos:ClientId", clientId);
-            builder.UseSetting("Custos:Scopes:0", "openid");
+            builder.UseSetting("Custos:Resource", $"http://localhost:{port}/mcp");
             builder.UseSetting("Custos:UploadMinIntervalSeconds", "0");
             builder.UseSetting("Custos:WarPollIntervalSeconds", "0");
             builder.UseSetting("Custos:DevelopmentGuildId", Guild.ToString());
             builder.UseSetting("Mcp:Enabled", "true");
-            builder.UseSetting("Mcp:Resource", $"http://localhost:{port}/mcp");
             builder.UseSetting(
                 $"ConnectionStrings:{CustosDbContext.ConnectionName}",
                 Postgres.NewDatabase()

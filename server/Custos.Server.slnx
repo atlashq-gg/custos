@@ -6,6 +6,5 @@
     <File Path="README.md" />
   </Folder>
   <Project Path="Custos.Server/Custos.Server.csproj" />
-  <Project Path="Custos.Server.AppHost/Custos.Server.AppHost.csproj" />
   <Project Path="Custos.Server.Tests/Custos.Server.Tests.csproj" />
 </Solution>

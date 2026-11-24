@@ -31,9 +31,7 @@ internal sealed class CustosFactory(
     bool mcp = false
 ) : WebApplicationFactory<Program>
 {
-    public const string PublicBaseUrl = "http://custos.test";
     public const string Issuer = "http://idp.test/realms/custos";
-    public const string ClientId = PublicBaseUrl + "/.well-known/custos-client";
     public const int UploadMaxBytes = 16 * 1024;
     public const long GuildId = 1234;
     public const long DevelopmentGuildId = 99;
@@ -57,19 +55,15 @@ internal sealed class CustosFactory(
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(environment);
-        builder.UseSetting("Custos:PublicBaseUrl", PublicBaseUrl);
         builder.UseSetting("Custos:Authority", Issuer);
-        builder.UseSetting("Custos:Scopes:0", "openid");
+        builder.UseSetting("Custos:Resource", McpResource);
         builder.UseSetting("Custos:UploadMaxBytes", UploadMaxBytes.ToString());
         builder.UseSetting("Custos:UploadMinIntervalSeconds", uploadMinIntervalSeconds.ToString());
         builder.UseSetting("Custos:DevelopmentGuildId", DevelopmentGuildId.ToString());
         builder.UseSetting("Custos:DevelopmentDiscordUserId", DevelopmentDiscordUserId.ToString());
         builder.UseSetting("Custos:WarPollIntervalSeconds", "0");
         if (mcp)
-        {
             builder.UseSetting("Mcp:Enabled", "true");
-            builder.UseSetting("Mcp:Resource", McpResource);
-        }
         builder.UseSetting(
             "Custos:CatalogPath",
             Path.Combine(AppContext.BaseDirectory, "TestData", "test-catalog.json")
@@ -93,7 +87,7 @@ internal sealed class CustosFactory(
                 resilience.Retry.Delay = TimeSpan.Zero
             );
 
-            // Both bearer schemes: the token of Custos and the MCP token.
+            // Both bearer schemes: the upload API and the MCP endpoint.
             services.PostConfigureAll<JwtBearerOptions>(jwt =>
             {
                 var metadata = new OpenIdConnectConfiguration
@@ -112,39 +106,25 @@ internal sealed class CustosFactory(
     }
 
     /// <summary>
-    /// A client with a bearer token for the user <c>dev</c>, issued to <paramref name="azp"/>. The
+    /// A client with the token that optio gets for the upload API: the user <paramref
+    /// name="subject"/>, the audience of the server, and the scope <paramref name="scopes"/>. The
     /// claim <c>active_guild</c> is <paramref name="guild"/>, and the claim <c>discord_id</c> is
     /// <paramref name="discordId"/>. A claim is absent when its value is <c>null</c>.
     /// </summary>
     public HttpClient CreateAuthorizedClient(
-        string azp = ClientId,
         string subject = "dev",
         string? guild = "1234",
-        string? discordId = null
+        string? discordId = null,
+        string scopes = "custos:write",
+        string audience = McpResource
     )
     {
-        List<Claim> claims = [new("sub", subject), new("azp", azp)];
+        List<Claim> claims = [new("sub", subject), new("azp", "optio"), new("scope", scopes)];
         if (guild is not null)
             claims.Add(new Claim("active_guild", guild));
         if (discordId is not null)
             claims.Add(new Claim("discord_id", discordId));
-
-        var token = new JsonWebTokenHandler().CreateToken(
-            new SecurityTokenDescriptor
-            {
-                Issuer = Issuer,
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddMinutes(5),
-                SigningCredentials = new SigningCredentials(
-                    SigningKey,
-                    SecurityAlgorithms.HmacSha256
-                ),
-            }
-        );
-
-        var client = CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        return client;
+        return CreateClient(claims, audience);
     }
 
     /// <summary>
@@ -160,7 +140,11 @@ internal sealed class CustosFactory(
         List<Claim> claims = [new("sub", "mcp-user"), new("azp", "harness"), new("scope", scopes)];
         if (discordId is not null)
             claims.Add(new Claim("discord_id", discordId));
+        return CreateClient(claims, audience);
+    }
 
+    private HttpClient CreateClient(List<Claim> claims, string audience)
+    {
         var token = new JsonWebTokenHandler().CreateToken(
             new SecurityTokenDescriptor
             {

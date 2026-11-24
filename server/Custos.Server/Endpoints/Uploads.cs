@@ -47,7 +47,7 @@ internal static class Uploads
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
-            .RequireAuthorization(Authentication.CustosPolicy)
+            .RequireAuthorization(Authentication.UploadPolicy)
             .RequireRateLimiting(RateLimiting.UploadPolicy)
             .AddEndpointFilter(CountAsync);
 

@@ -13,13 +13,6 @@ public sealed class McpOptions
     /// <summary>Without <c>true</c>, the server maps no MCP endpoint.</summary>
     public bool Enabled { get; set; }
 
-    /// <summary>
-    /// The URL of the endpoint as a client sees it, for example
-    /// <c>https://custos.example.com/mcp</c>. A token must have it in <c>aud</c>. Its path must be
-    /// <see cref="Path"/>.
-    /// </summary>
-    public string? Resource { get; set; }
-
     /// <summary>The issuer of the MCP tokens. Empty means <see
     /// cref="CustosOptions.Authority"/>.</summary>
     public string? Authority { get; set; }
@@ -27,34 +20,37 @@ public sealed class McpOptions
     /// <summary>The scope of the read tools.</summary>
     public string ReadScope { get; set; } = "custos:read";
 
-    /// <summary>The scope of the label tool.</summary>
+    /// <summary>The scope of the write tools and of the upload API.</summary>
     public string WriteScope { get; set; } = "custos:write";
 
     /// <summary>The largest number of MCP requests of one caller in one minute.</summary>
     public int RequestsPerMinute { get; set; } = 60;
 
-    public Uri ResourceUri => new(Resource!);
-
     /// <summary>The URL of the metadata document (RFC 9728), at the root of the origin of <see
-    /// cref="Resource"/>.</summary>
-    public string MetadataUrl => $"{ResourceUri.GetLeftPart(UriPartial.Authority)}{MetadataPath}";
+    /// cref="CustosOptions.Resource"/>.</summary>
+    public static string MetadataUrl(string resource) =>
+        $"{new Uri(resource).GetLeftPart(UriPartial.Authority)}{MetadataPath}";
 
-    /// <summary>The first problem of an enabled section, or <c>null</c>.</summary>
-    public string? Problem()
+    /// <summary>
+    /// The first problem of an enabled section, or <c>null</c>. <paramref name="resource"/> is
+    /// <see cref="CustosOptions.Resource"/>.
+    /// </summary>
+    public string? Problem(string? resource)
     {
         if (!Enabled)
             return null;
         if (
-            !Uri.TryCreate(Resource, UriKind.Absolute, out var uri)
+            !Uri.TryCreate(resource, UriKind.Absolute, out var uri)
             || uri.Scheme is not ("http" or "https")
             || !string.IsNullOrEmpty(uri.Query)
             || !string.IsNullOrEmpty(uri.Fragment)
         )
         {
-            return $"{SectionName}:Resource must be an absolute HTTP URL without a query.";
+            return $"{CustosOptions.SectionName}:Resource must be an absolute HTTP URL without a "
+                + "query.";
         }
         if (uri.AbsolutePath != Path)
-            return $"{SectionName}:Resource must have the path {Path}.";
+            return $"{CustosOptions.SectionName}:Resource must have the path {Path} for MCP.";
         if (!string.IsNullOrEmpty(Authority) && !Uri.TryCreate(Authority, UriKind.Absolute, out _))
             return $"{SectionName}:Authority must be an absolute URL.";
         if (string.IsNullOrWhiteSpace(ReadScope) || string.IsNullOrWhiteSpace(WriteScope))

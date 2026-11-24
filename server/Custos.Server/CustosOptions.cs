@@ -7,33 +7,17 @@ public sealed class CustosOptions
 {
     public const string SectionName = "Custos";
 
-    /// <summary>The origin of this server as Custos sees it. The discovery document builds its URLs
-    /// from it.</summary>
-    [Required, Url]
-    public string PublicBaseUrl { get; set; } = "";
-
     /// <summary>The issuer URL of the authorization server, for example a Keycloak realm.</summary>
     [Required, Url]
     public string Authority { get; set; } = "";
 
     /// <summary>
-    /// The client ID that Custos uses. Empty means the URL of the client metadata document of this
-    /// server. Set it when the authorization server reaches this server under a different host than
-    /// Custos.
+    /// The audience of the tokens of this server: the URL of the MCP endpoint as a client sees it,
+    /// for example <c>https://custos.example.com/mcp</c>. The upload API and the MCP endpoint
+    /// accept a token only with this value in <c>aud</c>.
     /// </summary>
-    public string? ClientId { get; set; }
-
-    /// <summary>
-    /// The URL of the metadata document of the authorization server. Empty means
-    /// <c>{Authority}/.well-known/openid-configuration</c>.
-    /// </summary>
-    public string? OpenIdConfiguration { get; set; }
-
-    public string ServiceName { get; set; } = "Custos reference server";
-
-    /// <summary>The scopes that Custos requests. Set them in configuration: a binding appends to a
-    /// default array.</summary>
-    public string[] Scopes { get; set; } = [];
+    [Required, Url]
+    public string Resource { get; set; } = "";
 
     [Range(1, int.MaxValue)]
     public int UploadMaxBytes { get; set; } = 4 * 1024 * 1024;
@@ -86,16 +70,6 @@ public sealed class CustosOptions
     /// </summary>
     [Required]
     public string CatalogPath { get; set; } = "catalog/catalog.json";
-
-    public string ResolvedOpenIdConfiguration =>
-        string.IsNullOrEmpty(OpenIdConfiguration)
-            ? Combine(Authority, "/.well-known/openid-configuration")
-            : OpenIdConfiguration;
-
-    public string ResolvedClientId =>
-        string.IsNullOrEmpty(ClientId)
-            ? Combine(PublicBaseUrl, Endpoints.ClientMetadata.Path)
-            : ClientId;
 
     public static string Combine(string baseUrl, string path) => baseUrl.TrimEnd('/') + path;
 }
