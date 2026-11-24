@@ -34,6 +34,27 @@ public sealed class TokenExchangeTests
         }
     }
 
+    /// <summary>
+    /// The feasibility test T3 of M37: optio reads the Discord user from the token of Custos.
+    /// The realm has no mapper for <c>active_guild</c> yet.
+    /// </summary>
+    [Test]
+    public async Task Token_of_custos_for_optio_has_discord_id_and_no_active_guild()
+    {
+        var token = await _realm.CustosTokenAsync("openid custos:client");
+
+        var claims = KeycloakRealm.Payload(token);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(
+                claims.GetProperty("discord_id").GetString(),
+                Is.EqualTo(KeycloakRealm.DevDiscordId),
+                claims.ToString()
+            );
+            Assert.That(claims.TryGetProperty("active_guild", out _), Is.False);
+        }
+    }
+
     [Test]
     public async Task Exchanged_token_is_only_for_the_mcp_endpoint_and_the_endpoint_accepts_it()
     {
