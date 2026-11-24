@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/atlashq-gg/custos/optio/schemas/signal.schema.json",
+  "title": "optio producer signal (unstable)",
+  "description": "A CloudEvents 1.0 event in the JSON format, with no data (optio/docs/producers.md).",
+  "type": "object",
+  "required": ["specversion", "id", "source", "type", "time", "readerguild", "originguild"],
+  "properties": {
+    "specversion": { "const": "1.0" },
+    "id": { "type": "string", "minLength": 1 },
+    "source": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "type": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$" },
+    "time": { "type": "string", "format": "date-time" },
+    "readerguild": { "$ref": "#/$defs/guild" },
+    "originguild": { "$ref": "#/$defs/guild" },
+    "traceparent": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
+    }
+  },
+  "not": {
+    "anyOf": [{ "required": ["data"] }, { "required": ["data_base64"] }]
+  },
+  "$defs": {
+    "guild": { "type": "string", "pattern": "^[0-9]{1,20}$" }
+  }
+}
