@@ -114,7 +114,7 @@ Each event:
 |---|---|---|---|
 | `id` | string | yes | A unique value for each event of the source. |
 | `type` | string | yes | The event type, as in the signal. |
-| `time` | string | yes | The time of the commit, as RFC 3339. |
+| `time` | string | yes | The time when the producer recorded the change, as RFC 3339. |
 | `text` | string | yes | Plain text for the user, 500 characters at most. `optio` sends it as the `text` of the message. |
 | `reference` | string | no | A message with the reference of a shown message replaces it. `optio` sends it as the `reference` of the message. |
 
