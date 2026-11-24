@@ -53,6 +53,33 @@ var keycloak = builder
 // data lasts one run. The database name is CustosDbContext.ConnectionName of the server.
 var database = builder.AddPostgres("postgres").WithImageTag("18").AddDatabase("custos");
 
+// The event broker (ADR 0007), with the users and the exchanges of the definitions file. The
+// broker imports the file at the start, and then has only the users of the file. Thus the
+// resource user is custos, so that the connection string of the server names a user that exists.
+// The passwords of the file are for development only.
+var events = builder
+    .AddRabbitMQ(
+        "events",
+        builder.AddParameter("events-user", "custos"),
+        builder.AddParameter("events-password", "custos", secret: true)
+    )
+    .WithImageTag("4.3-alpine")
+    .WithBindMount(
+        Path.Combine(builder.AppHostDirectory, "..", "rabbitmq", "definitions.json"),
+        "/etc/rabbitmq/definitions.json",
+        isReadOnly: true
+    )
+    .WithContainerFiles(
+        "/etc/rabbitmq/conf.d",
+        [
+            new ContainerFile
+            {
+                Name = "20-definitions.conf",
+                Contents = "load_definitions = /etc/rabbitmq/definitions.json\n",
+            },
+        ]
+    );
+
 // The launch profile gives the port and the Development environment. appsettings.Development.json
 // of the server holds the localhost URLs of the realm and of the MCP endpoint.
 var server = builder
@@ -60,6 +87,8 @@ var server = builder
     .WithEnvironment("Mcp__Enabled", "true")
     .WithReference(database)
     .WaitFor(database)
+    // The server does not wait for the broker: an upload works without it.
+    .WithReference(events)
     .WithHttpHealthCheck("/health/ready");
 
 // The AppHost always registers the two parameters. Aspire asks for a value that is not set in the

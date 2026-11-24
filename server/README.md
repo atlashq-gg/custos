@@ -8,7 +8,7 @@ The server also runs as a Discord bot. The roles of a member in Discord give the
 
 ## Run
 
-Requirements: .NET SDK 10 and Docker. The AppHost of `optio` starts the full system: Keycloak, PostgreSQL, this server on `http://localhost:5080`, and `optio` ([optio/README.md](../optio/README.md#run)).
+Requirements: .NET SDK 10 and Docker. The AppHost of `optio` starts the full system: Keycloak, PostgreSQL, the RabbitMQ broker, this server on `http://localhost:5080`, and `optio` ([optio/README.md](../optio/README.md#run)).
 
 ```sh
 dotnet run --project ../optio/Optio.AppHost
@@ -41,7 +41,7 @@ The realm also holds the confidential client `optio` with the standard token exc
 
 ## Configuration
 
-The section `Custos` in `appsettings.json` or environment variables (`Custos__Authority`). The connection string of PostgreSQL is `ConnectionStrings:custos` (`ConnectionStrings__custos`). The AppHost sets it.
+The section `Custos` in `appsettings.json` or environment variables (`Custos__Authority`). The connection string of PostgreSQL is `ConnectionStrings:custos` (`ConnectionStrings__custos`). The connection string of the event broker is `ConnectionStrings:events`, an AMQP URI, for example `amqp://custos:...@broker:5672` ([Events](#events)). The AppHost sets both.
 
 | Key | Default | Content |
 |---|---|---|
@@ -199,6 +199,32 @@ The search tools take the argument `guild_id`, and the filters `items`, `stockpi
 - The names of reserve stockpiles and the labels are text from players. The results give them as values of JSON members only.
 
 The development realm has the optional client scopes `custos:read` and `custos:write`, each with an audience mapper for `CUSTOS_MCP_RESOURCE` and the `discord_id` mapper. It permits an anonymous client registration from `localhost` and `127.0.0.1`, and each client must use PKCE with S256. The user `dev` has the realm role `offline_access`, because Claude Code requests that scope. It also accepts the Client ID Metadata Document of Claude Code (`https://claude.ai/oauth/claude-code-client-metadata`): the profile `custos-cimd` permits the domains `claude.ai`, `localhost`, and `127.0.0.1`, and the resource of the MCP endpoint. Keycloak starts with the features `cimd` and `resource-indicators`.
+
+## Events
+
+When an upload changes a stockpile, the server publishes an event to the event broker. The contract is [optio/docs/producers.md](../optio/docs/producers.md), and the decision is [ADR 0007](../docs/adr/0007-a-broker-carries-domain-events.md).
+
+- Without `ConnectionStrings:events`, the server publishes no events.
+- The server publishes after the commit of the upload, to the exchange `events.custos`, with `mandatory` true. The routing key is `<guild>.stockpile.changed`.
+- The server publishes one event for each changed stockpile and each guild that can read it. These are the guild of the upload and each guild in its `Sharing.ReadGuildIds`. The policy of an event names that guild and its `Access.ReadRoleIds`.
+- An upload does not wait for the broker, and it succeeds without the broker. The server keeps at most 1000 events in memory while the broker is not available, and drops the oldest. It does not publish an event again.
+- The metric `custos.events` counts the events by outcome: `published`, `returned` (the stream or its binding is missing), `dropped` (the queue was full), and `failed`.
+- The broker user of the server can only write to `events.custos`.
+
+An event of the type `stockpile.changed` has these members in `data`, after `policy`:
+
+| Member | Content |
+|---|---|
+| `message.text` | The text for a person. The first line holds the label and the stockpile. Then come at most 5 changes, each with its signed difference and the new total in parentheses, for example `Rifle crates +20 (40)` or `Basic Materials -400 (0)`. Then comes `+N more`. A new stockpile gives one line, for example `Fort Barley Seaport, Main: new, 12 items`. At most 500 characters. |
+| `message.reference` | `stockpile:<stockpile ID>`, so that a new change of the stockpile replaces its message in Custos. |
+| `guild_id` | The guild of the policy. |
+| `origin_guild` | The guild of the upload. |
+| `stockpile_id`, `stockpile_name` | The stockpile. The public stockpile has the name `Public`. |
+| `structure_id`, `structure_label` | The structure of the stockpile. When the guild of the policy has its own record, the label is its label, as in a search. |
+| `war` | The war number. |
+| `observed_at` | The time of the change in the game, from the file. |
+
+The `time` of the event is the time when the server received the upload. The text gives the most important change first. An entry that goes to 0 comes first, then the largest change in crates. A decrease comes before an increase of the same size. A loose entry counts as its quantity divided by the crate size of the catalog. When only an entry with the quantity 0 changed, the server publishes no event.
 
 ## Storage
 

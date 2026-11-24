@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using Custos.Server.Endpoints;
+using Custos.Server.Events;
 using Custos.Server.MapData;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -11,12 +12,14 @@ namespace Custos.Server.Storage;
 /// <summary>
 /// Writes an upload and the observations of its pinned items. The history keeps a change, not a
 /// sighting: if the content of an entity is equal to its current state, the store only moves
-/// <c>last_seen_at</c>.
+/// <c>last_seen_at</c>. After the commit, it gives the stockpile changes to
+/// <paramref name="events"/>, when the server has a broker.
 /// </summary>
 internal sealed class UploadStore(
     CustosDbContext db,
     StructureLabels labels,
-    IOptions<CustosOptions> options
+    IOptions<CustosOptions> options,
+    StockpileEvents? events = null
 )
 {
     private enum Observation
@@ -81,6 +84,7 @@ internal sealed class UploadStore(
             .ToDictionaryAsync(s => s.StockpileId, cancellationToken);
 
         List<StockpileSummary> summaries = [];
+        List<StockpileDiff> diffs = [];
         foreach (var (structureId, item) in observed)
         {
             var seenAt = Microseconds(item.LastUpdated);
@@ -103,7 +107,7 @@ internal sealed class UploadStore(
                 if (stockpile is null && content.Name is null && content.Entries.Count == 0)
                     continue;
 
-                await ObserveStockpileAsync(
+                var diff = await ObserveStockpileAsync(
                     upload,
                     stockpile,
                     stockpileId,
@@ -112,6 +116,8 @@ internal sealed class UploadStore(
                     seenAt,
                     cancellationToken
                 );
+                if (diff is not null)
+                    diffs.Add(diff);
                 summaries.Add(
                     new StockpileSummary(
                         content.Name ?? "Public",
@@ -132,6 +138,9 @@ internal sealed class UploadStore(
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+
+        if (events is not null && diffs.Count > 0)
+            await events.PublishAsync(upload, diffs, cancellationToken);
         return [.. summaries];
     }
 
@@ -209,7 +218,9 @@ internal sealed class UploadStore(
         );
     }
 
-    private async Task ObserveStockpileAsync(
+    /// <summary>Gives the change for the events, or null when the stockpile did not
+    /// change.</summary>
+    private async Task<StockpileDiff?> ObserveStockpileAsync(
         Upload upload,
         Stockpile? stockpile,
         Guid stockpileId,
@@ -225,7 +236,7 @@ internal sealed class UploadStore(
         switch (Compare(stockpile?.LastSeenAt, stockpile?.ContentHash, seenAt, hash))
         {
             case Observation.Stale:
-                return;
+                return null;
             case Observation.Seen:
                 stockpile!.LastSeenAt = seenAt;
                 await db
@@ -239,9 +250,10 @@ internal sealed class UploadStore(
                         c => c.SetProperty(x => x.LastSeenAt, seenAt),
                         cancellationToken
                     );
-                return;
+                return null;
         }
 
+        Dictionary<EntryKey, int>? before = null;
         if (stockpile is null)
         {
             db.Stockpiles.Add(
@@ -262,13 +274,19 @@ internal sealed class UploadStore(
         {
             stockpile.ObservedAt = stockpile.LastSeenAt = seenAt;
             stockpile.ContentHash = hash;
-            await db
-                .StockpileEntries.Where(e =>
-                    e.GuildId == upload.GuildId
-                    && e.WarId == upload.WarId
-                    && e.StockpileId == stockpileId
-                )
-                .ExecuteDeleteAsync(cancellationToken);
+            var current = db.StockpileEntries.Where(e =>
+                e.GuildId == upload.GuildId
+                && e.WarId == upload.WarId
+                && e.StockpileId == stockpileId
+            );
+            before = await current
+                .AsNoTracking()
+                .ToDictionaryAsync(
+                    e => new EntryKey(e.Category, e.CodeName),
+                    e => e.Quantity,
+                    cancellationToken
+                );
+            await current.ExecuteDeleteAsync(cancellationToken);
         }
 
         db.StockpileEntries.AddRange(
@@ -294,6 +312,11 @@ internal sealed class UploadStore(
                 Entries = entries,
             }
         );
+
+        Dictionary<EntryKey, int> after = [];
+        foreach (var entry in content.Entries)
+            after[new EntryKey(entry.Category, entry.CodeName)] = entry.Quantity;
+        return new StockpileDiff(stockpileId, structureId, content.Name, before, after, seenAt);
     }
 
     /// <summary>

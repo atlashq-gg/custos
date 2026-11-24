@@ -19,6 +19,7 @@ The AppHost starts the full system:
 | optio | `http://localhost:5090` | The service URL for Custos. |
 | server | `http://localhost:5080` | The domain service of the guild records ([server/README.md](../server/README.md)). |
 | PostgreSQL 18 | (dashboard) | The database of the server. The data lasts for one run. |
+| RabbitMQ | (dashboard) | The event broker, with the users, the exchange, and the stream of [rabbitmq/definitions.json](rabbitmq/definitions.json). The server publishes its events to it. |
 | Keycloak | `http://localhost:8180` | The realm `custos` from [server/keycloak/custos-realm.json](../server/keycloak/custos-realm.json), with the user `dev`, password `dev`. |
 | Dashboard | `http://localhost:15180` | The Aspire dashboard. The login URL is in the console output. |
 
