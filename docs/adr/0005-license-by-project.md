@@ -48,3 +48,4 @@ spec, custos, and the root content are under the MIT license. server is under th
 
 - 2026-11-17: Created.
 - 2026-11-21: The Maintainer added `server/catalog/catalog.json`, a file from the Foxhole wiki under CC BY-NC-SA 4.0 ([server/catalog/LICENSE.md](../../server/catalog/LICENSE.md)). It is a data file inside `server/`, and it is the only file in the repository under that license. This ADR does not change: the code of `server/` stays under AGPL-3.0-or-later. The NonCommercial term applies to the container image that holds the file.
+- 2026-11-23: `optio/` is under AGPL-3.0-or-later, as `server/`, because an operator hosts it ([ADR 0006](0006-optio-is-the-service-of-the-contract.md)). This ADR does not change.
