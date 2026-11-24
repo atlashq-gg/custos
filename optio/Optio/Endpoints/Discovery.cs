@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
+using Optio.Harness;
 using Optio.Streams;
 
 namespace Optio.Endpoints;
@@ -16,7 +17,8 @@ public sealed record DiscoveryDocument(
     string[] Scopes,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         string? ServiceDocumentation,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? StreamEndpoint
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? StreamEndpoint,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? QueryEndpoint
 );
 
 internal static class Discovery
@@ -44,7 +46,11 @@ internal static class Discovery
                     // Only when the stream is configured (StreamSetup).
                     StreamEndpoint: http.RequestServices.GetService<StreamHub>() is null
                         ? null
-                        : OptioOptions.Combine(o.PublicBaseUrl, StreamEndpoint.Path)
+                        : OptioOptions.Combine(o.PublicBaseUrl, StreamEndpoint.Path),
+                    // Only when the query is configured (HarnessSetup).
+                    QueryEndpoint: http.RequestServices.GetService<QueryLimiter>() is null
+                        ? null
+                        : OptioOptions.Combine(o.PublicBaseUrl, Endpoints.QueryEndpoint.Path)
                 );
             })
             .AllowAnonymous();

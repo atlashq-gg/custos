@@ -13,7 +13,14 @@ internal static class SpecSchemas
     public static void AssertDiscoveryDocument(JsonElement document) =>
         AssertValid(Discovery.Value, document);
 
+    private static readonly Lazy<JsonSchema> QueryAccepted = new(() =>
+        Load("query-accepted.schema.json")
+    );
+
     public static void AssertMessage(JsonElement document) => AssertValid(Message.Value, document);
+
+    public static void AssertQueryAccepted(JsonElement document) =>
+        AssertValid(QueryAccepted.Value, document);
 
     private static JsonSchema Load(string name) =>
         JsonSchema.FromFile(Path.Combine(AppContext.BaseDirectory, "spec", name));

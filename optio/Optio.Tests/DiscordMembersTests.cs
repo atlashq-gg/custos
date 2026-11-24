@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NetCord;
@@ -16,6 +17,7 @@ namespace Optio.Tests;
 [Category("Discord")]
 public sealed class DiscordMembersTests
 {
+    private DiscordGateway _gateway = null!;
     private DiscordMembers _members = null!;
     private ulong _guild;
     private ulong _user;
@@ -49,20 +51,25 @@ public sealed class DiscordMembersTests
         if (_guild == 0)
             Assert.Ignore("The test user is not a member of a guild of the bot.");
 
-        _members = new DiscordMembers(
+        _gateway = new DiscordGateway(
             Options.Create(new OptioOptions { DiscordToken = token }),
-            NullLogger<DiscordMembers>.Instance
+            new ServiceCollection()
+                .BuildServiceProvider()
+                .GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<DiscordGateway>.Instance,
+            commands: false
         );
-        await _members.StartAsync(default);
+        _members = new DiscordMembers(_gateway, NullLogger<DiscordMembers>.Instance);
+        await _gateway.StartAsync(default);
     }
 
     [OneTimeTearDown]
     public async Task StopAsync()
     {
-        if (_members is null)
+        if (_gateway is null)
             return;
-        await _members.StopAsync(default);
-        _members.Dispose();
+        await _gateway.StopAsync(default);
+        _gateway.Dispose();
     }
 
     [Test]

@@ -18,6 +18,9 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Optio.Discord;
 using Optio.Endpoints;
+using Optio.Events;
+using Optio.Harness;
+using Optio.Storage;
 using Optio.Streams;
 using Optio.Tokens;
 
@@ -30,9 +33,19 @@ namespace Optio.Tests.Infrastructure;
 /// <see cref="Time"/> as the clock. With <paramref name="broker"/>, optio reads the events from
 /// that broker. Without it, a test gives the events to the hub itself.
 /// </summary>
-internal sealed class OptioFactory(bool stream = false, string? broker = null)
-    : WebApplicationFactory<Program>
+/// With <paramref name="query"/>, the stream, a database, and the query are on, with
+/// <see cref="Model"/> and <see cref="Tools"/>.
+/// With <paramref name="modelKey"/>, the query uses the real model of Anthropic. With
+/// <see cref="McpServer"/>, it uses the real tool source.
+internal sealed class OptioFactory(
+    bool stream = false,
+    string? broker = null,
+    bool query = false,
+    string? modelKey = null
+) : WebApplicationFactory<Program>
 {
+    public const string SystemPrompt = "Answer the questions of the guild.";
+
     public const string PublicBaseUrl = "http://optio.test";
     public const string Issuer = "http://idp.test/realms/custos";
     public const string TokenEndpoint = Issuer + "/protocol/openid-connect/token";
@@ -49,6 +62,18 @@ internal sealed class OptioFactory(bool stream = false, string? broker = null)
 
     public FakeMembers Members { get; } = new();
 
+    public FakeModel Model { get; } = new();
+
+    public FakeTools Tools { get; } = new();
+
+    /// <summary>The system prompt instead of <see cref="SystemPrompt"/>. Set it before the first
+    /// use of the factory.</summary>
+    public string? SystemPromptOverride { get; set; }
+
+    /// <summary>The handler of the MCP services, for a test of the real tool source. Set it
+    /// before the first use of the factory.</summary>
+    public HttpMessageHandler? McpServer { get; set; }
+
     public FakeTimeProvider Time { get; } = new(DateTimeOffset.UtcNow);
 
     public StreamHub Hub => Services.GetRequiredService<StreamHub>();
@@ -63,6 +88,16 @@ internal sealed class OptioFactory(bool stream = false, string? broker = null)
         builder.UseSetting("Optio:OptioClientSecret", Secret);
         builder.UseSetting("Optio:UploadApiUrl", UploadApiUrl);
         builder.UseSetting("Optio:UploadMaxBytes", UploadMaxBytes.ToString());
+        stream |= query;
+        if (query)
+        {
+            builder.UseSetting("ConnectionStrings:optio", Postgres.NewDatabase());
+            builder.UseSetting("Optio:ModelApiKey", modelKey ?? "test");
+            builder.UseSetting("Optio:SystemPrompt", SystemPromptOverride ?? SystemPrompt);
+            builder.UseSetting("Optio:McpServices:0:Name", "server");
+            builder.UseSetting("Optio:McpServices:0:Url", "http://server.test/mcp");
+            builder.UseSetting("Optio:McpServices:0:ReadScope", "custos:read");
+        }
         if (stream)
         {
             // Nothing listens on port 1.
@@ -89,8 +124,22 @@ internal sealed class OptioFactory(bool stream = false, string? broker = null)
             {
                 services.AddSingleton<IMemberDirectory>(Members);
                 services.AddSingleton<TimeProvider>(Time);
-                if (broker is null)
-                    services.RemoveAll<IHostedService>();
+                // No Discord gateway: the fake directory replaces it.
+                services.RemoveAll<IHostedService>();
+                if (query)
+                    services.AddHostedService<DatabaseMigrator>();
+                if (broker is not null)
+                    services.AddHostedService<EventConsumer>();
+                if (modelKey is null)
+                    services.AddSingleton<IModelClient>(Model);
+                if (McpServer is null)
+                    services.AddScoped<IToolSource>(_ => Tools);
+                else
+                {
+                    services
+                        .AddHttpClient(McpToolSource.HttpClientName)
+                        .ConfigurePrimaryHttpMessageHandler(() => McpServer);
+                }
             }
             services.PostConfigureAll<JwtBearerOptions>(jwt =>
             {

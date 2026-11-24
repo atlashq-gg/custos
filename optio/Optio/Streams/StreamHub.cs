@@ -125,6 +125,27 @@ internal sealed class StreamHub
         }
     }
 
+    /// <summary>Sends a message to each open stream of a user, for example the messages of a
+    /// query. False when the user has no open stream.</summary>
+    public bool SendToUser(ulong user, StreamMessage message)
+    {
+        lock (_lock)
+        {
+            var item = new StreamItem(Cursor.Encode(_offsets), message);
+            var sent = false;
+            foreach (var subscriber in _subscribers.Where(s => s.UserId == user))
+                sent |= subscriber.Send(item);
+            return sent;
+        }
+    }
+
+    /// <summary>True when the user has an open stream for the guild.</summary>
+    public bool HasStream(ulong guild, ulong user)
+    {
+        lock (_lock)
+            return _subscribers.Any(s => s.Guild == guild && s.UserId == user);
+    }
+
     public void Unsubscribe(Subscriber subscriber)
     {
         lock (_lock)
@@ -168,10 +189,16 @@ internal sealed class StreamHub
 /// <summary>An event with its SSE <c>id</c>: the offset of each source after it.</summary>
 internal sealed record StreamEvent(ProducerEvent Event, string Id);
 
-/// <summary>One open stream: the events for its client, in order.</summary>
+/// <summary>A message of spec/05-stream.md.</summary>
+internal sealed record StreamMessage(string Kind, string? Text, string? Reference, string Source);
+
+/// <summary>A message for the client of a stream, with its SSE <c>id</c>.</summary>
+internal sealed record StreamItem(string Id, StreamMessage Message);
+
+/// <summary>One open stream: the messages for its client, in order.</summary>
 internal sealed class Subscriber(ulong guild, ulong userId, OptioMetrics metrics)
 {
-    private readonly Channel<StreamEvent> _events = Channel.CreateBounded<StreamEvent>(
+    private readonly Channel<StreamItem> _items = Channel.CreateBounded<StreamItem>(
         new BoundedChannelOptions(StreamHub.StreamCapacity)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
@@ -187,7 +214,7 @@ internal sealed class Subscriber(ulong guild, ulong userId, OptioMetrics metrics
 
     public ulong UserId { get; } = userId;
 
-    public ChannelReader<StreamEvent> Events => _events.Reader;
+    public ChannelReader<StreamItem> Items => _items.Reader;
 
     /// <summary>Gives the event to the client when the member can read it. Holds it when the
     /// guild is not ready.</summary>
@@ -198,8 +225,13 @@ internal sealed class Subscriber(ulong guild, ulong userId, OptioMetrics metrics
         switch (members.CanRead(streamEvent.Event.Policy, Guild, UserId))
         {
             case true:
-                _events.Writer.TryWrite(streamEvent);
-                return true;
+                var e = streamEvent.Event;
+                return Send(
+                    new StreamItem(
+                        streamEvent.Id,
+                        new StreamMessage("event", e.Text, e.Reference, e.Source)
+                    )
+                );
             case null:
                 _held.Add(streamEvent);
                 return false;
@@ -207,6 +239,8 @@ internal sealed class Subscriber(ulong guild, ulong userId, OptioMetrics metrics
                 return false;
         }
     }
+
+    public bool Send(StreamItem item) => _items.Writer.TryWrite(item);
 
     public void Release(IMemberDirectory members)
     {

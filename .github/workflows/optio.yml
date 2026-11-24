@@ -53,15 +53,17 @@ jobs:
           dotnet tool restore
           dotnet csharpier check .
           long=$(find . -name '*.cs' -not -path '*/obj/*' -not -path '*/bin/*' \
+            -not -name '*.Designer.cs' -not -name '*ModelSnapshot.cs' \
             -exec awk 'length > 100 { print FILENAME ":" FNR }' {} +)
           if [ -n "$long" ]; then echo "Lines over 100 characters:"; echo "$long"; exit 1; fi
       - run: dotnet build Optio.slnx --configuration Release --no-restore
       # The tests in the category Discord connect to Discord with a bot token. CI has no token.
       # The tests in the category Feasibility examine the broker for about 2 minutes. Run them when
-      # the broker or its client changes.
+      # the broker or its client changes. The tests in the category Model call the model provider
+      # with a key. CI has no key.
       - run: >
           dotnet test Optio.slnx --configuration Release --no-build
-          --filter "TestCategory!=Discord&TestCategory!=Feasibility"
+          --filter "TestCategory!=Discord&TestCategory!=Feasibility&TestCategory!=Model"
           --logger "trx;LogFileName=results.trx" --results-directory TestResults
 
       - name: Upload test results
