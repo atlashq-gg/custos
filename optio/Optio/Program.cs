@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Optio;
 using Optio.Endpoints;
+using Optio.Streams;
 using Optio.Telemetry;
 using Optio.Tokens;
 
@@ -26,10 +27,12 @@ builder.Services.ConfigureHttpJsonOptions(json =>
 
 builder.Services.AddProblemDetails();
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<OptioMetrics>();
 builder.Services.AddOptioHealthChecks();
 builder.Services.AddHttpClient<TokenExchange>().AddStandardResilienceHandler();
 builder.Services.AddHttpClient<UploadRelay>(http => http.Timeout = TimeSpan.FromSeconds(60));
-builder.AddOptioTelemetry().AddOptioAuthentication();
+builder.AddOptioTelemetry().AddOptioAuthentication().AddOptioStream();
 
 var app = builder.Build();
 
@@ -41,6 +44,7 @@ app.UseAuthorization();
 app.MapDiscovery();
 app.MapClientMetadata();
 app.MapUploads();
+app.MapStream();
 app.MapHealth();
 
 LogStarting(app.Logger, OptioVersion.Value);

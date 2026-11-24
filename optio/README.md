@@ -2,7 +2,7 @@
 
 `optio` is the service that Custos calls ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). It implements the contract of [spec/](../spec/README.md): the discovery document, the upload, the stream, and the query. It calls the domain services, for example the [server](../server/README.md), with a token of the user for each service.
 
-The work is in progress. The roadmap is [#48](https://github.com/atlashq-gg/custos/issues/48). This version serves the discovery document and the Client ID Metadata Document of Custos, and relays the upload. The stream and the query come later.
+The work is in progress. The roadmap is [#48](https://github.com/atlashq-gg/custos/issues/48). This version serves the discovery document and the Client ID Metadata Document of Custos, relays the upload, and sends the events of the domain services on the stream. The query comes later.
 
 ## Run
 
@@ -23,7 +23,7 @@ The AppHost starts the full system:
 | Keycloak | `http://localhost:8180` | The realm `custos` from [server/keycloak/custos-realm.json](../server/keycloak/custos-realm.json), with the user `dev`, password `dev`. |
 | Dashboard | `http://localhost:15180` | The Aspire dashboard. The login URL is in the console output. |
 
-The server needs a Discord bot token in the user secrets of the AppHost ([server/README.md](../server/README.md#run)). The AppHost makes a new secret for the client `optio` on each start.
+The server needs a Discord bot token in the user secrets of the AppHost ([server/README.md](../server/README.md#run)). `optio` needs a Discord bot token for the stream, in the parameter `optio-discord-token`. In development, it can be the token of the bot of the server. The AppHost makes a new secret for the client `optio` on each start.
 
 ## Endpoints
 
@@ -32,6 +32,7 @@ The server needs a Discord bot token in the user secrets of the AppHost ([server
 | `GET /.well-known/custos-configuration` | The discovery document ([spec](../spec/01-discovery.md)). |
 | `GET /.well-known/custos-client` | The Client ID Metadata Document (CIMD) of Custos. Its URL is the client ID. |
 | `POST /api/v1/uploads` | The upload ([spec](../spec/03-upload.md)), relayed to the upload API of the server. |
+| `GET /api/v1/stream` | The stream ([spec](../spec/05-stream.md)). Only when the stream is configured. |
 | `GET /health/alive`, `GET /health/ready` | The health checks. |
 
 ## Upload
@@ -43,6 +44,27 @@ The server needs a Discord bot token in the user secrets of the AppHost ([server
 5. `optio` sends the body as a stream to the upload API of the server. It gives back the status, the body, and `Retry-After` of the server with no change.
 
 When the authorization server refuses the exchange, or the server does not answer, the upload gets `503`. The server applies the upload interval and the Discord roles.
+
+## Stream
+
+The stream sends the events of the domain services to Custos ([spec](../spec/05-stream.md), [ADR 0007](../docs/adr/0007-a-broker-carries-domain-events.md)). It is on when the configuration has the broker, one source or more, and the Discord token. Then the discovery document has `stream_endpoint`.
+
+1. `optio` reads the stream `events.<source>.stream` of each source from the broker. At the start, it attaches at the start of the replay window. After a lost connection, it attaches after its last offset.
+2. `optio` keeps the events of the replay window in memory.
+3. A stream opens with a token of Custos. The guild is the claim `active_guild`, and the user is the claim `discord_id`.
+4. `optio` gets the roles of that member from Discord through its own bot, with the intent `GUILD_MEMBERS`. It follows only the members with an open stream.
+5. `optio` sends each event whose policy the member matches ([docs/producers.md](docs/producers.md#policy)), with the roles of now. A role change applies in less than 1 second.
+6. The SSE `id` holds the offset of each source. With `Last-Event-ID`, the stream first sends the events of the window after that `id`.
+
+| Answer | Cause |
+|---|---|
+| `403` | The token names no guild or user, or the user is not a member of the guild. |
+| `429` | The user has `MaxStreamsPerUser` open streams. `Retry-After` is 60 seconds. |
+| `503` | Discord did not answer in 10 seconds. |
+
+- The stream sends a comment each 15 seconds with no event, and it ends when the token expires.
+- When the bot is not in the guild, the stream sends one `error` message and stays open.
+- When Discord does not know a guild yet, `optio` holds its events until the guild is ready.
 
 ## Producers
 
@@ -69,6 +91,14 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 | `Scopes` | `["openid", "custos:client"]` | The scopes that Custos requests. |
 | `UploadMaxBytes` | `4194304` | The largest upload body. It must be equal to the value of the server. |
 | `UploadMinIntervalSeconds` | `60` | The upload interval in the discovery document. It must be equal to the value of the server. |
+| `Sources` | `["custos"]` | The sources of events. `optio` reads the stream `events.<source>.stream` of each. |
+| `ReplayWindowMinutes` | `15` | How long `optio` keeps the events for a replay. |
+| `MaxStreamsPerUser` | `5` | The open streams of one user. |
+| `DiscordToken` | (none) | The token of the Discord bot of `optio`. Without it, `optio` has no stream. |
+| `DevelopmentGuildId` | (none) | The guild of a stream whose token has no claim `active_guild`. Only in the environment `Development`, as in the server. `1236389163276959888` in development. |
+| `DevelopmentDiscordUserId` | (none) | The user of a stream whose token has no claim `discord_id`. Only in the environment `Development`. |
+
+The connection string of the broker is `ConnectionStrings:events` (`ConnectionStrings__events`), an AMQP URI with the user `optio`, for example `amqp://optio:...@broker:5672`. Without it, `optio` has no stream.
 
 ## Health and telemetry
 
@@ -80,6 +110,14 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 - `optio --version` prints the version.
 - `optio --healthcheck` asks `/health/alive` on this machine. The exit code is 0 for a healthy service. The `HEALTHCHECK` of the image uses it.
 - `optio` exports traces, metrics, and logs with OTLP when the environment has `OTEL_EXPORTER_OTLP_ENDPOINT`. Its activity source and its meter have the name `Optio`.
+
+| Metric | Content |
+|---|---|
+| `optio.events` | The events from the broker, by `outcome`: `delivered`, `no_stream` (no open stream can read it), `no_bot` (the bot is not in the guild), or `ignored` (not valid, or an unknown policy version). |
+| `optio.events.age` | The age of each event when `optio` reads it, by `source`. A high age shows that `optio` is behind the end of the stream. |
+| `optio.events.offset` | The last offset that `optio` read, by `source`. |
+| `optio.streams` | The open streams. |
+| `optio.stream.dropped` | The events that a stream dropped, because its client did not read them in time. |
 
 ## Format
 

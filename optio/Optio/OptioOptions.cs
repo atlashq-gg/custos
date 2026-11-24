@@ -68,6 +68,38 @@ public sealed class OptioOptions
     [Required]
     public string UploadScope { get; set; } = "custos:write";
 
+    /// <summary>
+    /// The sources of events (optio/docs/producers.md). optio reads the stream
+    /// <c>events.&lt;source&gt;.stream</c> of each source from the broker in the connection string
+    /// <see cref="BrokerConnectionName"/>.
+    /// </summary>
+    public string[] Sources { get; set; } = [];
+
+    /// <summary>How long optio keeps the events for a replay.</summary>
+    [Range(1, 1440)]
+    public int ReplayWindowMinutes { get; set; } = 15;
+
+    /// <summary>The open streams of one user. One more stream gets <c>429</c>.</summary>
+    [Range(1, 100)]
+    public int MaxStreamsPerUser { get; set; } = 5;
+
+    /// <summary>The token of the Discord bot of optio. Keep it in
+    /// <c>/run/secrets/Optio__DiscordToken</c>. Without it, optio has no stream.</summary>
+    public string? DiscordToken { get; set; }
+
+    /// <summary>The guild of a stream whose token has no claim <c>active_guild</c>. Only in the
+    /// environment Development, as in the server.</summary>
+    public long? DevelopmentGuildId { get; set; }
+
+    /// <summary>The Discord user of a stream whose token has no claim <c>discord_id</c>. Only in
+    /// the environment Development, as in the server.</summary>
+    public long? DevelopmentDiscordUserId { get; set; }
+
+    /// <summary>The name of the connection string of the broker.</summary>
+    public const string BrokerConnectionName = "events";
+
+    public TimeSpan ReplayWindow => TimeSpan.FromMinutes(ReplayWindowMinutes);
+
     public string ResolvedOpenIdConfiguration =>
         string.IsNullOrEmpty(OpenIdConfiguration)
             ? Combine(Authority, "/.well-known/openid-configuration")
