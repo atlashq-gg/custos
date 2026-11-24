@@ -91,11 +91,16 @@ A query belongs to the client that sent it: the session of the client at the aut
 
 The text of the `confirm` message:
 
-- `optio` adds the argument `confirm_text` to each write tool, and removes it before the call. The model writes the question in it. The description of the argument tells the model that the question shows on a screen 50 characters wide, so it must leave out each word that is not necessary. The form is `{Verb} {object clause}?`, with `and {verb} {object clause}` for each other change, for example `Set label "Main Depot" and set label "North Bunker"?`.
-- `optio` uses the question of the model only when it is one line of 120 characters at most, and holds each value of the calls. The values are the arguments whose names do not end in `_id`.
-- Else code makes the text from the title of each tool and the values, for example `Set the label of a structure? "Main Depot"`. An absent value shows as `(none)`.
+- `optio` adds the argument `confirm_text` to each write tool, and removes it before the call. The model writes the question in it. The description of the argument tells the model that the question shows on a screen 50 characters wide. The model must leave out each word that is not necessary.
+- The form is `{Verb} {Object}? "value"`, with `and "value"` for each other value. A new value shows the new value. A removal shows the current value, from a tool result. Examples: `Set Label? "Main Depot"`, `Set Labels? "Main Depot" and "North Bunker"`, `Remove Label? "Old Depot"`.
+- Before a removal, the example system prompt tells the model to read the current value, for example with `find_structures`.
+- `optio` uses the question of the model only when all of these are true:
+  - It is one line of 120 characters at most.
+  - It holds each value of the calls.
+  - Each quoted text in it is a value of the calls, or a text in a tool result of the query.
+- Else code makes the text from the title of each tool and the values, for example `Set the label of a structure? "Main Depot" and "North Bunker"`. An absent value shows as `(none)`.
 
-The check makes sure that the user sees each value of the change. It cannot make sure that the verb of the question is correct.
+The check makes sure that the user sees each value of the change, and that each quoted text has a source. It cannot make sure that the verb of the question is correct, or that a current value belongs to the structure of the call.
 
 ### Limits
 

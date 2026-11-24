@@ -114,6 +114,7 @@ internal sealed partial class QueryHarness(
         ];
 
         List<ModelMessage> messages = [new UserMessage(query.Text)];
+        List<string> seen = [];
         var calls = 0;
         while (true)
         {
@@ -134,7 +135,7 @@ internal sealed partial class QueryHarness(
             calls += turn.ToolCalls.Count;
             if (calls > MaxToolCalls)
                 throw new QueryException("The query needs too many steps. Ask a smaller question.");
-            if (Confirm(query, session, turn.ToolCalls))
+            if (Confirm(query, session, turn.ToolCalls, seen))
                 return null;
 
             messages.Add(new AssistantMessage(turn));
@@ -146,14 +147,21 @@ internal sealed partial class QueryHarness(
                 results.Add(await session.CallAsync(call, cancellationToken));
             }
             messages.Add(new ToolResultsMessage(results));
+            seen.AddRange(results.Select(r => r.Content));
         }
     }
 
     /// <summary>
     /// Opens a confirmation for the write calls of a turn, and sends the <c>confirm</c> message.
-    /// The read calls of that turn do not run. False when the turn has no write call.
+    /// The read calls of that turn do not run. <paramref name="results"/> holds the tool results
+    /// of the query. False when the turn has no write call.
     /// </summary>
-    private bool Confirm(Query query, IToolSession session, IReadOnlyList<ToolCall> calls)
+    private bool Confirm(
+        Query query,
+        IToolSession session,
+        IReadOnlyList<ToolCall> calls,
+        IReadOnlyList<string> results
+    )
     {
         string? modelText = null;
         List<WriteCall> writes = [];
@@ -170,7 +178,7 @@ internal sealed partial class QueryHarness(
         if (writes.Count == 0)
             return false;
 
-        var question = Confirmations.Text(modelText, writes);
+        var question = Confirmations.Text(modelText, writes, results);
         if (question.Length > MaxTextLength)
             throw new QueryException("The query asks for too many changes at one time.");
         confirmations.Open(query.Client, query.Reference, writes);

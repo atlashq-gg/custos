@@ -30,12 +30,13 @@ internal sealed class Confirmations(TimeProvider time)
 
     private const string TextDescription =
         "The question to the user before the change. It shows on a screen 50 characters wide: "
-        + "leave out each word that is not necessary. Use the form "
-        + "'{Verb} {object clause}?', and add 'and {verb} {object clause}' for each other "
-        + "change. Hold each value of the change, in quotes. Do not show an ID. Examples: "
-        + "'Set label \"Main Depot\"?', 'Remove label?', "
-        + "'Set label \"Main Depot\" and set label \"North Bunker\"?'. When you call more than "
-        + "one write tool in one turn, give one question for all the changes in the first call.";
+        + "leave out each word that is not necessary. Use the form '{Verb} {Object}? "
+        + "\"value\"', with 'and \"value\"' for each other value. For a new value, give the "
+        + "new value. For a removal, give the current value from a tool result. Do not show an "
+        + "ID. Examples: 'Set Label? \"Main Depot\"', "
+        + "'Set Labels? \"Main Depot\" and \"North Bunker\"', 'Remove Label? \"Old Depot\"'. "
+        + "When you call more than one write tool in one turn, give one question for all the "
+        + "changes in the first call.";
 
     private readonly object _lock = new();
     private readonly Dictionary<StreamClient, Confirmation> _open = [];
@@ -95,18 +96,24 @@ internal sealed class Confirmations(TimeProvider time)
 
     /// <summary>
     /// The text of the <c>confirm</c> message. It is the question of the model when it is one line
-    /// of <see cref="MaxModelText"/> characters at most, and holds each value of the calls. Else
-    /// code makes it from the title of each tool and the values.
+    /// of <see cref="MaxModelText"/> characters at most, and holds each value of the calls. Each
+    /// quoted text in it must also be a value of the calls or a text in <paramref name="results"/>,
+    /// the tool results of the query: for example the current label of a removal. Else code makes
+    /// the text from the title of each tool and the values.
     /// </summary>
-    public static string Text(string? modelText, IReadOnlyList<WriteCall> calls)
+    public static string Text(
+        string? modelText,
+        IReadOnlyList<WriteCall> calls,
+        IReadOnlyList<string> results
+    )
     {
-        var values = calls.SelectMany(Values).ToList();
+        var values = calls.SelectMany(Values).OfType<string>().Where(v => v.Length > 0).ToList();
+        var known = Strings(results);
         if (
             modelText is { Length: > 0 and <= MaxModelText }
             && !modelText.Any(char.IsControl)
-            && values.All(v =>
-                string.IsNullOrEmpty(v) || modelText.Contains(v, StringComparison.Ordinal)
-            )
+            && values.All(v => modelText.Contains(v, StringComparison.Ordinal))
+            && Quoted(modelText).All(q => values.Contains(q) || known.Contains(q))
         )
         {
             return modelText;
@@ -123,9 +130,51 @@ internal sealed class Confirmations(TimeProvider time)
                         .ToList();
                     return shown.Count == 0
                         ? $"{OneLine(g.Key)}?"
-                        : $"{OneLine(g.Key)}? {string.Join(", ", shown)}";
+                        : $"{OneLine(g.Key)}? {string.Join(" and ", shown)}";
                 })
         );
+    }
+
+    /// <summary>The texts between double quotes.</summary>
+    private static IEnumerable<string> Quoted(string text) =>
+        text.Split('"').Where((_, i) => i % 2 == 1);
+
+    /// <summary>The texts of the tool results: each string of a JSON result, else the result.
+    /// </summary>
+    private static HashSet<string> Strings(IReadOnlyList<string> results)
+    {
+        HashSet<string> strings = new(StringComparer.Ordinal);
+        foreach (var result in results)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(result);
+                Add(document.RootElement);
+            }
+            catch (JsonException)
+            {
+                strings.Add(result);
+            }
+        }
+        return strings;
+
+        void Add(JsonElement element)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.String:
+                    strings.Add(element.GetString()!);
+                    break;
+                case JsonValueKind.Array:
+                    foreach (var item in element.EnumerateArray())
+                        Add(item);
+                    break;
+                case JsonValueKind.Object:
+                    foreach (var property in element.EnumerateObject())
+                        Add(property.Value);
+                    break;
+            }
+        }
     }
 
     /// <summary>The value of each shown argument of a call. Null when the call has no value.

@@ -209,15 +209,15 @@ public sealed class ModelTests
 
     [TestCase(
         "Change the label of the structure with the ID s-1 to Main Depot.",
-        "Set label \"Main Depot\"?"
+        "Set Label? \"Main Depot\""
     )]
-    [TestCase("Label the structure s-2 as North Bunker.", "Set label \"North Bunker\"?")]
+    [TestCase("Label the structure s-2 as North Bunker.", "Set Label? \"North Bunker\"")]
     [TestCase(
         "Rename the structure s-1 to Main Depot and the structure s-2 to North Bunker.",
-        "Set label \"Main Depot\" and set label \"North Bunker\"?"
+        "Set Labels? \"Main Depot\" and \"North Bunker\""
     )]
-    [TestCase("Call the structure s-4 Fort Barley Seaport.", "Set label \"Fort Barley Seaport\"?")]
-    [TestCase("Remove the label of the structure s-3.", "Remove label?")]
+    [TestCase("Call the structure s-4 Fort Barley Seaport.", "Set Label? \"Fort Barley Seaport\"")]
+    [TestCase("Remove the label of the structure s-3.", "Remove Label? \"Old Depot\"")]
     public async Task Question_of_a_change_is_short_and_has_the_form_of_the_confirmation(
         string query,
         string expected

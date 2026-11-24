@@ -67,7 +67,7 @@ public sealed class McpToolSourceTests
             Assert.That(guilds.Content, Is.EqualTo("no guilds"));
             Assert.That(
                 session.Tools.Select(t => t.Name),
-                Is.EquivalentTo(new[] { "find_items", "list_guilds" })
+                Is.EquivalentTo(new[] { "find_items", "find_structures", "list_guilds" })
             );
             Assert.That(
                 _server.Authorizations.Distinct(),

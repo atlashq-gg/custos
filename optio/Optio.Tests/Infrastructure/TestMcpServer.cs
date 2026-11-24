@@ -9,8 +9,8 @@ using ModelContextProtocol.Server;
 namespace Optio.Tests.Infrastructure;
 
 /// <summary>
-/// A small MCP server in the test host, with two read tools and one write tool in the shape of the
-/// tools of the server. It lists the write tool only for a token with the write scope, as the
+/// A small MCP server in the test host, with three read tools and one write tool in the shape of
+/// the tools of the server. It lists the write tool only for a token with the write scope, as the
 /// server does. It keeps the <c>Authorization</c> header and the arguments of each call.
 /// </summary>
 internal sealed class TestMcpServer : IAsyncDisposable
@@ -85,6 +85,15 @@ internal sealed class TestMcpServer : IAsyncDisposable
 
     public const string LabelTool = "set_structure_label";
 
+    /// <summary>The structures of <c>find_structures</c>: the ID and the current label.</summary>
+    public static readonly Dictionary<string, string> Structures = new()
+    {
+        ["s-1"] = "Seaport",
+        ["s-2"] = "Bunker 2",
+        ["s-3"] = "Old Depot",
+        ["s-4"] = "Barley Dock",
+    };
+
     private static string? BearerToken(IServiceProvider services) =>
         services
             .GetRequiredService<IHttpContextAccessor>()
@@ -133,6 +142,27 @@ internal sealed class TestMcpServer : IAsyncDisposable
                 _ => [],
             };
             return JsonSerializer.Serialize(new { guild_id, rows });
+        }
+
+        [McpServerTool(Name = "find_structures", Title = "Find structures", ReadOnly = true)]
+        [System.ComponentModel.Description(
+            "The structures of the guild, with the ID and the label of each structure."
+        )]
+        public static string FindStructures(
+            string guild_id,
+            [System.ComponentModel.Description("Structure IDs or parts of labels.")]
+                string[]? structures = null
+        )
+        {
+            var rows = Structures
+                .Where(s =>
+                    structures is null
+                    || structures.Any(f =>
+                        s.Key == f || s.Value.Contains(f, StringComparison.OrdinalIgnoreCase)
+                    )
+                )
+                .Select(s => new { structure_id = s.Key, label = s.Value });
+            return JsonSerializer.Serialize(new { rows });
         }
 
         [McpServerTool(Name = LabelTool, Title = "Set the label of a structure", ReadOnly = false)]
