@@ -76,29 +76,32 @@ A query is a question of the user in plain language ([spec](../spec/05-stream.md
 3. For each MCP service, `optio` gets a token of the user with the read scope by exchange, and the service lists its read tools. With a `WriteScope`, `optio` also lists the tools with the read and write scopes. A tool that is only in that list is a write tool.
 4. The model gets the system prompt, the guild of `active_guild`, the prompt of the guild, the query, and the tools. Each query starts with no earlier conversation.
 5. Code sets the argument `guild_id` of each tool call to `active_guild`. The model does not see this argument. The model sees no token.
-6. `optio` sends one `progress` message for each tool call, then one `answer` or one `error`. Each message has the reference of the query.
+6. When two services have a tool with the same name, the model sees both tools as `{service}_{tool}`, for example `custos_list_guilds`. Other names do not change.
+7. `optio` sends one `progress` message for each tool call, then one `answer` or one `error`. Each message has the reference of the query.
 
 A query belongs to the client that sent it: the session of the client at the authorization server, in the claim `sid`. The messages of the query go only to the streams of that client.
 
 ### Write tools
 
-1. When the model calls a write tool, the loop stops. The read calls of that turn do not run.
-2. `optio` sends one `confirm` message with the reference of the query, and keeps the confirmation for 60 seconds. One confirmation holds all the write calls of the turn.
+1. When the model calls a write tool, the loop stops. No tool of that turn runs yet.
+2. `optio` sends one `confirm` message with the reference of the query. It keeps the confirmation and the conversation of the query in memory for 60 seconds. One confirmation holds all the write calls of the turn.
 3. The client that sent the query answers with `{"confirm": "<reference>", "accept": true}` or `false`. Code reads the answer, not the model. An answer from another client, or after the 60 seconds, gets `409`.
-4. With `accept` `true`, `optio` gets a token with the write scope by exchange from the token of the answer, and calls each write tool. It sends the result as the `answer`, or as an `error` when a call failed. The model does not get the result.
+4. With `accept` `true`, `optio` calls the tools of the turn. For a write tool, it gets a token with the write scope by exchange from the token of the answer. Then the loop continues: the model reads the results and writes the answer. It says that the action is done, and refers to the result. A new write call asks the user again. Each part has the limits of a query, and the tool calls of all parts count together.
 5. With `accept` `false`, `optio` removes the line of the confirmation: a message with the reference and no text.
 6. A new query of the client ends its open confirmation, and removes its line.
+7. When a write tool has a boolean argument `confirm`, code sets it to `true`, and the model does not see it. The confirmation of `optio` replaces the confirmation of the service.
 
 The text of the `confirm` message:
 
 - `optio` adds the argument `confirm_text` to each write tool, and removes it before the call. The model writes the question in it. The description of the argument tells the model that the question shows on a screen 50 characters wide. The model must leave out each word that is not necessary.
-- The form is `{Verb} {Object}? "value"`, with `and "value"` for each other value. A new value shows the new value. A removal shows the current value, from a tool result. Examples: `Set Label? "Main Depot"`, `Set Labels? "Main Depot" and "North Bunker"`, `Remove Label? "Old Depot"`.
+- The form is `{Verb} {Object}? "value"`, with `and "value"` for each other value. A new value shows the new value. A removal shows the current value, from a tool result. A long text does not show: the question names the action. Examples: `Set Label? "Main Depot"`, `Set Labels? "Main Depot" and "North Bunker"`, `Remove Label? "Old Depot"`, `Post Progress Log?`.
 - Before a removal, the example system prompt tells the model to read the current value, for example with `find_structures`.
 - `optio` uses the question of the model only when all of these are true:
   - It is one line of 120 characters at most.
-  - It holds each value of the calls.
-  - Each quoted text in it is a value of the calls, or a text in a tool result of the query.
-- Else code makes the text from the title of each tool and the values, for example `Set the label of a structure? "Main Depot" and "North Bunker"`. An absent value shows as `(none)`.
+  - It holds each text value of the calls of 40 characters or less, in any case. A longer text value, a boolean, or a number does not need to be in it.
+  - Each quoted text in it has a source: a value of the calls, or a text in a tool result of the query. A quoted text that ends in `…` must start a source.
+- Code puts the source of each quoted text in the question, so that the user sees the value with its real case.
+- Else code makes the text from the title of each tool and the values, for example `Set the label of a structure? "Main Depot" and "North Bunker"`. It cuts a value after 40 characters with `…`. An absent value shows as `(none)`.
 
 The check makes sure that the user sees each value of the change, and that each quoted text has a source. It cannot make sure that the verb of the question is correct, or that a current value belongs to the structure of the call.
 
@@ -112,7 +115,7 @@ The check makes sure that the user sees each value of the change, and that each 
 | Queries of one user in one hour | `MaxQueriesPerHour` |
 | Time of one confirmation | 60 seconds |
 
-A query over a limit of the user gets `429` with `Retry-After`. An answer to a confirmation does not count as a query.
+A query over a limit of the user gets `429` with `Retry-After`. An answer to a confirmation does not count in the hour. An accept while another query of the user runs gets `429`, and the confirmation stays open.
 
 ### Audit
 
@@ -126,6 +129,17 @@ The harness calls the model only through `IModelClient`. The only implementation
 - Each guild can have its own prompt, 1000 characters at most. It comes after the system prompt, in its own block.
 - An administrator of a guild changes it with `/optioadmin settings` in Discord: a form shows the prompt of now. Discord hides the command from members without the permission Administrator, and `optio` examines the permission again at each use. The bot of `optio` needs the scope `applications.commands`.
 - `optio` keeps the prompt of each guild in its PostgreSQL database, and writes an audit line to the log at each change.
+
+## Add a service
+
+`optio` can use the tools and the events of more than one domain service of the realm. A new service needs only configuration:
+
+1. In the realm, give the client `optio` the read scope and the write scope of the service as optional client scopes. The service must accept a token of `optio` with these scopes.
+2. Add an entry to `McpServices` with `Name`, `Url`, `ReadScope`, and `WriteScope`. The name is short, with letters, digits, `-`, and `_` only: it becomes a part of a tool name when two services share a tool name.
+3. For the events of the service, add its name to `Sources`, and give the service a producer user in the broker ([docs/producers.md](docs/producers.md#join-as-a-new-producer)).
+4. Tell the model about the service in the system prompt of the configuration.
+
+The tools of the service must use the argument `guild_id` for the guild, so that code can set it.
 
 ## Producers
 

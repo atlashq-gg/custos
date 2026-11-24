@@ -63,12 +63,15 @@ internal sealed partial class McpToolSource(
 {
     public const string HttpClientName = "mcp";
     public const string GuildArgument = "guild_id";
+    public const string ConfirmArgument = "confirm";
 
     public async Task<IToolSession> OpenAsync(ToolUser user, CancellationToken cancellationToken)
     {
         var session = new Session(this, user);
         try
         {
+            // The tools of all services first, so that a name that two services share is known.
+            List<(string Service, McpClientTool Tool, McpClient? Client)> found = [];
             foreach (var service in options.Value.McpServices)
             {
                 var client = await ConnectAsync(
@@ -79,8 +82,7 @@ internal sealed partial class McpToolSource(
                 );
                 session.Clients.Add(client);
                 var read = await client.ListToolsAsync(cancellationToken: cancellationToken);
-                foreach (var tool in read)
-                    Add(session, service, tool, client);
+                found.AddRange(read.Select(t => (service.Name, t, (McpClient?)client)));
 
                 if (string.IsNullOrWhiteSpace(service.WriteScope))
                     continue;
@@ -90,15 +92,23 @@ internal sealed partial class McpToolSource(
                     $"{service.ReadScope} {service.WriteScope}",
                     cancellationToken
                 );
-                foreach (
-                    var tool in await writeClient.ListToolsAsync(
-                        cancellationToken: cancellationToken
-                    )
-                )
-                {
-                    if (read.All(r => r.Name != tool.Name))
-                        Add(session, service, tool, null);
-                }
+                var all = await writeClient.ListToolsAsync(cancellationToken: cancellationToken);
+                found.AddRange(
+                    all.Where(t => read.All(r => r.Name != t.Name))
+                        .Select(t => (service.Name, t, (McpClient?)null))
+                );
+            }
+
+            var shared = found
+                .GroupBy(f => f.Tool.Name)
+                .Where(g => g.Select(f => f.Service).Distinct().Count() > 1)
+                .Select(g => g.Key)
+                .ToHashSet();
+            foreach (var (service, tool, client) in found)
+            {
+                var name = shared.Contains(tool.Name) ? $"{service}_{tool.Name}" : tool.Name;
+                if (!session.Add(name, service, tool, client))
+                    LogDuplicateTool(logger, tool.Name, service);
             }
             return session;
         }
@@ -125,27 +135,19 @@ internal sealed partial class McpToolSource(
         return await CallToolAsync(client, service.Name, user, call.Call, cancellationToken);
     }
 
-    private void Add(
-        Session session,
-        McpServiceOptions service,
-        McpClientTool tool,
-        McpClient? client
-    )
-    {
-        if (!session.Add(service.Name, tool, client))
-            LogDuplicateTool(logger, tool.Name, service.Name);
-    }
-
-    /// <summary>The JSON Schema of a tool without the argument <c>guild_id</c>.</summary>
-    internal static JsonElement WithoutGuild(JsonElement schema)
+    /// <summary>The JSON Schema of a tool without the arguments that code sets.</summary>
+    internal static JsonElement Without(JsonElement schema, IReadOnlyCollection<string> names)
     {
         var node = JsonNode.Parse(schema.GetRawText())!.AsObject();
         if (node["properties"] is JsonObject properties)
-            properties.Remove(GuildArgument);
+        {
+            foreach (var name in names)
+                properties.Remove(name);
+        }
         if (node["required"] is JsonArray required)
         {
             foreach (
-                var item in required.Where(r => r?.GetValue<string>() == GuildArgument).ToList()
+                var item in required.Where(r => names.Contains(r?.GetValue<string>())).ToList()
             )
                 required.Remove(item);
         }
@@ -225,28 +227,43 @@ internal sealed partial class McpToolSource(
 
         public IReadOnlyList<ModelTool> Tools => _tools;
 
-        /// <summary>False when a tool with the same name is already there.</summary>
-        public bool Add(string service, McpClientTool tool, McpClient? client)
+        /// <summary>Adds a tool with the name for the model. A tool without a client is a write
+        /// tool. False when a tool with the same name is already there.</summary>
+        public bool Add(string name, string service, McpClientTool tool, McpClient? client)
         {
-            if (_routes.ContainsKey(tool.Name))
+            if (_routes.ContainsKey(name))
                 return false;
-            var names = tool.JsonSchema.TryGetProperty("properties", out var properties)
-                ? properties.EnumerateObject().Select(p => p.Name).ToList()
+            var properties = tool.JsonSchema.TryGetProperty("properties", out var p)
+                ? p.EnumerateObject().ToList()
                 : [];
+            var confirm =
+                client is null
+                && properties.Any(a => a.Name == ConfirmArgument && HasType(a.Value, "boolean"));
+            List<string> hidden = confirm ? [GuildArgument, ConfirmArgument] : [GuildArgument];
             var title = tool.Title ?? tool.Name;
-            _routes[tool.Name] = new Route(
+            _routes[name] = new Route(
                 service,
+                tool.Name,
                 title,
                 client,
-                names.Contains(GuildArgument),
-                [.. names.Where(n => !n.EndsWith("_id", StringComparison.Ordinal))]
+                properties.Any(a => a.Name == GuildArgument),
+                confirm,
+                [
+                    .. properties
+                        .Where(a =>
+                            !a.Name.EndsWith("_id", StringComparison.Ordinal)
+                            && !hidden.Contains(a.Name)
+                            && HasType(a.Value, "string")
+                        )
+                        .Select(a => a.Name),
+                ]
             );
             _tools.Add(
                 new ModelTool(
-                    tool.Name,
+                    name,
                     title,
                     tool.Description,
-                    WithoutGuild(tool.JsonSchema),
+                    Without(tool.JsonSchema, hidden),
                     client is null
                 )
             );
@@ -261,30 +278,28 @@ internal sealed partial class McpToolSource(
                 route.Client,
                 route.Service,
                 user,
-                WithGuild(call, route.HasGuild),
+                ForService(call, route),
                 cancellationToken
             );
         }
 
         public WriteCall? AsWrite(ToolCall call) =>
             _routes.TryGetValue(call.Name, out var route) && route.Client is null
-                ? new WriteCall(
-                    route.Service,
-                    route.Title,
-                    WithGuild(call, route.HasGuild),
-                    route.Shown
-                )
+                ? new WriteCall(route.Service, route.Title, ForService(call, route), route.Shown)
                 : null;
 
-        private ToolCall WithGuild(ToolCall call, bool hasGuild)
+        /// <summary>The call with the name and the arguments for the service: the guild of the
+        /// stream, and <c>confirm</c> true for a write tool.</summary>
+        private ToolCall ForService(ToolCall call, Route route)
         {
-            if (!hasGuild)
-                return call;
             var arguments = call.Arguments.ToDictionary();
-            arguments[GuildArgument] = JsonSerializer.SerializeToElement(
-                user.Guild.ToString(CultureInfo.InvariantCulture)
-            );
-            return call with { Arguments = arguments };
+            if (route.HasGuild)
+                arguments[GuildArgument] = JsonSerializer.SerializeToElement(
+                    user.Guild.ToString(CultureInfo.InvariantCulture)
+                );
+            if (route.Confirm)
+                arguments[ConfirmArgument] = JsonSerializer.SerializeToElement(true);
+            return call with { Name = route.Tool, Arguments = arguments };
         }
 
         public async ValueTask DisposeAsync()
@@ -293,13 +308,27 @@ internal sealed partial class McpToolSource(
                 await client.DisposeAsync();
         }
 
-        /// <summary>The route of a tool. A write tool has no client: optio connects with the
-        /// write scope after the confirmation.</summary>
+        /// <summary>True when the JSON Schema of an argument allows the type.</summary>
+        private static bool HasType(JsonElement schema, string type) =>
+            schema.TryGetProperty("type", out var t)
+            && (
+                t.ValueKind == JsonValueKind.String
+                    ? t.GetString() == type
+                    : t.ValueKind == JsonValueKind.Array
+                        && t.EnumerateArray().Any(i => i.GetString() == type)
+            );
+
+        /// <summary>The route of a tool: its service and its name there. A write tool has no
+        /// client: optio connects with the write scope after the confirmation. <paramref
+        /// name="Shown"/> holds the text arguments that the user sees in the confirmation.
+        /// </summary>
         private sealed record Route(
             string Service,
+            string Tool,
             string Title,
             McpClient? Client,
             bool HasGuild,
+            bool Confirm,
             string[] Shown
         );
     }

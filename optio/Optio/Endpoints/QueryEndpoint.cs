@@ -92,8 +92,16 @@ internal static class QueryEndpoint
 
         if (answer is var (confirmReference, accepted))
         {
-            if (confirmations.Take(client, confirmReference) is not { } confirmation)
+            if (!confirmations.IsOpen(client, confirmReference))
                 return Problem(StatusCodes.Status409Conflict, "The confirmation is not open.");
+            if (accepted && !limiter.TryContinue(client.User))
+                return TooMany(http, QueryLimiter.RunningWait);
+            if (confirmations.Take(client, confirmReference) is not { } confirmation)
+            {
+                if (accepted)
+                    limiter.Finish(client.User);
+                return Problem(StatusCodes.Status409Conflict, "The confirmation is not open.");
+            }
             if (accepted)
             {
                 Run(
@@ -101,7 +109,7 @@ internal static class QueryEndpoint
                     lifetime,
                     (harness, stopping) =>
                         harness.ConfirmAsync(confirmation, accessToken, stopping),
-                    () => { }
+                    () => limiter.Finish(client.User)
                 );
             }
             else
@@ -112,11 +120,7 @@ internal static class QueryEndpoint
         }
 
         if (limiter.TryStart(client.User) is { } wait)
-        {
-            http.Response.Headers.RetryAfter = Math.Ceiling(wait.TotalSeconds)
-                .ToString(CultureInfo.InvariantCulture);
-            return Problem(StatusCodes.Status429TooManyRequests, "Too many queries.");
-        }
+            return TooMany(http, wait);
         // A new query of the client ends its open confirmation.
         if (confirmations.Cancel(client) is { } cancelled)
             Remove(hub, client, cancelled);
@@ -165,6 +169,13 @@ internal static class QueryEndpoint
             client,
             new StreamMessage("confirm", null, reference, QueryHarness.Source)
         );
+
+    private static IResult TooMany(HttpContext http, TimeSpan wait)
+    {
+        http.Response.Headers.RetryAfter = Math.Ceiling(wait.TotalSeconds)
+            .ToString(CultureInfo.InvariantCulture);
+        return Problem(StatusCodes.Status429TooManyRequests, "Too many queries.");
+    }
 
     private static IResult Problem(int status, string detail) =>
         TypedResults.Problem(statusCode: status, detail: detail);

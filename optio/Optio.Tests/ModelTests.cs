@@ -186,11 +186,7 @@ public sealed class ModelTests
         );
         var confirm = (await MessagesUntilEndAsync(stream))[^1];
         var callsBefore = TestMcpServer.LabelCalls.Count;
-        using var client = factory.CreateMemberClient();
-        using var response = await client.PostAsJsonAsync(
-            "/api/v1/query",
-            new { confirm = reference, accept = true }
-        );
+        using var response = await factory.AnswerAsync(reference, accept: true);
         var answer = (await MessagesUntilEndAsync(stream))[^1];
 
         using (Assert.EnterMultipleScope())
@@ -218,6 +214,12 @@ public sealed class ModelTests
     )]
     [TestCase("Call the structure s-4 Fort Barley Seaport.", "Set Label? \"Fort Barley Seaport\"")]
     [TestCase("Remove the label of the structure s-3.", "Remove Label? \"Old Depot\"")]
+    [TestCase("Mark the ticket t-1 as done.", "Set Status? \"done\"")]
+    [TestCase(
+        "Post a progress log to the crew c-1: Fuel run done at the seaport, 40 crates of diesel "
+            + "moved to the front depot.",
+        "Post Progress Log?"
+    )]
     public async Task Question_of_a_change_is_short_and_has_the_form_of_the_confirmation(
         string query,
         string expected
