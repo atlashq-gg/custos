@@ -1,0 +1,111 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using NetCord;
+using NetCord.Rest;
+using Optio.Discord;
+using Optio.Streams;
+
+namespace Optio.Tests;
+
+/// <summary>
+/// The member directory against the real Discord gateway. The tests need the bot token in
+/// <c>Discord__Token</c> and a member of a guild of the bot in <c>Discord__TestUserId</c>, who is
+/// not the owner and has no role with the permission Administrator. Without both, they skip. CI
+/// does not run them. They change nothing in Discord.
+/// </summary>
+[Category("Discord")]
+public sealed class DiscordMembersTests
+{
+    private DiscordMembers _members = null!;
+    private ulong _guild;
+    private ulong _user;
+
+    [OneTimeSetUp]
+    public async Task StartAsync()
+    {
+        var token = Environment.GetEnvironmentVariable("Discord__Token");
+        if (
+            string.IsNullOrEmpty(token)
+            || !ulong.TryParse(Environment.GetEnvironmentVariable("Discord__TestUserId"), out _user)
+        )
+        {
+            Assert.Ignore("Discord__Token or Discord__TestUserId is not set.");
+        }
+
+        using var rest = new RestClient(new BotToken(token));
+        await foreach (var guild in rest.GetCurrentUserGuildsAsync())
+        {
+            try
+            {
+                await rest.GetGuildUserAsync(guild.Id, _user);
+                _guild = guild.Id;
+                break;
+            }
+            catch (RestException)
+            {
+                // The test user is not a member of this guild.
+            }
+        }
+        if (_guild == 0)
+            Assert.Ignore("The test user is not a member of a guild of the bot.");
+
+        _members = new DiscordMembers(
+            Options.Create(new OptioOptions { DiscordToken = token }),
+            NullLogger<DiscordMembers>.Instance
+        );
+        await _members.StartAsync(default);
+    }
+
+    [OneTimeTearDown]
+    public async Task StopAsync()
+    {
+        if (_members is null)
+            return;
+        await _members.StopAsync(default);
+        _members.Dispose();
+    }
+
+    [Test]
+    public async Task Member_of_the_guild_reads_by_the_policy_with_its_roles()
+    {
+        Assert.That(
+            await _members.ConnectAsync(_guild, _user, default),
+            Is.EqualTo(MemberState.Member)
+        );
+        try
+        {
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(_members.CanRead(Policy([_guild]), _guild, _user), Is.True);
+                Assert.That(_members.CanRead(Policy([]), _guild, _user), Is.False);
+                Assert.That(_members.CanRead(Policy([], [_user]), _guild, _user), Is.True);
+            }
+        }
+        finally
+        {
+            _members.Disconnect(_guild, _user);
+        }
+    }
+
+    [Test]
+    public async Task User_that_is_not_a_member_is_not_a_member()
+    {
+        // A snowflake of 2015 that is not a member of a small test guild.
+        const ulong stranger = 100000000000000000;
+
+        Assert.That(
+            await _members.ConnectAsync(_guild, stranger, default),
+            Is.EqualTo(MemberState.NotMember)
+        );
+        _members.Disconnect(_guild, stranger);
+    }
+
+    [Test]
+    public async Task Guild_without_the_bot_has_no_bot()
+    {
+        Assert.That(await _members.ConnectAsync(1, _user, default), Is.EqualTo(MemberState.NoBot));
+        _members.Disconnect(1, _user);
+    }
+
+    private EventPolicy Policy(ulong[] roles, ulong[]? users = null) => new(_guild, roles, users);
+}

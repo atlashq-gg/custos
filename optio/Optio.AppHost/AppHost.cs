@@ -96,9 +96,10 @@ var server = builder
 //   dotnet user-secrets set Parameters:discord-token <bot token>
 //   dotnet user-secrets set Parameters:discord-user-id <Discord user ID of the user dev>
 // discord-user-id is for a token without the claim discord_id.
+var discordUserId = builder.AddParameter("discord-user-id");
 server
     .WithEnvironment("Discord__Token", builder.AddParameter("discord-token", secret: true))
-    .WithEnvironment("Custos__DevelopmentDiscordUserId", builder.AddParameter("discord-user-id"));
+    .WithEnvironment("Custos__DevelopmentDiscordUserId", discordUserId);
 
 // appsettings.Development.json of optio holds the localhost URLs of optio, the realm, and the
 // upload API of the server.
@@ -107,6 +108,21 @@ var optio = builder
     .WithEnvironment("Optio__CustosClientId", custosClientId)
     .WithEnvironment("Optio__OptioClientSecret", optioSecret)
     .WithReference(server)
+    // optio reads the streams as the user optio of the definitions file, and does not wait for
+    // the broker: its consumer connects again itself.
+    .WithEnvironment(
+        "ConnectionStrings__events",
+        ReferenceExpression.Create(
+            $"amqp://optio:optio@{events.GetEndpoint("tcp").Property(EndpointProperty.HostAndPort)}"
+        )
+    )
+    // The bot of optio for the stream. It can be the bot of the server in development:
+    //   dotnet user-secrets set Parameters:optio-discord-token <bot token>
+    .WithEnvironment(
+        "Optio__DiscordToken",
+        builder.AddParameter("optio-discord-token", secret: true)
+    )
+    .WithEnvironment("Optio__DevelopmentDiscordUserId", discordUserId)
     .WithHttpHealthCheck("/health/ready");
 
 // The tunnel serves only an endpoint that a container references. This reference also gives the
