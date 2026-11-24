@@ -18,9 +18,8 @@ internal enum MemberState
     Unavailable,
 }
 
-/// <summary>The Discord facts of the users that have an open stream. The host starts and stops
-/// it.</summary>
-internal interface IMemberDirectory : IHostedService
+/// <summary>The Discord facts of the users that have an open stream.</summary>
+internal interface IMemberDirectory
 {
     /// <summary>A guild became ready, so that <see cref="CanRead"/> knows its facts.</summary>
     event Action<ulong>? GuildReady;

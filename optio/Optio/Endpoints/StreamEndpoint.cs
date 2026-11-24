@@ -160,16 +160,8 @@ internal static partial class StreamEndpoint
 
             while (true)
             {
-                while (subscriber.Events.TryRead(out var streamEvent))
-                {
-                    var e = streamEvent.Event;
-                    await WriteAsync(
-                        response,
-                        streamEvent.Id,
-                        new StreamMessage("event", e.Text, e.Reference, e.Source),
-                        open.Token
-                    );
-                }
+                while (subscriber.Items.TryRead(out var item))
+                    await WriteAsync(response, item.Id, item.Message, open.Token);
 
                 using var tick = new CancellationTokenSource(KeepAlive, time);
                 using var wait = CancellationTokenSource.CreateLinkedTokenSource(
@@ -178,7 +170,7 @@ internal static partial class StreamEndpoint
                 );
                 try
                 {
-                    await subscriber.Events.WaitToReadAsync(wait.Token);
+                    await subscriber.Items.WaitToReadAsync(wait.Token);
                 }
                 catch (OperationCanceledException) when (!open.IsCancellationRequested)
                 {
@@ -217,14 +209,6 @@ internal static partial class StreamEndpoint
 
     private static IResult Problem(int status, string title, string detail) =>
         TypedResults.Problem(statusCode: status, title: title, detail: detail);
-
-    /// <summary>A message of spec/05-stream.md.</summary>
-    private sealed record StreamMessage(
-        string Kind,
-        string? Text,
-        string? Reference,
-        string Source
-    );
 
     [LoggerMessage(
         Level = LogLevel.Warning,

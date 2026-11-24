@@ -53,6 +53,7 @@ jobs:
           dotnet tool restore
           dotnet csharpier check .
           long=$(find . -name '*.cs' -not -path '*/obj/*' -not -path '*/bin/*' \
+            -not -name '*.Designer.cs' -not -name '*ModelSnapshot.cs' \
             -exec awk 'length > 100 { print FILENAME ":" FNR }' {} +)
           if [ -n "$long" ]; then echo "Lines over 100 characters:"; echo "$long"; exit 1; fi
       - run: dotnet build Optio.slnx --configuration Release --no-restore

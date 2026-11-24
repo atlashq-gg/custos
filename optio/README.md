@@ -2,7 +2,7 @@
 
 `optio` is the service that Custos calls ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). It implements the contract of [spec/](../spec/README.md): the discovery document, the upload, the stream, and the query. It calls the domain services, for example the [server](../server/README.md), with a token of the user for each service.
 
-The work is in progress. The roadmap is [#48](https://github.com/atlashq-gg/custos/issues/48). This version serves the discovery document and the Client ID Metadata Document of Custos, relays the upload, and sends the events of the domain services on the stream. The query comes later.
+The work is in progress. The roadmap is [#48](https://github.com/atlashq-gg/custos/issues/48). This version serves the discovery document and the Client ID Metadata Document of Custos, relays the upload, sends the events of the domain services on the stream, and answers a query with a model and the read tools of the MCP services.
 
 ## Run
 
@@ -18,12 +18,12 @@ The AppHost starts the full system:
 |---|---|---|
 | optio | `http://localhost:5090` | The service URL for Custos. |
 | server | `http://localhost:5080` | The domain service of the guild records ([server/README.md](../server/README.md)). |
-| PostgreSQL 18 | (dashboard) | The database of the server. The data lasts for one run. |
+| PostgreSQL 18 | (dashboard) | The databases of the server and of `optio`. The data lasts for one run. |
 | RabbitMQ | (dashboard) | The event broker, with the users, the exchange, and the stream of [rabbitmq/definitions.json](rabbitmq/definitions.json). The server publishes its events to it. |
 | Keycloak | `http://localhost:8180` | The realm `custos` from [server/keycloak/custos-realm.json](../server/keycloak/custos-realm.json), with the user `dev`, password `dev`. |
 | Dashboard | `http://localhost:15180` | The Aspire dashboard. The login URL is in the console output. |
 
-The server needs a Discord bot token in the user secrets of the AppHost ([server/README.md](../server/README.md#run)). `optio` needs a Discord bot token for the stream, in the parameter `optio-discord-token`. In development, it can be the token of the bot of the server. The AppHost makes a new secret for the client `optio` on each start.
+The server needs a Discord bot token in the user secrets of the AppHost ([server/README.md](../server/README.md#run)). `optio` needs a Discord bot token for the stream, in the parameter `optio-discord-token`. In development, it can be the token of the bot of the server. The query needs a key of the model provider in the parameter `optio-model-key`, and uses the example system prompt [docs/system-prompt.example.txt](docs/system-prompt.example.txt). The AppHost makes a new secret for the client `optio` on each start.
 
 ## Endpoints
 
@@ -33,6 +33,7 @@ The server needs a Discord bot token in the user secrets of the AppHost ([server
 | `GET /.well-known/custos-client` | The Client ID Metadata Document (CIMD) of Custos. Its URL is the client ID. |
 | `POST /api/v1/uploads` | The upload ([spec](../spec/03-upload.md)), relayed to the upload API of the server. |
 | `GET /api/v1/stream` | The stream ([spec](../spec/05-stream.md)). Only when the stream is configured. |
+| `POST /api/v1/query` | The query ([spec](../spec/05-stream.md#query)). Only when the query is configured. |
 | `GET /health/alive`, `GET /health/ready` | The health checks. |
 
 ## Upload
@@ -66,6 +67,35 @@ The stream sends the events of the domain services to Custos ([spec](../spec/05-
 - When the bot is not in the guild, the stream sends one `error` message and stays open.
 - When Discord does not know a guild yet, `optio` holds its events until the guild is ready.
 
+## Query
+
+A query is a question of the user in plain language ([spec](../spec/05-stream.md#query)). A model answers it with the read tools of the MCP services. The query is on when the configuration has the stream, the database, the model key, the system prompt, and one MCP service or more. Then the discovery document has `query_endpoint`.
+
+1. Custos sends the query with its token. The user needs an open stream (`409` if not).
+2. `optio` answers `202` with the reference of the query, and runs the query in the background.
+3. For each MCP service, `optio` gets a token of the user with the read scope by exchange. The service lists only its read tools.
+4. The model gets the system prompt, the guild of `active_guild`, the prompt of the guild, the query, and the tools. Each query starts with no earlier conversation.
+5. Code sets the argument `guild_id` of each tool call to `active_guild`. The model does not see this argument. The model sees no token.
+6. `optio` sends one `progress` message for each tool call, then one `answer` or one `error`, to each open stream of the user. Each message has the reference of the query.
+
+| Limit | Value |
+|---|---|
+| Tool calls of one query | 8 |
+| Time of one query | 60 seconds |
+| Running queries of one user | 1 |
+| Queries of one user in one hour | `MaxQueriesPerHour` |
+
+A query over a limit of the user gets `429` with `Retry-After`. An answer to a confirmation gets `409`, because no confirmation exists yet.
+
+The harness calls the model only through `IModelClient`. The only implementation calls the Messages API of Anthropic with the Anthropic C# SDK.
+
+### Prompts
+
+- The system prompt is the configuration value `SystemPrompt`. The repository holds an example: [docs/system-prompt.example.txt](docs/system-prompt.example.txt).
+- Each guild can have its own prompt, 1000 characters at most. It comes after the system prompt, in its own block.
+- An administrator of a guild changes it with `/optioadmin settings` in Discord: a form shows the prompt of now. Discord hides the command from members without the permission Administrator, and `optio` examines the permission again at each use. The bot of `optio` needs the scope `applications.commands`.
+- `optio` keeps the prompt of each guild in its PostgreSQL database, and writes an audit line to the log at each change.
+
 ## Producers
 
 A domain service sends events to `optio` through a RabbitMQ broker. Each event holds the text for the user and the policy that tells who can read it. The broker keeps the events of each producer in a stream, from which `optio` replays. The contract for such a producer is [docs/producers.md](docs/producers.md), with the schema [schemas/event.schema.json](schemas/event.schema.json).
@@ -97,6 +127,14 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 | `DiscordToken` | (none) | The token of the Discord bot of `optio`. Without it, `optio` has no stream. |
 | `DevelopmentGuildId` | (none) | The guild of a stream whose token has no claim `active_guild`. Only in the environment `Development`, as in the server. `1236389163276959888` in development. |
 | `DevelopmentDiscordUserId` | (none) | The user of a stream whose token has no claim `discord_id`. Only in the environment `Development`. |
+| `ModelApiKey` | (none) | The key of the model provider. Without it, `optio` answers no query. |
+| `ModelId` | `claude-haiku-5-5` | The model of the query. |
+| `ModelEffort` | `medium` | The effort of the model: `low`, `medium`, `high`, `xhigh`, or `max`. |
+| `SystemPrompt` | (none) | The system prompt of the query. Without it, `optio` answers no query. |
+| `MaxQueriesPerHour` | `20` | The queries of one user in one hour. |
+| `McpServices` | `[]` | The MCP services of the query. Each entry has `Name`, `Url` (the MCP endpoint), and `ReadScope` (for example `custos:read`). |
+
+The connection string of the database is `ConnectionStrings:optio` (`ConnectionStrings__optio`). Without it, `optio` keeps no guild settings, and has no commands and no query. `optio` applies its migrations when it starts.
 
 The connection string of the broker is `ConnectionStrings:events` (`ConnectionStrings__events`), an AMQP URI with the user `optio`, for example `amqp://optio:...@broker:5672`. Without it, `optio` has no stream.
 

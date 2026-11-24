@@ -11,34 +11,35 @@ internal static class StreamSetup
     /// Discord token. Without them, optio has no stream, and the discovery document has no
     /// <c>stream_endpoint</c>.
     /// </summary>
+    public static bool IsEnabled(IConfiguration configuration)
+    {
+        var options = configuration.GetSection(OptioOptions.SectionName).Get<OptioOptions>()
+            ?? new OptioOptions();
+        return !string.IsNullOrWhiteSpace(
+                configuration.GetConnectionString(OptioOptions.BrokerConnectionName)
+            )
+            && options.Sources.Length > 0
+            && !string.IsNullOrEmpty(options.DiscordToken);
+    }
+
     public static IHostApplicationBuilder AddOptioStream(this IHostApplicationBuilder builder)
     {
-        var options = builder.Configuration.GetSection(OptioOptions.SectionName).Get<OptioOptions>()
-            ?? new OptioOptions();
-        if (
-            builder.Configuration.GetConnectionString(OptioOptions.BrokerConnectionName)
-                is not { Length: > 0 } connection
-            || options.Sources.Length == 0
-            || string.IsNullOrEmpty(options.DiscordToken)
-        )
-        {
+        if (!IsEnabled(builder.Configuration))
             return builder;
-        }
 
         // The consumer connects again itself, from its last offset.
         builder.Services.AddSingleton(
             new ConnectionFactory
             {
-                Uri = new Uri(connection),
+                Uri = new Uri(
+                    builder.Configuration.GetConnectionString(OptioOptions.BrokerConnectionName)!
+                ),
                 AutomaticRecoveryEnabled = false,
                 TopologyRecoveryEnabled = false,
                 ClientProvidedName = "optio",
             }
         );
         builder.Services.AddSingleton<IMemberDirectory, DiscordMembers>();
-        builder.Services.AddHostedService(services =>
-            services.GetRequiredService<IMemberDirectory>()
-        );
         builder.Services.AddSingleton<StreamHub>();
         builder.Services.AddHostedService<EventConsumer>();
         return builder;

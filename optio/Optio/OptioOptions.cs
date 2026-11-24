@@ -95,6 +95,30 @@ public sealed class OptioOptions
     /// the environment Development, as in the server.</summary>
     public long? DevelopmentDiscordUserId { get; set; }
 
+    /// <summary>The key of the model provider. Keep it in <c>/run/secrets/Optio__ModelApiKey</c>.
+    /// Without it, optio answers no query.</summary>
+    public string? ModelApiKey { get; set; }
+
+    /// <summary>The model of the query harness.</summary>
+    [Required]
+    public string ModelId { get; set; } = "claude-haiku-5-5";
+
+    /// <summary>The effort of the model: <c>low</c>, <c>medium</c>, <c>high</c>, <c>xhigh</c>, or
+    /// <c>max</c>.</summary>
+    [RegularExpression("^(low|medium|high|xhigh|max)$")]
+    public string ModelEffort { get; set; } = "medium";
+
+    /// <summary>The system prompt of the query harness. The repository holds an example in
+    /// <c>optio/docs/system-prompt.example.txt</c>. Without it, optio answers no query.</summary>
+    public string? SystemPrompt { get; set; }
+
+    /// <summary>The queries of one user in one hour.</summary>
+    [Range(1, 10000)]
+    public int MaxQueriesPerHour { get; set; } = 20;
+
+    /// <summary>The MCP services whose read tools the query harness can call.</summary>
+    public List<McpServiceOptions> McpServices { get; set; } = [];
+
     /// <summary>The name of the connection string of the broker.</summary>
     public const string BrokerConnectionName = "events";
 
@@ -111,4 +135,21 @@ public sealed class OptioOptions
             : CustosClientId;
 
     public static string Combine(string baseUrl, string path) => baseUrl.TrimEnd('/') + path;
+}
+
+/// <summary>An MCP service of the query harness.</summary>
+public sealed class McpServiceOptions
+{
+    /// <summary>A short name for the logs.</summary>
+    [Required]
+    public string Name { get; set; } = "";
+
+    /// <summary>The MCP endpoint, for example <c>http://server:8080/mcp</c>.</summary>
+    [Required, Url]
+    public string Url { get; set; } = "";
+
+    /// <summary>The scope of the token for the read tools, for example
+    /// <c>custos:read</c>.</summary>
+    [Required]
+    public string ReadScope { get; set; } = "";
 }

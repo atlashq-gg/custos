@@ -51,7 +51,11 @@ var keycloak = builder
 
 // PostgreSQL 18, the version that the table definitions in issue #1 were tested on. No volume: the
 // data lasts one run. The database name is CustosDbContext.ConnectionName of the server.
-var database = builder.AddPostgres("postgres").WithImageTag("18").AddDatabase("custos");
+var postgres = builder.AddPostgres("postgres").WithImageTag("18");
+var database = postgres.AddDatabase("custos");
+
+// The database of optio, for the settings of the guilds. The name is OptioDbContext.ConnectionName.
+var optioDatabase = postgres.AddDatabase("optio");
 
 // The event broker (ADR 0007), with the users and the exchanges of the definitions file. The
 // broker imports the file at the start, and then has only the users of the file. Thus the
@@ -123,6 +127,21 @@ var optio = builder
         builder.AddParameter("optio-discord-token", secret: true)
     )
     .WithEnvironment("Optio__DevelopmentDiscordUserId", discordUserId)
+    .WithReference(optioDatabase)
+    .WaitFor(optioDatabase)
+    // The query: the key of the model, the example system prompt, and the MCP endpoint of the
+    // server. Without the key, optio has no query_endpoint:
+    //   dotnet user-secrets set Parameters:optio-model-key <key>
+    .WithEnvironment("Optio__ModelApiKey", builder.AddParameter("optio-model-key", secret: true))
+    .WithEnvironment(
+        "Optio__SystemPrompt",
+        File.ReadAllText(
+            Path.Combine(builder.AppHostDirectory, "..", "docs", "system-prompt.example.txt")
+        )
+    )
+    .WithEnvironment("Optio__McpServices__0__Name", "custos")
+    .WithEnvironment("Optio__McpServices__0__Url", serverResource)
+    .WithEnvironment("Optio__McpServices__0__ReadScope", "custos:read")
     .WithHttpHealthCheck("/health/ready");
 
 // The tunnel serves only an endpoint that a container references. This reference also gives the
