@@ -47,15 +47,13 @@ internal static partial class StreamEndpoint
     )
     {
         var user = http.User;
-        if (
-            TokenClaims.GuildId(user, options.Value, environment) is not { } guild
-            || TokenClaims.DiscordUserId(user, options.Value, environment) is not { } userId
-        )
+        if (TokenClaims.Client(user, options.Value, environment) is not { } client)
         {
             await Forbidden("The token names no Discord guild or user.").ExecuteAsync(http);
             return;
         }
 
+        var (guild, userId, _) = client;
         var state = await members.ConnectAsync(guild, userId, cancellationToken);
         try
         {
@@ -77,7 +75,7 @@ internal static partial class StreamEndpoint
             }
 
             var lastEventId = http.Request.Headers["Last-Event-ID"].FirstOrDefault();
-            if (hub.Subscribe(guild, userId, lastEventId) is not { } subscriber)
+            if (hub.Subscribe(client, lastEventId) is not { } subscriber)
             {
                 http.Response.Headers.RetryAfter = RetryAfterSeconds.ToString(
                     CultureInfo.InvariantCulture

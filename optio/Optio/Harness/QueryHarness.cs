@@ -1,14 +1,14 @@
 using System.Globalization;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Optio.Storage;
 using Optio.Streams;
 
 namespace Optio.Harness;
 
-/// <summary>A query of a user in the guild of the stream.</summary>
+/// <summary>A query of a client in the guild of its stream.</summary>
 internal sealed record Query(
-    ulong Guild,
-    ulong User,
+    StreamClient Client,
     string AccessToken,
     string Reference,
     string Text
@@ -18,11 +18,15 @@ internal sealed record Query(
 /// The loop of one query: the model, the tool calls, the model. One query has at most
 /// <see cref="MaxToolCalls"/> tool calls and <see cref="MaxDuration"/>. The harness sends one
 /// <c>progress</c> message for each tool call, then one <c>answer</c> or one <c>error</c>, to each
-/// open stream of the user. Each query starts with no earlier conversation.
+/// open stream of the client. Each query starts with no earlier conversation.
+/// When the model calls a write tool, the loop stops with a <c>confirm</c> message. After the user
+/// accepts, <see cref="ConfirmAsync"/> calls the write tools and sends the result as the
+/// <c>answer</c>, with no other turn of the model (decisions on #48 of 2026-11-24).
 /// </summary>
 internal sealed partial class QueryHarness(
     IModelClient model,
     IToolSource tools,
+    Confirmations confirmations,
     GuildSettingsStore settings,
     StreamHub hub,
     IOptions<OptioOptions> options,
@@ -37,7 +41,32 @@ internal sealed partial class QueryHarness(
     /// <summary>The limit of the text of a stream message (spec/05-stream.md).</summary>
     public const int MaxTextLength = 500;
 
-    public async Task RunAsync(Query query, CancellationToken stoppingToken)
+    public Task RunAsync(Query query, CancellationToken stoppingToken) =>
+        RunAsync(query, cancellationToken => AnswerAsync(query, cancellationToken), stoppingToken);
+
+    /// <summary>Calls the write tools of a confirmation that the user accepted, with the access
+    /// token of the answer.</summary>
+    public Task ConfirmAsync(
+        Confirmation confirmation,
+        string accessToken,
+        CancellationToken stoppingToken
+    )
+    {
+        var query = new Query(confirmation.Client, accessToken, confirmation.Reference, "");
+        return RunAsync(
+            query,
+            cancellationToken => WriteAsync(query, confirmation.Calls, cancellationToken),
+            stoppingToken
+        );
+    }
+
+    /// <summary>Runs the work of a query, and sends its result. A null result sends nothing.
+    /// </summary>
+    private async Task RunAsync(
+        Query query,
+        Func<CancellationToken, Task<(string Kind, string Text)?>> work,
+        CancellationToken stoppingToken
+    )
     {
         using var timeout = new CancellationTokenSource(MaxDuration, time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
@@ -46,7 +75,8 @@ internal sealed partial class QueryHarness(
         );
         try
         {
-            Send(query, "answer", await AnswerAsync(query, linked.Token));
+            if (await work(linked.Token) is { } result)
+                Send(query, result.Kind, result.Text);
         }
         catch (OperationCanceledException) when (timeout.IsCancellationRequested)
         {
@@ -63,22 +93,33 @@ internal sealed partial class QueryHarness(
         }
     }
 
-    private async Task<string> AnswerAsync(Query query, CancellationToken cancellationToken)
+    /// <summary>The answer, or null when the query waits for a confirmation.</summary>
+    private async Task<(string Kind, string Text)?> AnswerAsync(
+        Query query,
+        CancellationToken cancellationToken
+    )
     {
-        var guildSettings = await settings.GetAsync(query.Guild, cancellationToken);
-        var system = SystemPrompt(options.Value.SystemPrompt!, query.Guild, guildSettings.Prompt);
+        var guild = query.Client.Guild;
+        var guildSettings = await settings.GetAsync(guild, cancellationToken);
+        var system = SystemPrompt(options.Value.SystemPrompt!, guild, guildSettings.Prompt);
         await using var session = await tools.OpenAsync(
-            query.AccessToken,
-            query.Guild,
+            new ToolUser(query.AccessToken, guild, query.Client.User),
             cancellationToken
         );
+        List<ModelTool> modelTools =
+        [
+            .. session.Tools.Select(t =>
+                t.Write ? t with { Schema = Confirmations.WithTextArgument(t.Schema) } : t
+            ),
+        ];
 
         List<ModelMessage> messages = [new UserMessage(query.Text)];
+        List<string> seen = [];
         var calls = 0;
         while (true)
         {
             var turn = await model.NextAsync(
-                new ModelRequest(system, session.Tools, messages),
+                new ModelRequest(system, modelTools, messages),
                 cancellationToken
             );
             switch (turn.Stop)
@@ -88,12 +129,14 @@ internal sealed partial class QueryHarness(
                 case ModelStop.Limit:
                     throw new QueryException("The answer was too long. Ask a smaller question.");
                 case ModelStop.End or ModelStop.ToolCalls when turn.ToolCalls.Count == 0:
-                    return turn.Text;
+                    return ("answer", turn.Text);
             }
 
             calls += turn.ToolCalls.Count;
             if (calls > MaxToolCalls)
                 throw new QueryException("The query needs too many steps. Ask a smaller question.");
+            if (Confirm(query, session, turn.ToolCalls, seen))
+                return null;
 
             messages.Add(new AssistantMessage(turn));
             List<ToolResult> results = [];
@@ -104,7 +147,64 @@ internal sealed partial class QueryHarness(
                 results.Add(await session.CallAsync(call, cancellationToken));
             }
             messages.Add(new ToolResultsMessage(results));
+            seen.AddRange(results.Select(r => r.Content));
         }
+    }
+
+    /// <summary>
+    /// Opens a confirmation for the write calls of a turn, and sends the <c>confirm</c> message.
+    /// The read calls of that turn do not run. <paramref name="results"/> holds the tool results
+    /// of the query. False when the turn has no write call.
+    /// </summary>
+    private bool Confirm(
+        Query query,
+        IToolSession session,
+        IReadOnlyList<ToolCall> calls,
+        IReadOnlyList<string> results
+    )
+    {
+        string? modelText = null;
+        List<WriteCall> writes = [];
+        foreach (var call in calls)
+        {
+            var arguments = call.Arguments.ToDictionary();
+            arguments.Remove(Confirmations.TextArgument, out var text);
+            if (session.AsWrite(call with { Arguments = arguments }) is not { } write)
+                continue;
+            if (writes.Count == 0 && text.ValueKind == JsonValueKind.String)
+                modelText = text.GetString();
+            writes.Add(write);
+        }
+        if (writes.Count == 0)
+            return false;
+
+        var question = Confirmations.Text(modelText, writes, results);
+        if (question.Length > MaxTextLength)
+            throw new QueryException("The query asks for too many changes at one time.");
+        confirmations.Open(query.Client, query.Reference, writes);
+        Send(query, "confirm", question);
+        return true;
+    }
+
+    /// <summary>Calls the write tools. The answer gives the outcome of each call.</summary>
+    private async Task<(string Kind, string Text)?> WriteAsync(
+        Query query,
+        IReadOnlyList<WriteCall> calls,
+        CancellationToken cancellationToken
+    )
+    {
+        var user = new ToolUser(query.AccessToken, query.Client.Guild, query.Client.User);
+        List<string> outcomes = [];
+        var failed = false;
+        foreach (var call in calls)
+        {
+            var result = await tools.CallAsync(user, call, cancellationToken);
+            failed |= result.IsError;
+            outcomes.Add(
+                result.IsError ? $"{call.Title}: {result.Content.Trim()}" : $"{call.Title}: done."
+            );
+        }
+        return (failed ? "error" : "answer", string.Join(" ", outcomes));
     }
 
     /// <summary>
@@ -123,12 +223,12 @@ internal sealed partial class QueryHarness(
                 + $"<guild_instructions>\n{guildPrompt}\n</guild_instructions>";
     }
 
-    private void Send(Query query, string kind, string text)
+    private void Send(Query query, string kind, string? text)
     {
         text = string.IsNullOrWhiteSpace(text) ? "The model gave no answer." : text.Trim();
         if (text.Length > MaxTextLength)
             text = text[..(MaxTextLength - 1)] + "…";
-        hub.SendToUser(query.User, new StreamMessage(kind, text, query.Reference, Source));
+        hub.SendToClient(query.Client, new StreamMessage(kind, text, query.Reference, Source));
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The query {Reference} failed")]

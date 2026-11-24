@@ -97,6 +97,7 @@ internal sealed class OptioFactory(
             builder.UseSetting("Optio:McpServices:0:Name", "server");
             builder.UseSetting("Optio:McpServices:0:Url", "http://server.test/mcp");
             builder.UseSetting("Optio:McpServices:0:ReadScope", "custos:read");
+            builder.UseSetting("Optio:McpServices:0:WriteScope", "custos:write");
         }
         if (stream)
         {
@@ -176,15 +177,22 @@ internal sealed class OptioFactory(
     }
 
     /// <summary>A client of a member of <see cref="FakeMembers.Guild"/> with a token of
-    /// Custos.</summary>
-    public HttpClient CreateMemberClient(ulong user = FakeMembers.Reader) =>
+    /// Custos. <paramref name="session"/> is the session of the client in the claim
+    /// <c>sid</c>.</summary>
+    public HttpClient CreateMemberClient(
+        ulong user = FakeMembers.Reader,
+        string session = DefaultSession
+    ) =>
         CreateCustosClient(
             claims:
             [
                 new Claim("active_guild", FakeMembers.Guild.ToString()),
                 new Claim("discord_id", user.ToString()),
+                new Claim("sid", session),
             ]
         );
+
+    public const string DefaultSession = "session-1";
 
     public static string CustosToken(
         string subject,
@@ -227,6 +235,15 @@ internal sealed class FakeAuthorizationServer : HttpMessageHandler
     public List<(string? Authorization, Dictionary<string, string> Form)> Requests { get; } = [];
 
     public HttpStatusCode Status { get; set; } = HttpStatusCode.OK;
+
+    /// <summary>The scope of the exchange that gave the token, or null.</summary>
+    public string? ScopeOf(string token)
+    {
+        lock (Requests)
+            return int.TryParse(token.Replace("exchanged-", ""), out var n) && n <= Requests.Count
+                ? Requests[n - 1].Form["scope"]
+                : null;
+    }
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,

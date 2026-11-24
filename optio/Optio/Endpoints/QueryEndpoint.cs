@@ -13,8 +13,8 @@ public sealed record QueryAccepted(string Reference);
 
 /// <summary>
 /// The query of spec/05-stream.md. optio accepts the query, and the harness answers on the open
-/// streams of the user. The answer to a confirmation comes with M34: until then, no confirmation
-/// is open.
+/// streams of the client that sent it. The same endpoint takes the answer of that client to a
+/// confirmation.
 /// </summary>
 internal static class QueryEndpoint
 {
@@ -32,58 +32,114 @@ internal static class QueryEndpoint
         HttpContext http,
         StreamHub hub,
         QueryLimiter limiter,
+        Confirmations confirmations,
         IServiceScopeFactory scopes,
         IHostApplicationLifetime lifetime,
         IOptions<OptioOptions> options,
         IHostEnvironment environment
     )
     {
-        string text;
+        string? text = null;
+        (string Reference, bool Accept)? answer = null;
         try
         {
             using var body = await JsonDocument.ParseAsync(http.Request.Body);
             var root = body.RootElement;
-            if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("confirm", out _))
-                return Problem(StatusCodes.Status409Conflict, "The confirmation is not open.");
-            if (
-                root.ValueKind != JsonValueKind.Object
-                || !root.TryGetProperty("text", out var value)
-                || value.ValueKind != JsonValueKind.String
-                || value.GetString() is not { Length: > 0 and <= MaxTextLength } query
+            if (root.ValueKind != JsonValueKind.Object)
+                return Problem(StatusCodes.Status400BadRequest, "The body is not a JSON object.");
+            if (root.TryGetProperty("confirm", out var confirm))
+            {
+                if (
+                    confirm.GetString() is not { Length: > 0 } reference
+                    || !root.TryGetProperty("accept", out var accept)
+                    || accept.ValueKind is not (JsonValueKind.True or JsonValueKind.False)
+                )
+                {
+                    return Problem(
+                        StatusCodes.Status400BadRequest,
+                        "The answer needs confirm and accept."
+                    );
+                }
+                answer = (reference, accept.GetBoolean());
+            }
+            else if (
+                root.TryGetProperty("text", out var value)
+                && value.ValueKind == JsonValueKind.String
+                && value.GetString() is { Length: > 0 and <= MaxTextLength } query
             )
+            {
+                text = query;
+            }
+            else
             {
                 return Problem(
                     StatusCodes.Status400BadRequest,
                     $"The body needs text with 1 to {MaxTextLength} characters."
                 );
             }
-            text = query;
         }
-        catch (JsonException)
+        catch (Exception e) when (e is JsonException or InvalidOperationException)
         {
-            return Problem(StatusCodes.Status400BadRequest, "The body is not JSON.");
+            return Problem(StatusCodes.Status400BadRequest, "The body is not valid.");
         }
 
-        if (
-            TokenClaims.GuildId(http.User, options.Value, environment) is not { } guild
-            || TokenClaims.DiscordUserId(http.User, options.Value, environment) is not { } user
-        )
-        {
+        if (TokenClaims.Client(http.User, options.Value, environment) is not { } client)
             return Problem(StatusCodes.Status403Forbidden, "The token names no guild or user.");
-        }
-        if (!hub.HasStream(guild, user))
+        if (!hub.HasStream(client))
             return Problem(StatusCodes.Status409Conflict, "The user has no open stream.");
         if (await http.GetTokenAsync("access_token") is not { } accessToken)
             return Problem(StatusCodes.Status403Forbidden, "The request has no token.");
 
-        if (limiter.TryStart(user) is { } wait)
+        if (answer is var (confirmReference, accepted))
+        {
+            if (confirmations.Take(client, confirmReference) is not { } confirmation)
+                return Problem(StatusCodes.Status409Conflict, "The confirmation is not open.");
+            if (accepted)
+            {
+                Run(
+                    scopes,
+                    lifetime,
+                    (harness, stopping) =>
+                        harness.ConfirmAsync(confirmation, accessToken, stopping),
+                    () => { }
+                );
+            }
+            else
+            {
+                Remove(hub, client, confirmReference);
+            }
+            return TypedResults.Accepted((string?)null, new QueryAccepted(confirmReference));
+        }
+
+        if (limiter.TryStart(client.User) is { } wait)
         {
             http.Response.Headers.RetryAfter = Math.Ceiling(wait.TotalSeconds)
                 .ToString(CultureInfo.InvariantCulture);
             return Problem(StatusCodes.Status429TooManyRequests, "Too many queries.");
         }
+        // A new query of the client ends its open confirmation.
+        if (confirmations.Cancel(client) is { } cancelled)
+            Remove(hub, client, cancelled);
 
-        var reference = $"query:{Guid.NewGuid():N}";
+        var queryReference = $"query:{Guid.NewGuid():N}";
+        Run(
+            scopes,
+            lifetime,
+            (harness, stopping) =>
+                harness.RunAsync(new Query(client, accessToken, queryReference, text!), stopping),
+            () => limiter.Finish(client.User)
+        );
+        return TypedResults.Accepted((string?)null, new QueryAccepted(queryReference));
+    }
+
+    /// <summary>Runs the harness in the background, in its own scope.</summary>
+    private static void Run(
+        IServiceScopeFactory scopes,
+        IHostApplicationLifetime lifetime,
+        Func<QueryHarness, CancellationToken, Task> work,
+        Action done
+    )
+    {
         var stopping = lifetime.ApplicationStopping;
         _ = Task.Run(
             async () =>
@@ -91,19 +147,24 @@ internal static class QueryEndpoint
                 try
                 {
                     await using var scope = scopes.CreateAsyncScope();
-                    await scope
-                        .ServiceProvider.GetRequiredService<QueryHarness>()
-                        .RunAsync(new Query(guild, user, accessToken, reference, text), stopping);
+                    await work(scope.ServiceProvider.GetRequiredService<QueryHarness>(), stopping);
                 }
                 finally
                 {
-                    limiter.Finish(user);
+                    done();
                 }
             },
             CancellationToken.None
         );
-        return TypedResults.Accepted((string?)null, new QueryAccepted(reference));
     }
+
+    /// <summary>Removes the line of a confirmation: a message with its reference and no text.
+    /// </summary>
+    private static void Remove(StreamHub hub, StreamClient client, string reference) =>
+        hub.SendToClient(
+            client,
+            new StreamMessage("confirm", null, reference, QueryHarness.Source)
+        );
 
     private static IResult Problem(int status, string detail) =>
         TypedResults.Problem(statusCode: status, detail: detail);

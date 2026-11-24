@@ -100,6 +100,8 @@ public sealed partial class KeycloakLoginTests
             scopes
         );
         Assert.That(Payload(token).GetProperty("aud").ToString(), Does.Contain("optio"));
+        // The query belongs to the session of the client (decision on #48 of 2026-11-24).
+        Assert.That(Payload(token).TryGetProperty(TokenClaims.Session, out _), Is.True);
 
         var body = new ByteArrayContent([.. "GVAS"u8]);
         body.Headers.ContentType = new MediaTypeHeaderValue(Uploads.OctetStream);

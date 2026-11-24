@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
@@ -8,8 +9,9 @@ using ModelContextProtocol.Server;
 namespace Optio.Tests.Infrastructure;
 
 /// <summary>
-/// A small MCP server in the test host, with two read tools in the shape of the tools of the
-/// server. It keeps the <c>Authorization</c> header and the arguments of each call.
+/// A small MCP server in the test host, with three read tools and one write tool in the shape of
+/// the tools of the server. It lists the write tool only for a token with the write scope, as the
+/// server does. It keeps the <c>Authorization</c> header and the arguments of each call.
 /// </summary>
 internal sealed class TestMcpServer : IAsyncDisposable
 {
@@ -27,13 +29,40 @@ internal sealed class TestMcpServer : IAsyncDisposable
     /// </summary>
     public static List<(string GuildId, string Item)> FindItemsCalls { get; } = [];
 
+    /// <summary>The <c>Authorization</c> header and the arguments of each call of
+    /// <c>set_structure_label</c>.</summary>
+    public static List<(
+        string? Authorization,
+        string GuildId,
+        string StructureId,
+        string? Label
+    )> LabelCalls { get; } = [];
+
+    /// <summary>True for an access token with the write scope.</summary>
+    public static Func<string, bool> CanWrite { get; set; } = _ => false;
+
     public HttpMessageHandler Handler => _app.GetTestServer().CreateHandler();
 
     public static async Task<TestMcpServer> StartAsync()
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
-        builder.Services.AddMcpServer().WithHttpTransport().WithTools<Tools>();
+        builder.Services.AddHttpContextAccessor();
+        builder
+            .Services.AddMcpServer()
+            .WithHttpTransport(o => o.Stateless = true)
+            .WithTools<Tools>()
+            .WithRequestFilters(filters =>
+                filters.AddListToolsFilter(next =>
+                    async (request, cancellationToken) =>
+                    {
+                        var result = await next(request, cancellationToken);
+                        if (!CanWrite(BearerToken(request.Services!) ?? ""))
+                            result.Tools = [.. result.Tools.Where(t => t.Name != LabelTool)];
+                        return result;
+                    }
+                )
+            );
         var app = builder.Build();
         var server = new TestMcpServer(app);
         app.Use(
@@ -48,8 +77,28 @@ internal sealed class TestMcpServer : IAsyncDisposable
         await app.StartAsync();
         lock (FindItemsCalls)
             FindItemsCalls.Clear();
+        lock (LabelCalls)
+            LabelCalls.Clear();
+        CanWrite = _ => false;
         return server;
     }
+
+    public const string LabelTool = "set_structure_label";
+
+    /// <summary>The structures of <c>find_structures</c>: the ID and the current label.</summary>
+    public static readonly Dictionary<string, string> Structures = new()
+    {
+        ["s-1"] = "Seaport",
+        ["s-2"] = "Bunker 2",
+        ["s-3"] = "Old Depot",
+        ["s-4"] = "Barley Dock",
+    };
+
+    private static string? BearerToken(IServiceProvider services) =>
+        services
+            .GetRequiredService<IHttpContextAccessor>()
+            .HttpContext?.Request.Headers.Authorization.ToString()
+            .Replace("Bearer ", "");
 
     public ValueTask DisposeAsync() => _app.DisposeAsync();
 
@@ -93,6 +142,43 @@ internal sealed class TestMcpServer : IAsyncDisposable
                 _ => [],
             };
             return JsonSerializer.Serialize(new { guild_id, rows });
+        }
+
+        [McpServerTool(Name = "find_structures", Title = "Find structures", ReadOnly = true)]
+        [System.ComponentModel.Description(
+            "The structures of the guild, with the ID and the label of each structure."
+        )]
+        public static string FindStructures(
+            string guild_id,
+            [System.ComponentModel.Description("Structure IDs or parts of labels.")]
+                string[]? structures = null
+        )
+        {
+            var rows = Structures
+                .Where(s =>
+                    structures is null
+                    || structures.Any(f =>
+                        s.Key == f || s.Value.Contains(f, StringComparison.OrdinalIgnoreCase)
+                    )
+                )
+                .Select(s => new { structure_id = s.Key, label = s.Value });
+            return JsonSerializer.Serialize(new { rows });
+        }
+
+        [McpServerTool(Name = LabelTool, Title = "Set the label of a structure", ReadOnly = false)]
+        [System.ComponentModel.Description("Change the label of a structure.")]
+        public static string SetStructureLabel(
+            IHttpContextAccessor http,
+            string guild_id,
+            string structure_id,
+            string? label = null
+        )
+        {
+            lock (LabelCalls)
+                LabelCalls.Add(
+                    (http.HttpContext?.Request.Headers.Authorization, guild_id, structure_id, label)
+                );
+            return JsonSerializer.Serialize(new { structure_id, new_label = label });
         }
 
         [McpServerTool(Name = "list_guilds", Title = "List guilds", ReadOnly = true)]

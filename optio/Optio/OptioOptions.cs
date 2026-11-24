@@ -116,7 +116,7 @@ public sealed class OptioOptions
     [Range(1, 10000)]
     public int MaxQueriesPerHour { get; set; } = 20;
 
-    /// <summary>The MCP services whose read tools the query harness can call.</summary>
+    /// <summary>The MCP services whose tools the query harness can call.</summary>
     public List<McpServiceOptions> McpServices { get; set; } = [];
 
     /// <summary>The name of the connection string of the broker.</summary>
@@ -152,4 +152,8 @@ public sealed class McpServiceOptions
     /// <c>custos:read</c>.</summary>
     [Required]
     public string ReadScope { get; set; } = "";
+
+    /// <summary>The scope of the token for the write tools, for example <c>custos:write</c>.
+    /// Without it, the query uses no write tool of the service.</summary>
+    public string? WriteScope { get; set; }
 }
