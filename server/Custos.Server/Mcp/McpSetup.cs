@@ -11,9 +11,9 @@ using ModelContextProtocol.Server;
 namespace Custos.Server.Mcp;
 
 /// <summary>
-/// The MCP endpoint <c>/mcp</c> as an OAuth resource server, with stateless HTTP. The server has
-/// two kinds of bearer token: the token of Custos (scheme <c>Bearer</c>, no audience) and the MCP
-/// token (scheme <see cref="Scheme"/>, audience <see cref="McpOptions.Resource"/>). The endpoint
+/// The MCP endpoint <c>/mcp</c> as an OAuth resource server, with stateless HTTP. Its tokens have
+/// the audience <see cref="CustosOptions.Resource"/>, as the tokens of the upload API. The scheme
+/// <see cref="Scheme"/> adds the challenge of the MCP authorization specification. The endpoint
 /// needs the Discord connection.
 /// </summary>
 internal static partial class McpSetup
@@ -30,18 +30,15 @@ internal static partial class McpSetup
             .ValidateOnStart();
         builder.Services.AddSingleton<IValidateOptions<McpOptions>, Validator>();
 
-        var mcp = Options(builder.Configuration);
-        if (mcp is null)
+        if (Options(builder.Configuration) is not { } options)
             return builder;
+        var (mcp, custos) = options;
 
-        var authority = string.IsNullOrEmpty(mcp.Authority)
-            ? builder.Configuration[
-                $"{CustosOptions.SectionName}:{nameof(CustosOptions.Authority)}"
-            ]!
-            : mcp.Authority;
-        var resource = mcp.Resource!;
+        var authority = string.IsNullOrEmpty(mcp.Authority) ? custos.Authority : mcp.Authority;
+        var resource = custos.Resource;
+        var metadataUrl = McpOptions.MetadataUrl(resource);
         var challenge =
-            $"Bearer resource_metadata=\"{mcp.MetadataUrl}\", "
+            $"Bearer resource_metadata=\"{metadataUrl}\", "
             + $"scope=\"{mcp.ReadScope} {mcp.WriteScope}\"";
 
         builder
@@ -82,7 +79,7 @@ internal static partial class McpSetup
             // The handler of the SDK serves the metadata document (RFC 9728).
             .AddMcp(options =>
             {
-                options.ResourceMetadataUri = new Uri(mcp.MetadataUrl);
+                options.ResourceMetadataUri = new Uri(metadataUrl);
                 options.ResourceMetadata = new ProtectedResourceMetadata
                 {
                     Resource = resource,
@@ -93,17 +90,13 @@ internal static partial class McpSetup
                 };
             });
 
-        var claim = builder.Configuration[
-            $"{CustosOptions.SectionName}:{nameof(CustosOptions.DiscordIdClaim)}"
-        ]
-            ?? new CustosOptions().DiscordIdClaim;
         builder
             .Services.AddAuthorizationBuilder()
             .AddPolicy(Policy, policy =>
                 policy
                     .AddAuthenticationSchemes(Scheme)
                     .RequireAuthenticatedUser()
-                    .RequireClaim(claim)
+                    .RequireClaim(custos.DiscordIdClaim)
             );
 
         builder
@@ -158,12 +151,15 @@ internal static partial class McpSetup
         return app;
     }
 
-    /// <summary>The enabled and valid section, or <c>null</c>.</summary>
-    private static McpOptions? Options(IConfiguration configuration)
+    /// <summary>The enabled and valid section with the section <c>Custos</c>, or
+    /// <c>null</c>.</summary>
+    private static (McpOptions Mcp, CustosOptions Custos)? Options(IConfiguration configuration)
     {
-        var options = configuration.GetSection(McpOptions.SectionName).Get<McpOptions>()
+        var mcp = configuration.GetSection(McpOptions.SectionName).Get<McpOptions>()
             ?? new McpOptions();
-        return options.Enabled && options.Problem() is null ? options : null;
+        var custos = configuration.GetSection(CustosOptions.SectionName).Get<CustosOptions>()
+            ?? new CustosOptions();
+        return mcp.Enabled && mcp.Problem(custos.Resource) is null ? (mcp, custos) : null;
     }
 
     /// <summary>
@@ -187,9 +183,9 @@ internal static partial class McpSetup
                     return result;
                 }
 
-                var metadata = services
-                    .GetRequiredService<IOptions<McpOptions>>()
-                    .Value.MetadataUrl;
+                var metadata = McpOptions.MetadataUrl(
+                    services.GetRequiredService<IOptions<CustosOptions>>().Value.Resource
+                );
                 http.Response.StatusCode = StatusCodes.Status403Forbidden;
                 http.Response.Headers.WWWAuthenticate =
                     $"Bearer error=\"insufficient_scope\", scope=\"{denied.RequiredScope}\", "
@@ -197,10 +193,10 @@ internal static partial class McpSetup
                 return result;
             };
 
-    private sealed class Validator : IValidateOptions<McpOptions>
+    private sealed class Validator(IOptions<CustosOptions> custos) : IValidateOptions<McpOptions>
     {
         public ValidateOptionsResult Validate(string? name, McpOptions options) =>
-            options.Problem() is { } problem
+            options.Problem(custos.Value.Resource) is { } problem
                 ? ValidateOptionsResult.Fail(problem)
                 : ValidateOptionsResult.Success;
     }

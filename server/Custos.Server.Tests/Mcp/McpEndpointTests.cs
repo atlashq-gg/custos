@@ -55,9 +55,9 @@ public sealed class McpEndpointTests
     }
 
     [Test]
-    public async Task Token_of_custos_has_no_audience_and_is_refused()
+    public async Task Token_for_another_audience_is_refused()
     {
-        using var client = _factory.CreateAuthorizedClient(discordId: User.ToString());
+        using var client = _factory.CreateMcpClient(User.ToString(), audience: "optio");
 
         using var response = await client.PostAsync("/mcp", Json("{}"));
 
@@ -72,19 +72,16 @@ public sealed class McpEndpointTests
     }
 
     [Test]
-    public async Task Mcp_token_is_refused_by_the_upload()
+    public async Task Mcp_token_without_the_write_scope_is_refused_by_the_upload()
     {
-        using var client = _factory.CreateMcpClient(User.ToString());
+        using var client = _factory.CreateMcpClient(User.ToString(), scopes: "custos:read");
 
         using var response = await client.PostAsync(
             UploadRequests.UploadPath,
             UploadRequests.Body(UploadRequests.SaveFile)
         );
 
-        Assert.That(
-            response.StatusCode,
-            Is.AnyOf(HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden)
-        );
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
 
     [Test]

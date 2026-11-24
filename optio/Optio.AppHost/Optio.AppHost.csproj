@@ -8,7 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Custos.Server\Custos.Server.csproj" />
+    <ProjectReference Include="..\Optio\Optio.csproj" />
+    <!-- The full system: the server is a domain service behind optio (ADR 0006). -->
+    <ProjectReference Include="..\..\server\Custos.Server\Custos.Server.csproj" />
   </ItemGroup>
 
   <ItemGroup>

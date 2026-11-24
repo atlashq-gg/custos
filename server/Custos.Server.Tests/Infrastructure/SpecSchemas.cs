@@ -6,13 +6,9 @@ namespace Custos.Server.Tests.Infrastructure;
 /// <summary>The JSON Schemas of spec/, copied next to the test assembly.</summary>
 internal static class SpecSchemas
 {
-    private static readonly Lazy<JsonSchema> Discovery = new(() => Load("discovery.schema.json"));
     private static readonly Lazy<JsonSchema> UploadResult = new(() =>
         Load("upload-result.schema.json")
     );
-
-    public static void AssertDiscoveryDocument(JsonElement document) =>
-        AssertValid(Discovery.Value, document);
 
     public static void AssertUploadResult(JsonElement document) =>
         AssertValid(UploadResult.Value, document);

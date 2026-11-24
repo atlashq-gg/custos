@@ -6,7 +6,7 @@ using DotNet.Testcontainers.Containers;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
-namespace Custos.Server.Tests;
+namespace Optio.Tests;
 
 /// <summary>
 /// The feasibility test M25 of issue #48 for the broker: the users and the permissions of the

@@ -1,15 +1,14 @@
-using System.Reflection;
 using System.Text.Json;
-using Custos.Server.Tests.Infrastructure;
+using Optio.Tests.Infrastructure;
 
-namespace Custos.Server.Tests;
+namespace Optio.Tests;
 
 public sealed class DiscoveryTests
 {
-    private CustosFactory _factory = null!;
+    private OptioFactory _factory = null!;
 
     [SetUp]
-    public void SetUp() => _factory = new CustosFactory();
+    public void SetUp() => _factory = new OptioFactory();
 
     [TearDown]
     public void TearDown() => _factory.Dispose();
@@ -28,20 +27,21 @@ public sealed class DiscoveryTests
             );
             Assert.That(
                 document.GetProperty("upload_endpoint").GetString(),
-                Is.EqualTo(CustosFactory.PublicBaseUrl + "/api/v1/uploads")
+                Is.EqualTo(OptioFactory.PublicBaseUrl + "/api/v1/uploads")
             );
             Assert.That(
                 document.GetProperty("client_id").GetString(),
-                Is.EqualTo(CustosFactory.ClientId)
+                Is.EqualTo(OptioFactory.ClientId)
             );
             Assert.That(
                 document.GetProperty("openid_configuration").GetString(),
-                Is.EqualTo(CustosFactory.Issuer + "/.well-known/openid-configuration")
+                Is.EqualTo(OptioFactory.Issuer + "/.well-known/openid-configuration")
             );
             Assert.That(
                 document.GetProperty("scopes").EnumerateArray().Select(s => s.GetString()),
-                Is.EqualTo(["openid"])
+                Is.EqualTo(["openid", "custos:client"])
             );
+            Assert.That(document.TryGetProperty("service_documentation", out _), Is.False);
             Assert.That(
                 document.TryGetProperty("authorization_endpoint", out _),
                 Is.False,
@@ -59,7 +59,7 @@ public sealed class DiscoveryTests
         {
             Assert.That(
                 document.GetProperty("client_id").GetString(),
-                Is.EqualTo(CustosFactory.ClientId)
+                Is.EqualTo(OptioFactory.ClientId)
             );
             Assert.That(
                 document.GetProperty("redirect_uris")[0].GetString(),
@@ -70,42 +70,6 @@ public sealed class DiscoveryTests
                 Is.EqualTo("none")
             );
         }
-    }
-
-    [Test]
-    public async Task OpenApi_document_describes_the_contract_endpoints()
-    {
-        var document = await GetJsonAsync("/openapi/v1.json");
-        var paths = document.GetProperty("paths");
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(paths.TryGetProperty("/.well-known/custos-configuration", out _), Is.True);
-            Assert.That(paths.TryGetProperty("/.well-known/custos-client", out _), Is.True);
-            Assert.That(
-                paths
-                    .GetProperty("/api/v1/uploads")
-                    .GetProperty("post")
-                    .GetProperty("requestBody")
-                    .GetProperty("content")
-                    .TryGetProperty("application/octet-stream", out _),
-                Is.True
-            );
-        }
-    }
-
-    [Test]
-    public async Task OpenApi_document_has_the_version_of_the_build()
-    {
-        var document = await GetJsonAsync("/openapi/v1.json");
-        var expected = typeof(Program)
-            .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
-            .InformationalVersion;
-
-        Assert.That(
-            document.GetProperty("info").GetProperty("version").GetString(),
-            Is.EqualTo(expected)
-        );
     }
 
     private async Task<JsonElement> GetJsonAsync(string path)

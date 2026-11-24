@@ -156,12 +156,22 @@ public sealed class UploadTests
     }
 
     [Test]
-    public async Task Token_for_a_different_client_is_forbidden()
+    public async Task Token_without_the_write_scope_is_forbidden()
     {
-        using var client = _factory.CreateAuthorizedClient(azp: "some-other-client");
+        using var client = _factory.CreateAuthorizedClient(scopes: "custos:read");
         using var response = await client.PostAsync(UploadPath, Body(SaveFile));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    [TestCase("optio")]
+    [TestCase("http://localhost/other")]
+    public async Task Token_for_another_audience_is_401(string audience)
+    {
+        using var client = _factory.CreateAuthorizedClient(audience: audience);
+        using var response = await client.PostAsync(UploadPath, Body(SaveFile));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
     }
 
     [TestCase(null)]

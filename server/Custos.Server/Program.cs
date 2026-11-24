@@ -75,8 +75,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 
-app.MapDiscovery();
-app.MapClientMetadata();
 app.MapUploads();
 app.MapCustosOpenApi();
 app.MapHealth();

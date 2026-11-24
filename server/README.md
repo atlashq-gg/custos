@@ -2,47 +2,36 @@
 
 Version 0.2.0. Contract version `v0`. License: AGPL-3.0-or-later ([LICENSE](LICENSE)), except the catalog of the game, which is under CC BY-NC-SA 4.0 ([catalog/LICENSE.md](catalog/LICENSE.md)).
 
-The reference implementation of the [Custos specification](../spec/README.md). It serves the discovery document and the Client ID Metadata Document of Custos, and it accepts uploads. It parses the map data file and keeps the parsed data in PostgreSQL, for each Discord guild. It does not keep the file.
+The domain service of the guild records, behind [optio](../optio/README.md) ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). Custos calls `optio`, and `optio` relays the upload to the upload API of this server with a token of the user. The server parses the map data file and keeps the parsed data in PostgreSQL, for each Discord guild. It does not keep the file.
 
 The server also runs as a Discord bot. The roles of a member in Discord give the access to the records of a guild. An MCP endpoint lets a user search the records through an LLM harness.
 
 ## Run
 
-Requirements: .NET SDK 10 and Docker.
+Requirements: .NET SDK 10 and Docker. The AppHost of `optio` starts the full system: Keycloak, PostgreSQL, this server on `http://localhost:5080`, and `optio` ([optio/README.md](../optio/README.md#run)).
 
 ```sh
-dotnet run --project Custos.Server.AppHost
+dotnet run --project ../optio/Optio.AppHost
 ```
-
-The AppHost starts:
-
-| Resource | URL | Content |
-|---|---|---|
-| Server | `http://localhost:5080` | The service URL for Custos. |
-| PostgreSQL 18 | (dashboard) | The database `custos`. The data lasts for one run. |
-| Keycloak | `http://localhost:8180` | The realm `custos` with the user `dev`, password `dev`. Admin user `admin`. Its password is in the dashboard. |
-| Dashboard | `http://localhost:15180` | The Aspire dashboard. The login URL is in the console output. It shows the traces, the metrics, and the logs of the server. |
 
 The AppHost has two parameters, `discord-token` and `discord-user-id`. The dashboard asks for a value that is not set, and the user secrets can hold the values:
 
 ```sh
-dotnet user-secrets set Parameters:discord-token <bot token> --project Custos.Server.AppHost
-dotnet user-secrets set Parameters:discord-user-id <your Discord user ID> --project Custos.Server.AppHost
+dotnet user-secrets set Parameters:discord-token <bot token> --project ../optio/Optio.AppHost
+dotnet user-secrets set Parameters:discord-user-id <your Discord user ID> --project ../optio/Optio.AppHost
 ```
 
-With the bot token, the server connects to Discord, and the MCP endpoint is at `http://localhost:5080/mcp`. The Discord user ID is the user of a token without the claim `discord_id`. The realm gives the user `dev` no Discord user ID.
+The server needs a bot token in the correct format: it stops at the start with a token that is not valid. With the bot token, the server connects to Discord, and the MCP endpoint is at `http://localhost:5080/mcp`. The Discord user ID is the user of a token without the claim `discord_id`. The realm gives the user `dev` no Discord user ID.
 
-Keycloak imports [the realm](Custos.Server.AppHost/keycloak/custos-realm.json) on each start. Changes in the Keycloak console last for one run. The realm declares the user attribute `discord_id`, and its default client scopes `basic` and `custos-discord` put the claims `sub` and `discord_id` into each access token. A realm file that lists client scopes replaces all built-in scopes of Keycloak, so the file holds `basic` too.
+Keycloak imports [the realm](keycloak/custos-realm.json) on each start. Changes in the Keycloak console last for one run. The realm declares the user attribute `discord_id`, and its default client scopes `basic` and `custos-discord` put the claims `sub` and `discord_id` into each access token. A realm file that lists client scopes replaces all built-in scopes of Keycloak, so the file holds `basic` too.
 
-For `optio` ([#48](https://github.com/atlashq-gg/custos/issues/48)), the realm also holds the confidential client `optio` with the standard token exchange, and the optional scope `custos:client`. That scope adds the audience `optio` to the token of Custos, so that `optio` can exchange the token for a token of `/mcp`. The AppHost makes a new secret for `optio` on each start. The file [rabbitmq/definitions.json](Custos.Server.AppHost/rabbitmq/definitions.json) holds the users, the permissions, and the exchange of the event broker. Its development passwords are equal to the user names.
+The realm also holds the confidential client `optio` with the standard token exchange, and the optional scope `custos:client`. That scope adds the audience `optio` to the token of Custos, so that `optio` can exchange the token for a token of this server. The AppHost makes a new secret for `optio` on each start.
 
 ## Endpoints
 
 | Endpoint | Content |
 |---|---|
-| `GET /.well-known/custos-configuration` | The discovery document ([spec](../spec/01-discovery.md)). |
-| `GET /.well-known/custos-client` | The Client ID Metadata Document (CIMD) of Custos. Its URL is the client ID. |
-| `POST /api/v1/uploads` | The upload ([spec](../spec/03-upload.md)). It parses the file, keeps the data for the guild of the user, and returns the stockpiles in the file. |
+| `POST /api/v1/uploads` | The upload API. `optio` relays the upload of Custos ([spec](../spec/03-upload.md)) to it. It parses the file, keeps the data for the guild of the user, and returns the stockpiles in the file. It needs no public route. |
 | `GET /openapi/v1.json` | The OpenAPI document, generated from the code. |
 | `GET /docs` | The Scalar page for the OpenAPI document. |
 | `GET /health/alive` | The liveness check. It does not check the database. |
@@ -52,17 +41,13 @@ For `optio` ([#48](https://github.com/atlashq-gg/custos/issues/48)), the realm a
 
 ## Configuration
 
-The section `Custos` in `appsettings.json` or environment variables (`Custos__PublicBaseUrl`). The connection string of PostgreSQL is `ConnectionStrings:custos` (`ConnectionStrings__custos`). The AppHost sets it.
+The section `Custos` in `appsettings.json` or environment variables (`Custos__Authority`). The connection string of PostgreSQL is `ConnectionStrings:custos` (`ConnectionStrings__custos`). The AppHost sets it.
 
 | Key | Default | Content |
 |---|---|---|
-| `PublicBaseUrl` | (required) | The origin of the server as Custos sees it. |
 | `Authority` | (required) | The issuer URL of the authorization server. |
-| `OpenIdConfiguration` | `{Authority}/.well-known/openid-configuration` | The metadata document of the authorization server, as the discovery document links it. |
-| `ClientId` | `{PublicBaseUrl}/.well-known/custos-client` | The client ID of Custos. |
-| `ServiceName` | `Custos reference server` | The name that Custos shows. |
-| `Scopes` | `["openid"]` | The scopes that Custos requests. |
-| `UploadMaxBytes` | `4194304` | The largest upload body. |
+| `Resource` | (required) | The audience of the tokens of the server: the URL of the MCP endpoint as a client sees it, for example `https://custos.example.com/mcp`. The upload API and `/mcp` accept a token only with this value in `aud`. `http://localhost:5080/mcp` in development. |
+| `UploadMaxBytes` | `4194304` | The largest upload body. It must be equal to the value of `optio`. |
 | `UploadMinIntervalSeconds` | `60` | The shortest time between two uploads of one user. `10` in development. |
 | `DevelopmentGuildId` | (none) | The guild of an upload whose token has no claim `active_guild`. The server uses it only in the environment `Development`. `1236389163276959888` in development. |
 | `DiscordIdClaim` | `discord_id` | The claim of the access token with the Discord user ID, as a string. |
@@ -89,7 +74,7 @@ With the [Discord connection](#discord) on, an upload needs a member of the guil
 | The user is not a member of the guild, or has no role that can report. | `403` |
 | Discord does not answer. | `503`. Custos tries again at the next interval. |
 
-In the environment `Development`, `DevelopmentDiscordUserId` supplies the user when the claim is absent. In the AppHost, set it with `dotnet user-secrets set Parameters:discord-user-id <id> --project Custos.Server.AppHost`.
+In the environment `Development`, `DevelopmentDiscordUserId` supplies the user when the claim is absent. In the AppHost, set it with `dotnet user-secrets set Parameters:discord-user-id <id> --project ../optio/Optio.AppHost`.
 
 The table `uploads` keeps the Discord user ID of each upload. It is null for the rows of 0.1.0. Without the Discord connection, the server examines no role, as in 0.1.0, and keeps the claim when the token has it.
 
@@ -178,19 +163,20 @@ A user label has 1 to 64 characters: letters, digits, spaces, and `-` `'` `.` `,
 | Key | Default | Content |
 |---|---|---|
 | `Mcp:Enabled` | `false` | Without `true`, the server maps no MCP endpoint. |
-| `Mcp:Resource` | (required) | The URL of the endpoint as a harness sees it, for example `https://custos.example.com/mcp`. Its path is `/mcp`. A token must have it in `aud`. |
 | `Mcp:Authority` | `Custos:Authority` | The issuer of the MCP tokens. |
 | `Mcp:ReadScope` | `custos:read` | The scope of the read tools. |
-| `Mcp:WriteScope` | `custos:write` | The scope of the label tool. |
+| `Mcp:WriteScope` | `custos:write` | The scope of the label tool and of the upload API. |
 | `Mcp:RequestsPerMinute` | `60` | The largest number of requests of one caller in one minute. Each call can cost a request to Discord. |
 
-- The server serves the metadata document (RFC 9728) at `/.well-known/oauth-protected-resource` on the origin of `Mcp:Resource`. `/.well-known/oauth-protected-resource/mcp` redirects to it.
+- `Custos:Resource` is the URL of the endpoint as a harness sees it. Its path must be `/mcp`.
+- The server serves the metadata document (RFC 9728) at `/.well-known/oauth-protected-resource` on the origin of `Custos:Resource`. `/.well-known/oauth-protected-resource/mcp` redirects to it.
 - A request without a valid token gets `401` with `WWW-Authenticate: Bearer resource_metadata="...", scope="custos:read custos:write"`.
-- The token needs the audience `Mcp:Resource`, the claim `discord_id`, and the scope of the tool. The token of Custos has no audience, so `/mcp` refuses it. An MCP token has another `azp`, so the upload refuses it.
+- The token needs the audience `Custos:Resource`, the claim `discord_id`, and the scope of the tool. A token of `optio` from a token exchange has the same form.
+- The upload API accepts a token with the audience `Custos:Resource` and the scope `custos:write`. The Discord roles of the member decide the rest. Thus an MCP harness with `custos:write` can also call the upload API.
 - A tool without the scope of the token is not in the list of tools. A call without the scope gets `403` with `error="insufficient_scope"`.
 - A refusal for access is a tool result with `isError` and a problem body: `urn:custos:mcp:forbidden`, `urn:custos:mcp:not-visible`, or `urn:custos:mcp:discord-unavailable`. A missing guild, a guild without the bot, and a guild where the caller is not a member get the same `not-visible` answer.
 - The server writes one audit line to the log for each tool call.
-- The SDK serves the metadata document only to a request whose scheme and host are equal to `Mcp:Resource`. Behind a reverse proxy, set `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`, so that the server applies `X-Forwarded-Proto` and `X-Forwarded-For`.
+- The SDK serves the metadata document only to a request whose scheme and host are equal to `Custos:Resource`. Behind a reverse proxy, set `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`, so that the server applies `X-Forwarded-Proto` and `X-Forwarded-For`.
 
 | Tool | Scope | Access | Result |
 |---|---|---|---|
@@ -246,13 +232,11 @@ EF Core cannot declare a partitioned table. A migration that creates or changes 
 
 ## Authentication with Keycloak
 
-Keycloak 26.8 has the experimental feature `cimd`. The realm has a client policy that accepts a client ID that is a URL on the host of the server. Keycloak then gets the registration of Custos from the CIMD document.
+Custos logs in through `optio`: Keycloak gets the Client ID Metadata Document (CIMD) of Custos from `optio` ([optio/README.md](../optio/README.md)). The server sees only tokens that `optio` gets through a token exchange (RFC 8693), and tokens of MCP harnesses.
 
-- Keycloak must reach the server at the client ID URL. In development, Keycloak runs in a container and uses the Aspire container tunnel, so the client ID is `http://aspire.dev.internal:5080/.well-known/custos-client`.
-- The policy permits the domain `oauth2callback`, because Keycloak reads the redirect URI `custos://oauth2callback` as a URL with that host.
-- The development realm permits HTTP. A production realm must use HTTPS for the client ID ([Prepare Keycloak](#2-prepare-keycloak)).
-- A token for Custos has no audience. The server requires the claim `azp` to be the client ID.
-- Keycloak shows a consent page for the client on the first login.
+- A token of the server has the audience `Custos:Resource`. The scope of the server adds it: `custos:read` or `custos:write`.
+- An exchanged token has `azp` `optio`, the claim `discord_id`, and the claims of the scopes of the client `optio`. A claim of a scope that only the client of Custos has, for example `active_guild` from a hardcoded scope, is not in it. Give such a scope to the client `optio` too.
+- An exchanged token expires no later than the token of Custos.
 
 ## Telemetry and health
 
@@ -322,6 +306,8 @@ docker run -p 8080:8080 -e Custos__PublicBaseUrl=https://custos.example.com -e C
 ```
 
 ## Deploy
+
+> **Note:** This guide still describes server 0.2.0, which served the contract itself. M36 of [#48](https://github.com/atlashq-gg/custos/issues/48) rewrites it for `optio`. Until then, the key `Custos__PublicBaseUrl` is gone, and `Mcp__Resource` is now `Custos__Resource`.
 
 This section deploys the container with Docker Compose against an existing PostgreSQL and an existing Keycloak. The examples use these values. Replace them with your own.
 
@@ -453,7 +439,7 @@ The authenticator that sets `active_guild` can also set this claim. That work is
 
 #### The MCP scopes and the registration of a harness
 
-An LLM harness reads the metadata document of `/mcp`, gets its own client in the realm, and asks the user to log in. A harness gets a client in one of two ways. It sends a registration request, or it uses the URL of its Client ID Metadata Document as the client ID. Keycloak with the feature `cimd` states that it supports the second way, so a harness such as Claude Code uses it and sends no registration request. The token needs the audience of the endpoint, the claim `discord_id`, and a scope. The [development realm](Custos.Server.AppHost/keycloak/custos-realm.json) holds each of these settings.
+An LLM harness reads the metadata document of `/mcp`, gets its own client in the realm, and asks the user to log in. A harness gets a client in one of two ways. It sends a registration request, or it uses the URL of its Client ID Metadata Document as the client ID. Keycloak with the feature `cimd` states that it supports the second way, so a harness such as Claude Code uses it and sends no registration request. The token needs the audience of the endpoint, the claim `discord_id`, and a scope. The [development realm](keycloak/custos-realm.json) holds each of these settings.
 
 1. In **Client scopes**, create the scopes `custos:read` and `custos:write`, each with the protocol `OpenID Connect` and **Include in token scope** on.
 2. In the tab **Mappers** of each scope, add two mappers:

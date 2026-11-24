@@ -2,14 +2,21 @@ using System.Text.Json;
 using Optio;
 using Optio.Endpoints;
 using Optio.Telemetry;
+using Optio.Tokens;
 
 if (await CommandLine.RunAsync(args, Console.Out) is { } exitCode)
     return exitCode;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Docker secrets: the file /run/secrets/Optio__ClientSecret gives Optio:ClientSecret.
+// Docker secrets: the file /run/secrets/Optio__OptioClientSecret gives Optio:OptioClientSecret.
 builder.Configuration.AddKeyPerFile("/run/secrets", optional: true);
+
+builder
+    .Services.AddOptions<OptioOptions>()
+    .BindConfiguration(OptioOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 // spec/ uses snake_case for JSON members.
 builder.Services.ConfigureHttpJsonOptions(json =>
@@ -18,14 +25,22 @@ builder.Services.ConfigureHttpJsonOptions(json =>
 });
 
 builder.Services.AddProblemDetails();
+builder.Services.AddMemoryCache();
 builder.Services.AddOptioHealthChecks();
-builder.AddOptioTelemetry();
+builder.Services.AddHttpClient<TokenExchange>().AddStandardResilienceHandler();
+builder.Services.AddHttpClient<UploadRelay>(http => http.Timeout = TimeSpan.FromSeconds(60));
+builder.AddOptioTelemetry().AddOptioAuthentication();
 
 var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseAuthentication();
+app.UseAuthorization();
 
+app.MapDiscovery();
+app.MapClientMetadata();
+app.MapUploads();
 app.MapHealth();
 
 LogStarting(app.Logger, OptioVersion.Value);

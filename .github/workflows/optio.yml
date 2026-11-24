@@ -7,14 +7,16 @@ name: optio
 #   push of optio-X.Y.Z   -> push the tags X.Y.Z and X.Y, version "X.Y.Z"
 #
 # GitHub does not apply the paths filter to a tag push, so each optio-* tag runs this workflow.
+# The AppHost builds the server, and the tests read the realm file of the server, so a change in
+# server/ runs this workflow too.
 on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
-    paths: ["optio/**", "spec/**", ".github/workflows/optio.yml"]
+    paths: ["optio/**", "spec/**", "server/**", ".github/workflows/optio.yml"]
   push:
     branches: [main]
     tags: ["optio-[0-9]+.[0-9]+.[0-9]+"]
-    paths: ["optio/**", "spec/**", ".github/workflows/optio.yml"]
+    paths: ["optio/**", "spec/**", "server/**", ".github/workflows/optio.yml"]
 
 # One run for each ref at a time, so two pushes to main cannot race on the tag unstable. A new
 # push to a pull request cancels the run in progress for it. Closing or merging the pull request

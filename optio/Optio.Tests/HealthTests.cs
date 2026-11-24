@@ -1,14 +1,14 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Optio.Tests.Infrastructure;
 
 namespace Optio.Tests;
 
 public sealed class HealthTests
 {
-    private WebApplicationFactory<Program> _factory = null!;
+    private OptioFactory _factory = null!;
 
     [SetUp]
-    public void SetUp() => _factory = new WebApplicationFactory<Program>();
+    public void SetUp() => _factory = new OptioFactory();
 
     [TearDown]
     public void TearDown() => _factory.Dispose();
