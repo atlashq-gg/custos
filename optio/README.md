@@ -2,7 +2,7 @@
 
 `optio` is the service that Custos calls ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). It implements the contract of [spec/](../spec/README.md): the discovery document, the upload, the stream, and the query. It calls the domain services, for example the [server](../server/README.md), with a token of the user for each service.
 
-The work is in progress. The roadmap is [#48](https://github.com/atlashq-gg/custos/issues/48). This version serves the discovery document and the Client ID Metadata Document of Custos, relays the upload, sends the events of the domain services on the stream, and answers a query with a model and the read tools of the MCP services.
+The work is in progress. The roadmap is [#48](https://github.com/atlashq-gg/custos/issues/48). This version serves the discovery document and the Client ID Metadata Document of Custos, relays the upload, sends the events of the domain services on the stream, and answers a query with a model and the tools of the MCP services. A write tool waits for the confirmation of the user.
 
 ## Run
 
@@ -69,14 +69,35 @@ The stream sends the events of the domain services to Custos ([spec](../spec/05-
 
 ## Query
 
-A query is a question of the user in plain language ([spec](../spec/05-stream.md#query)). A model answers it with the read tools of the MCP services. The query is on when the configuration has the stream, the database, the model key, the system prompt, and one MCP service or more. Then the discovery document has `query_endpoint`.
+A query is a question of the user in plain language ([spec](../spec/05-stream.md#query)). A model answers it with the tools of the MCP services. The query is on when the configuration has the stream, the database, the model key, the system prompt, and one MCP service or more. Then the discovery document has `query_endpoint`.
 
-1. Custos sends the query with its token. The user needs an open stream (`409` if not).
+1. Custos sends the query with its token. The client needs an open stream (`409` if not).
 2. `optio` answers `202` with the reference of the query, and runs the query in the background.
-3. For each MCP service, `optio` gets a token of the user with the read scope by exchange. The service lists only its read tools.
+3. For each MCP service, `optio` gets a token of the user with the read scope by exchange, and the service lists its read tools. With a `WriteScope`, `optio` also lists the tools with the read and write scopes. A tool that is only in that list is a write tool.
 4. The model gets the system prompt, the guild of `active_guild`, the prompt of the guild, the query, and the tools. Each query starts with no earlier conversation.
 5. Code sets the argument `guild_id` of each tool call to `active_guild`. The model does not see this argument. The model sees no token.
-6. `optio` sends one `progress` message for each tool call, then one `answer` or one `error`, to each open stream of the user. Each message has the reference of the query.
+6. `optio` sends one `progress` message for each tool call, then one `answer` or one `error`. Each message has the reference of the query.
+
+A query belongs to the client that sent it: the session of the client at the authorization server, in the claim `sid`. The messages of the query go only to the streams of that client.
+
+### Write tools
+
+1. When the model calls a write tool, the loop stops. The read calls of that turn do not run.
+2. `optio` sends one `confirm` message with the reference of the query, and keeps the confirmation for 60 seconds. One confirmation holds all the write calls of the turn.
+3. The client that sent the query answers with `{"confirm": "<reference>", "accept": true}` or `false`. Code reads the answer, not the model. An answer from another client, or after the 60 seconds, gets `409`.
+4. With `accept` `true`, `optio` gets a token with the write scope by exchange from the token of the answer, and calls each write tool. It sends the result as the `answer`, or as an `error` when a call failed. The model does not get the result.
+5. With `accept` `false`, `optio` removes the line of the confirmation: a message with the reference and no text.
+6. A new query of the client ends its open confirmation, and removes its line.
+
+The text of the `confirm` message:
+
+- `optio` adds the argument `confirm_text` to each write tool, and removes it before the call. The model writes a short question in it, for example `Set label? "Main Depot"`.
+- `optio` uses the question of the model only when it is one line of 120 characters at most, and holds each value of the calls. The values are the arguments whose names do not end in `_id`.
+- Else code makes the text from the title of each tool and the values, for example `Set the label of a structure? "Main Depot"`. An absent value shows as `(none)`.
+
+The check makes sure that the user sees each value of the change. It cannot make sure that the verb of the question is correct.
+
+### Limits
 
 | Limit | Value |
 |---|---|
@@ -84,8 +105,13 @@ A query is a question of the user in plain language ([spec](../spec/05-stream.md
 | Time of one query | 60 seconds |
 | Running queries of one user | 1 |
 | Queries of one user in one hour | `MaxQueriesPerHour` |
+| Time of one confirmation | 60 seconds |
 
-A query over a limit of the user gets `429` with `Retry-After`. An answer to a confirmation gets `409`, because no confirmation exists yet.
+A query over a limit of the user gets `429` with `Retry-After`. An answer to a confirmation does not count as a query.
+
+### Audit
+
+Each tool call writes one line to the log. The line holds the user, the guild, the service, the tool, and the outcome. The outcome is `ok`, `error` (the tool gave an error), or `failed` (the call did not complete). The counter `optio.tool.calls` counts the calls with the tags `service`, `tool`, and `outcome`.
 
 The harness calls the model only through `IModelClient`. The only implementation calls the Messages API of Anthropic with the Anthropic C# SDK.
 
@@ -132,7 +158,7 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 | `ModelEffort` | `medium` | The effort of the model: `low`, `medium`, `high`, `xhigh`, or `max`. |
 | `SystemPrompt` | (none) | The system prompt of the query. Without it, `optio` answers no query. |
 | `MaxQueriesPerHour` | `20` | The queries of one user in one hour. |
-| `McpServices` | `[]` | The MCP services of the query. Each entry has `Name`, `Url` (the MCP endpoint), and `ReadScope` (for example `custos:read`). |
+| `McpServices` | `[]` | The MCP services of the query. Each entry has `Name`, `Url` (the MCP endpoint), `ReadScope` (for example `custos:read`), and an optional `WriteScope` (for example `custos:write`). Without `WriteScope`, the query uses no write tool of the service. |
 
 The connection string of the database is `ConnectionStrings:optio` (`ConnectionStrings__optio`). Without it, `optio` keeps no guild settings, and has no commands and no query. `optio` applies its migrations when it starts.
 
@@ -156,6 +182,7 @@ The connection string of the broker is `ConnectionStrings:events` (`ConnectionSt
 | `optio.events.offset` | The last offset that `optio` read, by `source`. |
 | `optio.streams` | The open streams. |
 | `optio.stream.dropped` | The events that a stream dropped, because its client did not read them in time. |
+| `optio.tool.calls` | The tool calls of the queries, by `service`, `tool`, and `outcome`: `ok`, `error`, or `failed`. |
 
 ## Format
 

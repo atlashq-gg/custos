@@ -130,7 +130,7 @@ Content-Type: application/json
 - `text` is the query of the user in plain language, 1 to 500 characters.
 - The service answers on the stream. Thus a query needs an open stream of the user.
 - The response `202` holds the reference of the query ([schemas/query-accepted.schema.json](schemas/query-accepted.schema.json)). Each message about the query has this reference.
-- The service sends the messages of a query to each open stream of the user.
+- The service sends the messages of a query only to the open streams of the client that sent the query. The service decides how it identifies a client, for example by the session of the access token.
 - The contract states only that the service answers. How the service makes the answer is not part of the contract.
 
 ```json
@@ -146,6 +146,7 @@ A `confirm` message asks the user to accept or refuse a change. Its `reference` 
 ```
 
 - `accept` is `true` when the user accepts, and `false` when the user refuses.
+- Only the client that got the `confirm` message can answer it.
 - The service MUST NOT do the change before it gets `accept` `true`.
 - A confirmation expires. The service decides when.
 - The response is `202` with the reference of the query.

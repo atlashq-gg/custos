@@ -142,6 +142,7 @@ var optio = builder
     .WithEnvironment("Optio__McpServices__0__Name", "custos")
     .WithEnvironment("Optio__McpServices__0__Url", serverResource)
     .WithEnvironment("Optio__McpServices__0__ReadScope", "custos:read")
+    .WithEnvironment("Optio__McpServices__0__WriteScope", "custos:write")
     .WithHttpHealthCheck("/health/ready");
 
 // The tunnel serves only an endpoint that a container references. This reference also gives the

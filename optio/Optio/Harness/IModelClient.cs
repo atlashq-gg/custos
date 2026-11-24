@@ -19,8 +19,16 @@ internal sealed record ModelRequest(
 );
 
 /// <summary>A tool for the model: its name, its description, and the JSON Schema of its
-/// arguments. <paramref name="Title"/> is the name for a person.</summary>
-internal sealed record ModelTool(string Name, string Title, string Description, JsonElement Schema);
+/// arguments. <paramref name="Title"/> is the name for a person. A call of a tool with
+/// <paramref name="Write"/> waits for the confirmation of the user. The model client ignores
+/// it.</summary>
+internal sealed record ModelTool(
+    string Name,
+    string Title,
+    string Description,
+    JsonElement Schema,
+    bool Write = false
+);
 
 internal sealed record ToolCall(
     string Id,

@@ -9,3 +9,6 @@ No release yet. The first release is 0.1.0 ([#48](https://github.com/atlashq-gg/
 - A system prompt in the configuration, with an example in `docs/system-prompt.example.txt`, and a prompt for each guild.
 - `/optioadmin settings` in Discord, for the administrators of a guild. It changes the prompt of the guild.
 - A PostgreSQL database for the settings of the guilds.
+- The write tools of the MCP services, with a `confirm` message and the answer of the user. The model writes the question, and code makes sure that it shows each value of the change.
+- A query belongs to the client that sent it, by the claim `sid`. Its messages and its confirmation go only to that client.
+- One audit line in the log and the counter `optio.tool.calls` for each tool call.

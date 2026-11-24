@@ -10,13 +10,17 @@ internal sealed class OptioMetrics
     public const string EventOffset = "optio.events.offset";
     public const string Streams = "optio.streams";
     public const string StreamDropped = "optio.stream.dropped";
+    public const string ToolCalls = "optio.tool.calls";
     public const string OutcomeTag = "outcome";
+    public const string ServiceTag = "service";
     public const string SourceTag = "source";
+    public const string ToolTag = "tool";
 
     private readonly Counter<long> _events;
     private readonly Histogram<double> _eventAge;
     private readonly UpDownCounter<long> _streams;
     private readonly Counter<long> _streamDropped;
+    private readonly Counter<long> _toolCalls;
 
     public OptioMetrics(IMeterFactory meterFactory)
     {
@@ -39,6 +43,12 @@ internal sealed class OptioMetrics
             StreamDropped,
             "{event}",
             "The events that a stream dropped, because its client did not read them in time."
+        );
+        _toolCalls = Meter.CreateCounter<long>(
+            ToolCalls,
+            "{call}",
+            "The tool calls of the queries, by service, tool, and outcome: ok, error (the tool "
+                + "gave an error), or failed (the call did not complete)."
         );
     }
 
@@ -64,4 +74,12 @@ internal sealed class OptioMetrics
     public void StreamClosed() => _streams.Add(-1);
 
     public void StreamDroppedEvent() => _streamDropped.Add(1);
+
+    public void ToolCall(string service, string tool, string outcome) =>
+        _toolCalls.Add(
+            1,
+            new KeyValuePair<string, object?>(ServiceTag, service),
+            new KeyValuePair<string, object?>(ToolTag, tool),
+            new KeyValuePair<string, object?>(OutcomeTag, outcome)
+        );
 }

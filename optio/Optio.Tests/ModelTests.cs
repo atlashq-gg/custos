@@ -171,6 +171,42 @@ public sealed class ModelTests
         }
     }
 
+    [Test]
+    public async Task Change_of_a_label_waits_for_the_confirmation_of_the_user()
+    {
+        await using var server = await TestMcpServer.StartAsync();
+        using var factory = Factory(server);
+        TestMcpServer.CanWrite = token =>
+            factory.AuthorizationServer.ScopeOf(token)?.Contains("custos:write") == true;
+        using var stream = await OpenAsync(factory);
+
+        var reference = await QueryAsync(
+            factory,
+            "Change the label of the structure with the ID s-1 to Main Depot."
+        );
+        var confirm = (await MessagesUntilEndAsync(stream))[^1];
+        var callsBefore = TestMcpServer.LabelCalls.Count;
+        using var client = factory.CreateMemberClient();
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/query",
+            new { confirm = reference, accept = true }
+        );
+        var answer = (await MessagesUntilEndAsync(stream))[^1];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Kind(confirm), Is.EqualTo("confirm"));
+            Assert.That(Text(confirm), Does.Contain("Main Depot"));
+            Assert.That(callsBefore, Is.Zero);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+            Assert.That(Kind(answer), Is.EqualTo("answer"));
+            Assert.That(
+                TestMcpServer.LabelCalls.Select(c => (c.GuildId, c.StructureId, c.Label)),
+                Is.EqualTo(new[] { ($"{Guild}", "s-1", "Main Depot") })
+            );
+        }
+    }
+
     private IModelClient Client() =>
         new AnthropicModelClient(Options.Create(new OptioOptions { ModelApiKey = _key }));
 
@@ -201,7 +237,8 @@ public sealed class ModelTests
         return body.GetProperty("reference").GetString()!;
     }
 
-    /// <summary>The messages of a query, until its <c>answer</c> or its <c>error</c>.</summary>
+    /// <summary>The messages of a query, until its <c>answer</c>, its <c>confirm</c>, or its
+    /// <c>error</c>.</summary>
     private static async Task<List<JsonElement>> MessagesUntilEndAsync(SseReader stream)
     {
         List<JsonElement> messages = [];
@@ -210,7 +247,7 @@ public sealed class ModelTests
             if (item.Data is not { } data)
                 continue;
             messages.Add(data);
-            if (Kind(data) is "answer" or "error")
+            if (Kind(data) is "answer" or "confirm" or "error")
                 break;
         }
         TestContext.Progress.WriteLine(

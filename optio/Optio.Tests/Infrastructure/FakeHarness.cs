@@ -31,11 +31,25 @@ internal sealed class FakeModel : IModelClient
     public static ModelTurn Answer(string text) => new(text, [], ModelStop.End, new object());
 
     public static ModelTurn Call(params string[] tools) =>
+        Call([.. tools.Select(t => (t, new Dictionary<string, object?>()))]);
+
+    /// <summary>A turn with a call of each tool, with its arguments.</summary>
+    public static ModelTurn Call(
+        params (string Tool, Dictionary<string, object?> Arguments)[] calls
+    ) =>
         new(
             "",
             [
-                .. tools.Select(
-                    (t, i) => new ToolCall($"call-{i}", t, new Dictionary<string, JsonElement>())
+                .. calls.Select(
+                    (c, i) =>
+                        new ToolCall(
+                            $"call-{i}",
+                            c.Tool,
+                            c.Arguments.ToDictionary(
+                                a => a.Key,
+                                a => JsonSerializer.SerializeToElement(a.Value)
+                            )
+                        )
                 ),
             ],
             ModelStop.ToolCalls,
@@ -43,19 +57,38 @@ internal sealed class FakeModel : IModelClient
         );
 }
 
-/// <summary>The tool <c>find_items</c>, which answers with its name and the guild.</summary>
+/// <summary>The read tool <c>find_items</c>, which answers with its name and the guild, and the
+/// write tool <c>set_structure_label</c>. A write call answers with an error when
+/// <see cref="WriteError"/> has a value.</summary>
 internal sealed class FakeTools : IToolSource
 {
     public const string Tool = "find_items";
+    public const string WriteTool = "set_structure_label";
+    public const string WriteTitle = "Set the label of a structure";
 
     public Channel<(ulong Guild, string Tool)> Calls { get; } =
         Channel.CreateUnbounded<(ulong, string)>();
 
-    public Task<IToolSession> OpenAsync(
-        string accessToken,
-        ulong guild,
+    /// <summary>The access token and the write call of each call of a write tool.</summary>
+    public Channel<(string AccessToken, WriteCall Call)> Writes { get; } =
+        Channel.CreateUnbounded<(string, WriteCall)>();
+
+    public string? WriteError { get; set; }
+
+    public Task<IToolSession> OpenAsync(ToolUser user, CancellationToken cancellationToken) =>
+        Task.FromResult<IToolSession>(new Session(this, user.Guild));
+
+    public Task<ToolResult> CallAsync(
+        ToolUser user,
+        WriteCall call,
         CancellationToken cancellationToken
-    ) => Task.FromResult<IToolSession>(new Session(this, guild));
+    )
+    {
+        Writes.Writer.TryWrite((user.AccessToken, call));
+        return Task.FromResult(
+            new ToolResult(call.Call.Id, WriteError ?? "{}", WriteError is not null)
+        );
+    }
 
     private sealed class Session(FakeTools tools, ulong guild) : IToolSession
     {
@@ -67,6 +100,13 @@ internal sealed class FakeTools : IToolSource
                 "The stockpiles that hold an item.",
                 JsonSerializer.SerializeToElement(new { type = "object" })
             ),
+            new(
+                WriteTool,
+                WriteTitle,
+                "Change the label of a structure.",
+                JsonSerializer.SerializeToElement(new { type = "object" }),
+                Write: true
+            ),
         ];
 
         public Task<ToolResult> CallAsync(ToolCall call, CancellationToken cancellationToken)
@@ -74,6 +114,9 @@ internal sealed class FakeTools : IToolSource
             tools.Calls.Writer.TryWrite((guild, call.Name));
             return Task.FromResult(new ToolResult(call.Id, $"{call.Name} in {guild}", false));
         }
+
+        public WriteCall? AsWrite(ToolCall call) =>
+            call.Name == WriteTool ? new WriteCall("server", WriteTitle, call, ["label"]) : null;
 
         public ValueTask DisposeAsync() => default;
     }

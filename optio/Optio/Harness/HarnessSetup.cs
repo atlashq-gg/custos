@@ -27,6 +27,7 @@ internal static class HarnessSetup
 
         builder.Services.AddSingleton<IModelClient, AnthropicModelClient>();
         builder.Services.AddSingleton<QueryLimiter>();
+        builder.Services.AddSingleton<Confirmations>();
         builder.Services.AddScoped<IToolSource, McpToolSource>();
         builder.Services.AddScoped<QueryHarness>();
         builder.Services.AddHttpClient(McpToolSource.HttpClientName);
