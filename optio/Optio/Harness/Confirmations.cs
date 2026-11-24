@@ -29,9 +29,13 @@ internal sealed class Confirmations(TimeProvider time)
     public const int MaxModelText = 120;
 
     private const string TextDescription =
-        "A short question for the user, for example: Set label? \"Main Depot\". It holds each "
-        + "value of the change. When you call more than one write tool in one turn, give one "
-        + "question for all the changes in the first call.";
+        "The question to the user before the change. It shows on a screen 50 characters wide: "
+        + "leave out each word that is not necessary. Use the form "
+        + "'{Verb} {object clause}?', and add 'and {verb} {object clause}' for each other "
+        + "change. Hold each value of the change, in quotes. Do not show an ID. Examples: "
+        + "'Set label \"Main Depot\"?', 'Remove label?', "
+        + "'Set label \"Main Depot\" and set label \"North Bunker\"?'. When you call more than "
+        + "one write tool in one turn, give one question for all the changes in the first call.";
 
     private readonly object _lock = new();
     private readonly Dictionary<StreamClient, Confirmation> _open = [];

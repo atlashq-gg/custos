@@ -207,6 +207,38 @@ public sealed class ModelTests
         }
     }
 
+    [TestCase(
+        "Change the label of the structure with the ID s-1 to Main Depot.",
+        "Set label \"Main Depot\"?"
+    )]
+    [TestCase("Label the structure s-2 as North Bunker.", "Set label \"North Bunker\"?")]
+    [TestCase(
+        "Rename the structure s-1 to Main Depot and the structure s-2 to North Bunker.",
+        "Set label \"Main Depot\" and set label \"North Bunker\"?"
+    )]
+    [TestCase("Call the structure s-4 Fort Barley Seaport.", "Set label \"Fort Barley Seaport\"?")]
+    [TestCase("Remove the label of the structure s-3.", "Remove label?")]
+    public async Task Question_of_a_change_is_short_and_has_the_form_of_the_confirmation(
+        string query,
+        string expected
+    )
+    {
+        await using var server = await TestMcpServer.StartAsync();
+        using var factory = Factory(server);
+        TestMcpServer.CanWrite = token =>
+            factory.AuthorizationServer.ScopeOf(token)?.Contains("custos:write") == true;
+        using var stream = await OpenAsync(factory);
+
+        await QueryAsync(factory, query);
+        var confirm = (await MessagesUntilEndAsync(stream))[^1];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Kind(confirm), Is.EqualTo("confirm"));
+            Assert.That(Text(confirm), Is.EqualTo(expected));
+        }
+    }
+
     private IModelClient Client() =>
         new AnthropicModelClient(Options.Create(new OptioOptions { ModelApiKey = _key }));
 
