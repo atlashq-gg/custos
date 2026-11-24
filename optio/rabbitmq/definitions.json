@@ -29,9 +29,9 @@
     {
       "user": "optio",
       "vhost": "/",
-      "configure": "^amq\\.gen-.*$",
-      "write": "^amq\\.gen-.*$",
-      "read": "^(amq\\.gen-.*|events\\..+)$"
+      "configure": "^$",
+      "write": "^$",
+      "read": "^events\\..+$"
     }
   ],
   "exchanges": [
@@ -42,6 +42,30 @@
       "durable": true,
       "auto_delete": false,
       "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "events.custos.stream",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "stream",
+        "x-max-age": "1h",
+        "x-stream-max-segment-size-bytes": 1000000,
+        "x-max-length-bytes": 100000000
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "source": "events.custos",
+      "vhost": "/",
+      "destination": "events.custos.stream",
+      "destination_type": "queue",
+      "routing_key": "#",
       "arguments": {}
     }
   ]

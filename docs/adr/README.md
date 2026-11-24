@@ -12,7 +12,7 @@ A decision inside one project needs no ADR. Record it in the issue or the pull r
 | [0003](0003-agent-instruction-hierarchy.md) | Agent instruction hierarchy | accepted | agents, documentation | One AGENTS.md per level. The root holds the minimum. The nearest file wins. CLAUDE.md only imports it. |
 | [0005](0005-license-by-project.md) | License by project | accepted | repository | spec, custos, and the root content are under MIT, and server is under AGPL-3.0-or-later, with one `LICENSE` file in each project folder. |
 | [0006](0006-optio-is-the-service-of-the-contract.md) | optio is the service of the contract | accepted | architecture, repository | `spec/` defines the contract, Custos calls only `optio`, which implements it with tokens of the user, and the server becomes a domain service behind it. Supersedes 0004. |
-| [0007](0007-a-broker-signals-domain-events.md) | A broker signals domain events | accepted | architecture | A RabbitMQ broker carries signals without domain data, and `optio` gets the events from each domain service with a token of the user. |
+| [0007](0007-a-broker-carries-domain-events.md) | A broker carries domain events with their access policy | accepted | architecture | A RabbitMQ broker carries each domain event with its data and an access policy in Discord terms, and `optio` applies the policy to the stream of each user and replays from the broker. |
 
 ## Tags
 
