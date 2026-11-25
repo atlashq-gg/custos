@@ -280,7 +280,8 @@ configs:
         }
       }
   optio-system-prompt:
-    file: ./system-prompt.txt
+    content: |
+      <The system prompt, with as many lines as you need. Start from the example.>
   optio-settings:
     content: |
       {
@@ -338,7 +339,7 @@ OPTIO_MODEL_KEY=<key of the model provider>
 - `Resource` of the server: the public URL of the MCP endpoint. It is the audience of each token of the server, also of a token that `optio` gets by exchange. Thus it is the public URL even when `optio` calls the server on the internal network.
 - `UploadApiUrl` and the `Url` of the MCP service: the internal URLs of the server. The upload API needs no public route. Add an entry to `McpServices` for each other domain service ([optio/README.md](../optio/README.md#add-a-service)).
 - `secrets`: Compose gets each secret from a variable of the file `.env` next to the Compose file, and mounts it as `/run/secrets/<name>`. Each service reads each file of `/run/secrets` as a configuration key, and `__` in a file name is `:`. Without `Discord__Token`, the server has no Discord connection. Without `Optio__DiscordToken`, `optio` has no stream. Without `Optio__ModelApiKey`, `optio` serves no query.
-- `optio-system-prompt`: the system prompt of the query, in the file `system-prompt.txt`. It is not a secret, but a file is the easier way to give a value with many lines. Compose mounts it as `/run/secrets/Optio__SystemPrompt`, so that `optio` reads it as the key `Optio:SystemPrompt`. Without it, `optio` serves no query. The repository holds an example: [optio/docs/system-prompt.example.txt](../optio/docs/system-prompt.example.txt).
+- `optio-system-prompt`: the system prompt of the query. Replace the content with your prompt, and keep its indent. The repository holds an example: [optio/docs/system-prompt.example.txt](../optio/docs/system-prompt.example.txt). Compose mounts the content as `/run/secrets/Optio__SystemPrompt`, so that `optio` reads it as the key `Optio:SystemPrompt`. Without it, `optio` serves no query. Compose replaces `${...}` in the content here too.
 - `ConnectionStrings__*`: the passwords come from the file `.env` too.
 - `ASPNETCORE_FORWARDEDHEADERS_ENABLED`: each service applies `X-Forwarded-Proto` and `X-Forwarded-For` of the proxy. A service then trusts these headers from each client that reaches its port, so only the proxy must reach it.
 - `OTEL_*`: the telemetry. Add `OTEL_EXPORTER_OTLP_ENDPOINT` to export it. Without it, a service exports nothing.
