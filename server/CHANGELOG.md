@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Events: after an upload changes a stockpile, the server publishes one event of the type `stockpile.changed` for each guild that can read the stockpile, with the text of the change and the access policy of that guild. It publishes to NATS JetStream with `ConnectionStrings:events`, as `optio/docs/producers.md` describes. An upload does not wait for the broker. The metric `custos.events` counts the events by outcome.
+- Telemetry: the service name is `Custos`, unless `OTEL_SERVICE_NAME` sets another.
+
 ## 0.2.0
 
 The server connects to Discord as a bot, gives access by the roles of a member, labels the structures, and serves an MCP endpoint for searches. Contract version `v0` does not change.

@@ -28,6 +28,7 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.21.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.21.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.21.0" />
+    <PackageReference Include="NATS.Client.JetStream" Version="3.4.1" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.21.0" />
   </ItemGroup>
 

@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using Custos.Server.Discord;
+using Custos.Server.Events;
 using Custos.Server.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
@@ -22,13 +23,14 @@ namespace Custos.Server.Tests.Infrastructure;
 /// The server with a static authorization server: tokens are signed with a test key, and the
 /// Foxhole war API is a fake. Each factory has its own database in the shared PostgreSQL container.
 /// The war monitor is off. With <paramref name="discord"/>, the Discord connection is on, with
-/// the fake as Discord.
+/// the fake as Discord. With <paramref name="events"/>, the server publishes events to that broker.
 /// </summary>
 internal sealed class CustosFactory(
     int uploadMinIntervalSeconds = 0,
     string environment = "Testing",
     FakeDiscordDirectory? discord = null,
-    bool mcp = false
+    bool mcp = false,
+    string? events = null
 ) : WebApplicationFactory<Program>
 {
     public const string Issuer = "http://idp.test/realms/custos";
@@ -64,6 +66,8 @@ internal sealed class CustosFactory(
         builder.UseSetting("Custos:WarPollIntervalSeconds", "0");
         if (mcp)
             builder.UseSetting("Mcp:Enabled", "true");
+        if (events is not null)
+            builder.UseSetting($"ConnectionStrings:{EventPublisher.ConnectionName}", events);
         builder.UseSetting(
             "Custos:CatalogPath",
             Path.Combine(AppContext.BaseDirectory, "TestData", "test-catalog.json")
@@ -106,7 +110,7 @@ internal sealed class CustosFactory(
     }
 
     /// <summary>
-    /// A client with the token that optio gets for the upload API: the user <paramref
+    /// A client with the token that Optio gets for the upload API: the user <paramref
     /// name="subject"/>, the audience of the server, and the scope <paramref name="scopes"/>. The
     /// claim <c>active_guild</c> is <paramref name="guild"/>, and the claim <c>discord_id</c> is
     /// <paramref name="discordId"/>. A claim is absent when its value is <c>null</c>.

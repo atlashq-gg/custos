@@ -3,6 +3,7 @@ using Custos.Server;
 using Custos.Server.Catalog;
 using Custos.Server.Discord;
 using Custos.Server.Endpoints;
+using Custos.Server.Events;
 using Custos.Server.Mcp;
 using Custos.Server.Storage;
 using Custos.Server.Telemetry;
@@ -64,6 +65,7 @@ builder
     .AddCustosDiscord()
     .AddCustosAuthentication()
     .AddCustosMcp()
+    .AddCustosEvents()
     .AddCustosRateLimiting()
     .AddCustosOpenApi();
 
