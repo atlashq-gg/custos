@@ -1,19 +1,18 @@
-# Stream and query
+# Stream
 
 **Unstable.** This document changes soon ([04-versioning.md](04-versioning.md#unstable-parts)).
 
-A service can send messages to Custos on a stream, and it can answer a query of the user. Both parts are optional. A service without them works with the upload only, and Custos then works as without this document.
+A service can send messages to Custos on a stream. The stream is optional. A service without it works with the upload only, and Custos then works as without this document.
 
 ## Discovery
 
-Two optional members of the discovery document ([01-discovery.md](01-discovery.md)) announce the parts:
+The optional member `stream_endpoint` of the discovery document ([01-discovery.md](01-discovery.md)) announces the stream:
 
 | Member | Type | Content |
 |---|---|---|
 | `stream_endpoint` | string (URL) | The endpoint of the [stream](#stream). |
-| `query_endpoint` | string (URL) | The endpoint of the [query](#query). A service with `query_endpoint` MUST also have `stream_endpoint`. |
 
-Each URL obeys the HTTPS rule of the discovery document. Custos MUST ignore `query_endpoint` when `stream_endpoint` is not present.
+The URL obeys the HTTPS rule of the discovery document.
 
 ## Stream
 
@@ -24,7 +23,7 @@ Accept: text/event-stream
 Last-Event-ID: {id}
 ```
 
-- `Last-Event-ID` is optional. Custos sends it only when it has the `id` of an event from an earlier connection ([Resume](#resume)).
+- `Last-Event-ID` is optional. Custos sends it only when it has a position from an earlier connection ([Resume](#resume)).
 - The response is `200` with `Content-Type: text/event-stream`, as in the [Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html) standard.
 - The service MUST send a comment line at least each 30 seconds, also when it has no message.
 - The service MAY close the stream at any time. It MUST close the stream when the access token expires, or before.
@@ -35,39 +34,52 @@ An event is a group of text lines, not a JSON document. Each line is one field, 
 
 | Field | Required | Content |
 |---|---|---|
-| `id` | yes | An opaque value from the service. Custos sends it back in `Last-Event-ID` ([Resume](#resume)). It is one line of text with no line break. |
-| `data` | yes | One [message](#message) as JSON on one line. The JSON encoding writes a line break in a string as `\n`, so the message needs no second `data` line. |
+| `id` | yes | The [position](#position) of the stream after this event. It is an opaque value from the service, one line of text with no line break. |
+| `data` | no | One [message](#message) as JSON on one line. The JSON encoding writes a line break in a string as `\n`, so the message needs no second `data` line. An event with no `data` only sets the position. |
 
 - The service MUST NOT send other fields. Custos MUST ignore a field that it does not know, for example `event` or `retry`.
 - A line that starts with `:` is a comment. Custos ignores it. The service uses it to keep the connection open.
 
-A stream with two events and a comment, as the service sends it:
+A stream with its position, two events, and a comment, as the service sends it:
 
 ```text
-id: eyJjdXN0b3MiOiIxNDIifQ
+id: 1764090192512-141
+
+id: 1764090192512-142
 data: {"kind":"event","reference":"stockpile:5f0c","text":"Fort Barley Seaport: 4 items changed.","source":"custos"}
 
 : keep-alive
 
-id: eyJjdXN0b3MiOiIxNDMifQ
+id: 1764090192512-143
 data: {"kind":"event","reference":"stockpile:77a1","text":"Callahan's Gate depot: 2 items changed.","source":"custos"}
 
 ```
 
-After these events, Custos keeps `eyJjdXN0b3MiOiIxNDMifQ`. When it connects again, it sends `Last-Event-ID: eyJjdXN0b3MiOiIxNDMifQ`.
+After these events, Custos keeps `1764090192512-143`. When it connects again, it sends `Last-Event-ID: 1764090192512-143`.
+
+### Position
+
+- The `id` of each event is the position of the stream after that event.
+- When the stream opens, the service MUST first send its position: an event with `id` and no `data`. Thus Custos has a position also before the first message.
+- The service MAY send an event with no `data` at other times, to move the position.
+- Custos keeps the `id` of the last event that it got, also of an event with no `data`. An event with no `data` gives no message. This agrees with the Server-Sent Events standard.
 
 ### Resume
 
-- Custos keeps the `id` of the last event that it got. When it connects again, it sends that `id` in `Last-Event-ID`.
-- Custos MAY keep the `id` in memory only. After a restart, Custos connects without `Last-Event-ID`.
-- The `id` is opaque to Custos.
-- The service sends the messages after that `id` that it still has. The service decides how far back it goes.
-- With an `id` that it does not accept, the service starts from now.
+- When Custos connects again, it sends its position in `Last-Event-ID`.
+- Custos MAY keep the position in memory only. After a restart, Custos connects without `Last-Event-ID`.
+- The position is opaque to Custos.
+- The service sends the messages after that position that it still has. The service decides how far back it goes.
+- With a position that it does not accept, the service starts from now.
 - A first connection, without `Last-Event-ID`, starts from now.
 
 ### Connect again
 
 When the stream ends, or when a connection fails, Custos connects again with a valid access token. It waits 1 second after the first failure. It doubles the wait after each failure that follows, to 60 seconds at most. A stream that sent a message resets the wait.
+
+Custos waits a random time between half and all of the wait, also before the first try after a failure. Thus many clients do not connect at the same time, for example after a restart of the service.
+
+The stream ends at the latest when the access token expires. Custos then connects again at once, with a new token.
 
 ### Responses
 
@@ -100,10 +112,7 @@ The set of kinds is open. Custos MUST show a message of a kind that it does not 
 | Kind | Meaning |
 |---|---|
 | `event` | Something changed in the service, for example a stockpile. |
-| `progress` | The state of a query. |
-| `answer` | The full answer to a query, as one message. |
-| `confirm` | A question to the user before the service does a change for a query. The user answers it through the [query endpoint](#confirmation). |
-| `error` | A query or a part of the service failed. |
+| `error` | A part of the service failed, or the service cannot send the events of the user. |
 
 ### Example
 
@@ -115,52 +124,3 @@ The set of kinds is open. Custos MUST show a message of a kind that it does not 
   "source": "custos"
 }
 ```
-
-## Query
-
-```http
-POST {query_endpoint}
-Authorization: Bearer {access_token}
-Content-Type: application/json
-
-{"text": "How many rifles are in the seaport?"}
-```
-
-- The schema of the body is [schemas/query.schema.json](schemas/query.schema.json).
-- `text` is the query of the user in plain language, 1 to 500 characters.
-- The service answers on the stream. Thus a query needs an open stream of the user.
-- The response `202` holds the reference of the query ([schemas/query-accepted.schema.json](schemas/query-accepted.schema.json)). Each message about the query has this reference.
-- The service sends the messages of a query to each open stream of the user.
-- The contract states only that the service answers. How the service makes the answer is not part of the contract.
-
-```json
-{ "reference": "query:8d1e" }
-```
-
-### Confirmation
-
-A `confirm` message asks the user to accept or refuse a change. Its `reference` names the confirmation. Custos sends the answer of the user:
-
-```json
-{ "confirm": "confirm:41aa", "accept": true }
-```
-
-- `accept` is `true` when the user accepts, and `false` when the user refuses.
-- The service MUST NOT do the change before it gets `accept` `true`.
-- A confirmation expires. The service decides when.
-- The response is `202` with the reference of the query.
-
-### Responses
-
-| Status | Meaning | Action of Custos |
-|---|---|---|
-| `202` | The service accepted the query or the answer. The messages come on the stream. | Wait for the messages. |
-| `400` | The body is not valid. | Report the error. |
-| `401` | The token is missing or not valid. | Do the challenge steps in [02-authentication.md](02-authentication.md#challenge). |
-| `403` | The service does not answer queries from this user. | Report the error. |
-| `404` | The endpoint does not exist. | Get the discovery document again. |
-| `409` | The user has no open stream, or the confirmation is not open. | Report the error. |
-| `429` | Too many queries. The response MUST have a `Retry-After` header. | Report the error. Do not send a query before the time in `Retry-After`. |
-| `503` | The service cannot answer now. | Report the error. |
-
-Each error response has the type `application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)).
