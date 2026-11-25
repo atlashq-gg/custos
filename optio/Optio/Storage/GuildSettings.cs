@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Optio.Storage;
 
-/// <summary>The settings of optio for a guild, as <c>/optioadmin settings</c> shows them.</summary>
+/// <summary>The settings of Optio for a guild, as <c>/optioadmin settings</c> shows them.</summary>
 public sealed record GuildSettings(string? Prompt)
 {
     /// <summary>The longest prompt of a guild.</summary>
@@ -75,13 +75,13 @@ public sealed partial class GuildSettingsStore(
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "Audit: the optio settings of guild {GuildId} changed by user {UserId}"
+        Message = "Audit: the Optio settings of guild {GuildId} changed by user {UserId}"
     )]
     private static partial void LogSettingsChanged(ILogger logger, ulong guildId, ulong userId);
 }
 
 /// <summary>
-/// Applies the migrations when optio starts, before the other hosted services start. EF Core
+/// Applies the migrations when Optio starts, before the other hosted services start. EF Core
 /// locks the migration history, so two instances can start at the same time.
 /// </summary>
 internal sealed class DatabaseMigrator(IServiceScopeFactory scopes) : IHostedService

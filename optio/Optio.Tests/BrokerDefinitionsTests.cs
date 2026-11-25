@@ -11,7 +11,7 @@ namespace Optio.Tests;
 /// <summary>
 /// The users, the permissions, and the stream of the development definitions file
 /// (optio/docs/producers.md). A producer publishes only to its own exchange, and the broker keeps
-/// each event in the stream of the producer. optio only reads the stream. Needs Docker.
+/// each event in the stream of the producer. Optio only reads the stream. Needs Docker.
 /// </summary>
 public sealed class BrokerDefinitionsTests
 {

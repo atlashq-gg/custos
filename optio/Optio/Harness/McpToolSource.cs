@@ -46,10 +46,10 @@ internal interface IToolSource
 }
 
 /// <summary>
-/// The tools of the MCP services of the configuration. For each service, optio gets a token of the
+/// The tools of the MCP services of the configuration. For each service, Optio gets a token of the
 /// user with the read scope by exchange, and the service lists the read tools. With a write scope,
-/// optio also lists the tools with the read and write scopes. A tool that is only in that list is
-/// a write tool: optio calls it only after the confirmation of the user, with a token of the write
+/// Optio also lists the tools with the read and write scopes. A tool that is only in that list is
+/// a write tool: Optio calls it only after the confirmation of the user, with a token of the write
 /// scope. Code sets the argument <c>guild_id</c> to the guild of the stream, and the model does
 /// not see it (decisions on #48 of 2026-11-24). Each call writes an audit line to the log.
 /// </summary>
@@ -319,7 +319,7 @@ internal sealed partial class McpToolSource(
             );
 
         /// <summary>The route of a tool: its service and its name there. A write tool has no
-        /// client: optio connects with the write scope after the confirmation. <paramref
+        /// client: Optio connects with the write scope after the confirmation. <paramref
         /// name="Shown"/> holds the text arguments that the user sees in the confirmation.
         /// </summary>
         private sealed record Route(
@@ -335,7 +335,7 @@ internal sealed partial class McpToolSource(
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The tool {Tool} of {Service} has the name of another tool. optio leaves it out"
+        Message = "The tool {Tool} of {Service} has the name of another tool. Optio leaves it out"
     )]
     private static partial void LogDuplicateTool(ILogger logger, string tool, string service);
 

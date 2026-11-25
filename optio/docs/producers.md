@@ -1,8 +1,8 @@
 # Producers
 
-**Unstable.** This contract can change. The [changelog of `optio`](../CHANGELOG.md) records each change.
+**Unstable.** This contract can change. The [changelog of Optio](../CHANGELOG.md) records each change.
 
-A producer is a domain service that sends events to `optio`, for example the [server](../../server/README.md). This document is the contract between a producer and `optio`. The contract between Custos and `optio` is [spec/](../../spec/README.md). The decision is [ADR 0007](../../docs/adr/0007-a-broker-carries-domain-events.md).
+A producer is a domain service that sends events to Optio, for example the [server](../../server/README.md). This document is the contract between a producer and Optio. The contract between Custos and Optio is [spec/](../../spec/README.md). The decision is [ADR 0007](../../docs/adr/0007-a-broker-carries-domain-events.md).
 
 The key words MUST, MUST NOT, SHOULD, and MAY are as in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
 
@@ -11,10 +11,10 @@ The key words MUST, MUST NOT, SHOULD, and MAY are as in [RFC 2119](https://www.r
 1. The producer commits a change.
 2. The producer publishes one [event](#event) for each guild that can read the change, to its exchange on the RabbitMQ broker. The event holds the text for the user and the [policy](#policy) that tells who can read it.
 3. The broker keeps each event in the [stream](#broker) of the producer.
-4. `optio` reads the stream. It sends the message of the event to each open stream of Custos whose user matches the policy ([spec/05-stream.md](../../spec/05-stream.md)).
-5. When a user connects again, `optio` replays the events of the last 15 minutes from the stream, with the policy of now.
+4. Optio reads the stream. It sends the message of the event to each open stream of Custos whose user matches the policy ([spec/05-stream.md](../../spec/05-stream.md)).
+5. When a user connects again, Optio replays the events of the last 15 minutes from the stream, with the policy of now.
 
-The producer controls the access to its own APIs. With an event, it sends the authorization to read the event, and `optio` applies it. `optio` never sends the policy to Custos.
+The producer controls the access to its own APIs. With an event, it sends the authorization to read the event, and Optio applies it. Optio never sends the policy to Custos.
 
 ## Event
 
@@ -31,7 +31,7 @@ The schema is [schemas/event.schema.json](../schemas/event.schema.json).
 | `time` | yes | The time when the producer recorded the change, as RFC 3339. |
 | `datacontenttype` | no | `application/json`. |
 | `data` | yes | The [data](#data) of the event. |
-| `traceparent` | no | The W3C trace context of the change, so that a trace goes from the producer to `optio`. |
+| `traceparent` | no | The W3C trace context of the change, so that a trace goes from the producer to Optio. |
 
 An event MUST NOT have `data_base64`.
 
@@ -41,10 +41,10 @@ An event MUST NOT have `data_base64`.
 |---|---|---|---|
 | `policy` | object | yes | Who can read the event ([Policy](#policy)). |
 | `message` | object | yes | The message for the user. |
-| `message.text` | string | yes | Plain text for the user, 500 characters at most. It can hold line breaks. `optio` sends it as the `text` of the message. |
-| `message.reference` | string | no | A message with the reference of a shown message replaces it. `optio` sends it as the `reference` of the message. |
+| `message.text` | string | yes | Plain text for the user, 500 characters at most. It can hold line breaks. Optio sends it as the `text` of the message. |
+| `message.reference` | string | no | A message with the reference of a shown message replaces it. Optio sends it as the `reference` of the message. |
 
-An event type can have more members in `data`. The producer documents them. `optio` ignores a member that it does not know.
+An event type can have more members in `data`. The producer documents them. Optio ignores a member that it does not know.
 
 ### Policy
 
@@ -57,17 +57,17 @@ An event type can have more members in `data`. The producer documents them. `opt
 
 A Discord ID is a string, because it can be larger than the largest exact integer of JSON in many parsers.
 
-`optio` applies these rules. A producer does not add them to the policy.
+Optio applies these rules. A producer does not add them to the policy.
 
 1. A user reads an event only on a stream whose `active_guild` is `guild`, and only as a member of `guild`.
 2. A user reads the event when one of the roles of the user is in `roles`, or when the user is in `users`. One match is sufficient.
 3. An empty list gives access to nobody.
 4. The ID of `guild` in `roles` is the role `@everyone`: each member of the guild, also a pending member.
 5. The owner of the guild and a member with the permission `ADMINISTRATOR` read each event, also with an empty `roles`. This rule does not apply to an event with `users`.
-6. `optio` ignores a role ID that is not a role of `guild`.
-7. `optio` uses the roles of now, also for a replay. A role change applies after a short delay.
-8. `optio` does not send an event with a `version` that it does not know. It counts it.
-9. When the bot of `optio` is not a member of `guild`, `optio` counts the event. It sends one `error` message to a stream of that guild when the stream opens.
+6. Optio ignores a role ID that is not a role of `guild`.
+7. Optio uses the roles of now, also for a replay. A role change applies after a short delay.
+8. Optio does not send an event with a `version` that it does not know. It counts it.
+9. When the bot of Optio is not a member of `guild`, Optio counts the event. It sends one `error` message to a stream of that guild when the stream opens.
 
 A producer can address any guild or user. This is intentional. Thus only a trusted service gets a broker user that can publish.
 
@@ -127,7 +127,7 @@ When a guild shares its records with other guilds, the producer MUST publish one
 
 ## Broker
 
-The operator makes the exchange, the stream, the binding, and the users in the definitions of the broker, for example [rabbitmq/definitions.json](../rabbitmq/definitions.json). A producer and `optio` declare nothing.
+The operator makes the exchange, the stream, the binding, and the users in the definitions of the broker, for example [rabbitmq/definitions.json](../rabbitmq/definitions.json). A producer and Optio declare nothing.
 
 | Object | Name | Content |
 |---|---|---|
@@ -143,14 +143,14 @@ The arguments of the stream:
 | `x-stream-max-segment-size-bytes` | `1000000` | Small segments, so that the broker removes old data sooner. |
 | `x-max-length-bytes` | `100000000` | A limit against a flood of events. |
 
-The broker removes data only when a segment rolls over. Thus an event can stay on the broker disk for longer than `x-max-age` when the producer publishes little. `optio` applies the replay window itself.
+The broker removes data only when a segment rolls over. Thus an event can stay on the broker disk for longer than `x-max-age` when the producer publishes little. Optio applies the replay window itself.
 
 | User | Configure | Write | Read |
 |---|---|---|---|
 | The producer | `^$` | `^events\.<source>$` | `^$` |
 | `optio` | `^$` | `^$` | `^events\..+$` |
 
-Thus a producer can publish only to its own exchange, and it cannot read. `optio` can only read. It gets the source of an event from the name of its stream.
+Thus a producer can publish only to its own exchange, and it cannot read. Optio can only read. It gets the source of an event from the name of its stream.
 
 ## Compatibility
 
@@ -161,9 +161,9 @@ Thus a producer can publish only to its own exchange, and it cannot read. `optio
 
 ## Join as a new producer
 
-A producer can use any language. It needs no MCP endpoint and no token for `optio`. It needs:
+A producer can use any language. It needs no MCP endpoint and no token for Optio. It needs:
 
 1. An AMQP 0.9.1 client, for example the RabbitMQ client of its language.
 2. A source name. Use lowercase letters, digits, and `-`.
 3. In the definitions of the broker: a user with its permissions, the exchange, the stream, and the binding, as in [Broker](#broker).
-4. One entry with the source name in the configuration of `optio`.
+4. One entry with the source name in the configuration of Optio.

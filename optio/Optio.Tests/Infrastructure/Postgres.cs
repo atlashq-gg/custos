@@ -5,7 +5,7 @@ namespace Optio.Tests.Infrastructure;
 
 /// <summary>
 /// One PostgreSQL container for the test run. It starts on first use. Each factory gets its own
-/// database, and optio creates it with its migrations. Testcontainers removes the container after
+/// database, and Optio creates it with its migrations. Testcontainers removes the container after
 /// the run.
 /// </summary>
 internal static class Postgres

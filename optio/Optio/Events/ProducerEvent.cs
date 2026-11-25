@@ -5,7 +5,7 @@ using Optio.Streams;
 namespace Optio.Events;
 
 /// <summary>
-/// An event of a producer, as optio reads it from the stream of the source
+/// An event of a producer, as Optio reads it from the stream of the source
 /// (optio/docs/producers.md). <paramref name="Offset"/> is the offset in that stream.
 /// </summary>
 internal sealed record ProducerEvent(
@@ -17,12 +17,12 @@ internal sealed record ProducerEvent(
     string? Reference
 )
 {
-    /// <summary>The policy version that optio knows.</summary>
+    /// <summary>The policy version that Optio knows.</summary>
     public const int PolicyVersion = 1;
 
     /// <summary>
     /// Reads the CloudEvents document of a message. Null for a document that is not valid, or for
-    /// a policy version that optio does not know. optio sends no such event.
+    /// a policy version that Optio does not know. Optio sends no such event.
     /// </summary>
     public static ProducerEvent? Parse(string source, long offset, ReadOnlyMemory<byte> body)
     {

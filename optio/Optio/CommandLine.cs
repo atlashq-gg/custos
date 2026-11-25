@@ -4,7 +4,7 @@ using Optio.Endpoints;
 namespace Optio;
 
 /// <summary>
-/// The flags that optio runs before it builds the host. The configuration provider for the
+/// The flags that Optio runs before it builds the host. The configuration provider for the
 /// command line does not see them.
 /// </summary>
 internal static partial class CommandLine
@@ -13,7 +13,7 @@ internal static partial class CommandLine
     public const string Version = "--version";
 
     /// <summary>
-    /// Asks <see cref="Health.AlivePath"/> of optio on this machine. The exit code is 0 for a
+    /// Asks <see cref="Health.AlivePath"/> of Optio on this machine. The exit code is 0 for a
     /// healthy service, and 1 for all other answers. The <c>HEALTHCHECK</c> of the image uses it,
     /// because the image has no shell and no <c>curl</c>.
     /// </summary>

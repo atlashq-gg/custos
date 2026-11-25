@@ -202,7 +202,7 @@ internal sealed class StreamBroker : IAsyncDisposable
         var file = optio.DeepClone();
         file["user"] = "optio-file";
         permissions.Add(file);
-        // The change that lets optio read the stream.
+        // The change that lets Optio read the stream.
         optio["read"] = @"^(amq\.gen-.*|events\..+|optio\.events)$";
         permissions.Add(
             new JsonObject

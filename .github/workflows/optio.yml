@@ -1,6 +1,6 @@
 name: optio
 
-# Tests optio and builds its container image ghcr.io/atlashq-gg/custos-optio.
+# Tests Optio and builds its container image ghcr.io/atlashq-gg/custos-optio.
 #
 #   pull request          -> build the image, no push
 #   push to main          -> push the tags unstable and sha-<sha>, version "unstable+<short sha>"
@@ -170,7 +170,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v3
         with:
-          name: optio ${{ steps.notes.outputs.version }}
+          name: Optio ${{ steps.notes.outputs.version }}
           body_path: ${{ runner.temp }}/release-notes.md
           # The latest release stays the one of Custos, the application that users download.
           make_latest: false

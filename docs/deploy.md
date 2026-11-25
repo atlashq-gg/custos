@@ -1,15 +1,15 @@
 # Deploy
 
-This guide deploys the services of the system with Docker Compose: `optio`, the server, and the RabbitMQ broker. It uses an existing PostgreSQL and an existing Keycloak. Custos calls only `optio` ([ADR 0006](adr/0006-optio-is-the-service-of-the-contract.md)). `optio` calls the server with a token of the user, and reads the events of the server from the broker ([ADR 0007](adr/0007-a-broker-carries-domain-events.md)).
+This guide deploys the services of the system with Docker Compose: Optio, the server, and the RabbitMQ broker. It uses an existing PostgreSQL and an existing Keycloak. Custos calls only Optio ([ADR 0006](adr/0006-optio-is-the-service-of-the-contract.md)). Optio calls the server with a token of the user, and reads the events of the server from the broker ([ADR 0007](adr/0007-a-broker-carries-domain-events.md)).
 
 The options of each service are in [optio/README.md](../optio/README.md#configuration) and [server/README.md](../server/README.md#configuration). The examples use these values. Replace them with your own.
 
 | Value | Example |
 |---|---|
-| Public URL of `optio`, which Custos uses | `https://custos.example.com` |
+| Public URL of Optio, which Custos uses | `https://custos.example.com` |
 | Public URL of the MCP endpoint of the server | `https://records.example.com/mcp` |
 | Issuer of the Keycloak realm | `https://id.example.com/realms/custos` |
-| Databases and roles | `custos` for the server, `optio` for `optio` |
+| Databases and roles | `custos` for the server, Optio for Optio |
 
 The system needs:
 
@@ -17,8 +17,8 @@ The system needs:
 - Keycloak 26.8 or later, with the features `cimd` and `resource-indicators`.
 - RabbitMQ 4 with stream queues. The AppHost uses the image `rabbitmq:4.3-alpine`.
 - A reverse proxy that terminates TLS. Each container serves HTTP on port 8080.
-- Two Discord applications, each with a bot: one for the server, and one for `optio`.
-- For the query: a key of the model provider and a system prompt. Without them, `optio` serves no query, and the upload and the stream still work.
+- Two Discord applications, each with a bot: one for the server, and one for Optio.
+- For the query: a key of the model provider and a system prompt. Without them, Optio serves no query, and the upload and the stream still work.
 
 ## 1. Prepare PostgreSQL
 
@@ -48,7 +48,7 @@ The [development realm](../server/keycloak/custos-realm.json) holds each of thes
 
 ### Client profile and client policy
 
-Keycloak gets the registration of Custos from the Client ID Metadata Document of `optio`, at `https://custos.example.com/.well-known/custos-client`. The profile accepts that document. The policy applies the profile to a client ID on the host of `optio`. Put the host of `optio` in both files. The domain `oauth2callback` permits the redirect URI `custos://oauth2callback`.
+Keycloak gets the registration of Custos from the Client ID Metadata Document of Optio, at `https://custos.example.com/.well-known/custos-client`. The profile accepts that document. The policy applies the profile to a client ID on the host of Optio. Put the host of Optio in both files. The domain `oauth2callback` permits the redirect URI `custos://oauth2callback`.
 
 `profiles.json`:
 
@@ -110,7 +110,7 @@ The admin console has the same settings in **Realm settings**, on the tab **Clie
 
 ### The claim `discord_id`
 
-The server and `optio` need the Discord user ID in the claim `discord_id` of the access token. The development realm shows one method: a user attribute and a default client scope.
+The server and Optio need the Discord user ID in the claim `discord_id` of the access token. The development realm shows one method: a user attribute and a default client scope.
 
 1. In **Realm settings**, on the tab **User profile**, create the attribute `discord_id`. Let only an administrator edit it. Keycloak removes a user attribute that the user profile does not declare.
 2. In **Client scopes**, create the scope `custos-discord` with the protocol `OpenID Connect`. Set **Include in token scope** to off.
@@ -138,7 +138,7 @@ If Keycloak registered the client of Custos before step 3, add the scope to that
 
 | Scope | Assigned type | Mappers | Use |
 |---|---|---|---|
-| `custos:client` | Optional | **Audience**: **Included Client Audience** `optio` | Custos requests it. The token of Custos then has the audience `optio`, so that `optio` can exchange it. |
+| `custos:client` | Optional | **Audience**: **Included Client Audience** `optio` | Custos requests it. The token of Custos then has the audience `optio`, so that Optio can exchange it. |
 | `custos:read` | Optional | **Audience**: **Included Custom Audience** `https://records.example.com/mcp`. **User Attribute** `discord_id` as above. | The read tools of the server. |
 | `custos:write` | Optional | The same as `custos:read`. | The upload API and the write tools of the server. |
 
@@ -146,14 +146,14 @@ Create each scope in **Client scopes** with the protocol `OpenID Connect`. Set *
 
 ### The client `optio`
 
-`optio` exchanges the token of Custos for a token of the server (RFC 8693). It has no login of its own.
+Optio exchanges the token of Custos for a token of the server (RFC 8693). It has no login of its own.
 
 1. In **Clients**, create the client `optio` with the protocol `OpenID Connect`.
 2. Set **Client authentication** to on. Set **Standard flow** and **Direct access grants** to off. Set **Standard Token Exchange** to on.
 3. Copy the secret from the tab **Credentials**. It is the value of `OPTIO_CLIENT_SECRET` in the file `.env` (step 5).
 4. On the tab **Client scopes**, set `custos-discord` and `custos-guild` as **Default**, and `custos:read` and `custos:write` as **Optional**.
 
-An exchanged token gets only the claims of the scopes of the client `optio`. Thus `optio` needs `custos-guild` too, or the token of the server has no `active_guild`.
+An exchanged token gets only the claims of the scopes of the client `optio`. Thus Optio needs `custos-guild` too, or the token of the server has no `active_guild`.
 
 For each other domain service of the realm, give the client `optio` its scopes as optional scopes ([optio/README.md](../optio/README.md#add-a-service)).
 
@@ -163,7 +163,7 @@ An LLM harness reads the metadata document of `/mcp`, gets its own client in the
 
 1. In **Clients**, on the tab **Client registration**, open the anonymous policy **Trusted Hosts**. Add the hosts of the redirect URIs of the harnesses that you permit, for example `localhost` and `127.0.0.1` for a harness on a computer. Set **Host Sending Client Registration Request Must Match** to off, and keep **Client URIs Must Match** on.
 2. In **Realm settings**, on the tab **Client policies**, add a profile with the executor `pkce-enforcer` (**Auto-configure** on), and a policy with the condition `any-client` for that profile. Each client then uses PKCE with S256.
-3. For a harness that uses a Client ID Metadata Document, such as Claude Code, extend the profile and the policy `custos-cimd`. Without this step, Keycloak shows `Client not found`, because the policy accepts only the host of `optio`. In the profile, add to the executor `client-id-metadata-document`:
+3. For a harness that uses a Client ID Metadata Document, such as Claude Code, extend the profile and the policy `custos-cimd`. Without this step, Keycloak shows `Client not found`, because the policy accepts only the host of Optio. In the profile, add to the executor `client-id-metadata-document`:
 
    ```json
    "cimd-allow-permitted-domains": ["custos.example.com", "oauth2callback", "claude.ai", "localhost", "127.0.0.1"],
@@ -186,13 +186,13 @@ The harness opens the login of Keycloak. The consent page shows the two scopes. 
 Each service needs its own Discord application. Each service registers its commands when it starts, and a registration replaces all the commands of the application.
 
 1. For the server, do the steps of [The Discord application](../server/README.md#the-discord-application).
-2. For `optio`, do the same steps with a second application. On the page **Bot**, also set **Server Members Intent** to on: `optio` reads the roles of the members with an open stream. Keep the other privileged intents off.
+2. For Optio, do the same steps with a second application. On the page **Bot**, also set **Server Members Intent** to on: Optio reads the roles of the members with an open stream. Keep the other privileged intents off.
 
-The server registers `/custosadmin` and `/custos`. `optio` registers `/optioadmin` ([optio/README.md](../optio/README.md#prompts)).
+The server registers `/custosadmin` and `/custos`. Optio registers `/optioadmin` ([optio/README.md](../optio/README.md#prompts)).
 
 ## 4. Prepare RabbitMQ
 
-The broker carries the events of the server to `optio`. The operator makes each object of the broker. A service declares nothing ([optio/docs/producers.md](../optio/docs/producers.md#broker)).
+The broker carries the events of the server to Optio. The operator makes each object of the broker. A service declares nothing ([optio/docs/producers.md](../optio/docs/producers.md#broker)).
 
 1. Copy [optio/rabbitmq/definitions.json](../optio/rabbitmq/definitions.json) next to the Compose file. It holds the exchange `events.custos`, the stream `events.custos.stream`, the binding, and the users `custos` and `optio` with their permissions.
 2. Make a password hash for each user, and put it in `password_hash` of the user in the copy. The hashes in the repository are for development only.
@@ -333,18 +333,18 @@ OPTIO_MODEL_KEY=<key of the model provider>
 ```
 
 - `image`: a release tag (`X.Y.Z`) of each service. The tags above are examples. `unstable` changes with each push to `main` ([optio/README.md](../optio/README.md#container), [server/README.md](../server/README.md#container)).
-- `server-settings` and `optio-settings`: the settings of each service as JSON, in the sections `Custos` and `Mcp` of the server ([server/README.md](../server/README.md#configuration)) and `Optio` of `optio` ([optio/README.md](../optio/README.md#configuration)). Compose mounts each content as `/app/appsettings.Production.json` of its service, and the service reads it when it starts. Compose replaces `${...}` in the content, so do not put a `$` in a value.
-- `PublicBaseUrl`: the origin that Custos and Keycloak use to reach `optio`. The client ID of Custos is `{PublicBaseUrl}/.well-known/custos-client`.
+- `server-settings` and `optio-settings`: the settings of each service as JSON, in the sections `Custos` and `Mcp` of the server ([server/README.md](../server/README.md#configuration)) and `Optio` of Optio ([optio/README.md](../optio/README.md#configuration)). Compose mounts each content as `/app/appsettings.Production.json` of its service, and the service reads it when it starts. Compose replaces `${...}` in the content, so do not put a `$` in a value.
+- `PublicBaseUrl`: the origin that Custos and Keycloak use to reach Optio. The client ID of Custos is `{PublicBaseUrl}/.well-known/custos-client`.
 - `Authority`: the issuer of the realm, exactly as the `iss` claim of a token has it. Each service gets the metadata and the signing keys of Keycloak from this URL, so each container must reach it.
-- `Resource` of the server: the public URL of the MCP endpoint. It is the audience of each token of the server, also of a token that `optio` gets by exchange. Thus it is the public URL even when `optio` calls the server on the internal network.
+- `Resource` of the server: the public URL of the MCP endpoint. It is the audience of each token of the server, also of a token that Optio gets by exchange. Thus it is the public URL even when Optio calls the server on the internal network.
 - `UploadApiUrl` and the `Url` of the MCP service: the internal URLs of the server. The upload API needs no public route. Add an entry to `McpServices` for each other domain service ([optio/README.md](../optio/README.md#add-a-service)).
-- `secrets`: Compose gets each secret from a variable of the file `.env` next to the Compose file, and mounts it as `/run/secrets/<name>`. Each service reads each file of `/run/secrets` as a configuration key, and `__` in a file name is `:`. Without `Discord__Token`, the server has no Discord connection. Without `Optio__DiscordToken`, `optio` has no stream. Without `Optio__ModelApiKey`, `optio` serves no query.
-- `optio-system-prompt`: the system prompt of the query. Replace the content with your prompt, and keep its indent. The repository holds an example: [optio/docs/system-prompt.example.txt](../optio/docs/system-prompt.example.txt). Compose mounts the content as `/run/secrets/Optio__SystemPrompt`, so that `optio` reads it as the key `Optio:SystemPrompt`. Without it, `optio` serves no query. Compose replaces `${...}` in the content here too.
+- `secrets`: Compose gets each secret from a variable of the file `.env` next to the Compose file, and mounts it as `/run/secrets/<name>`. Each service reads each file of `/run/secrets` as a configuration key, and `__` in a file name is `:`. Without `Discord__Token`, the server has no Discord connection. Without `Optio__DiscordToken`, Optio has no stream. Without `Optio__ModelApiKey`, Optio serves no query.
+- `optio-system-prompt`: the system prompt of the query. Replace the content with your prompt, and keep its indent. The repository holds an example: [optio/docs/system-prompt.example.txt](../optio/docs/system-prompt.example.txt). Compose mounts the content as `/run/secrets/Optio__SystemPrompt`, so that Optio reads it as the key `Optio:SystemPrompt`. Without it, Optio serves no query. Compose replaces `${...}` in the content here too.
 - `ConnectionStrings__*`: the passwords come from the file `.env` too.
 - `ASPNETCORE_FORWARDEDHEADERS_ENABLED`: each service applies `X-Forwarded-Proto` and `X-Forwarded-For` of the proxy. A service then trusts these headers from each client that reaches its port, so only the proxy must reach it.
 - `OTEL_*`: the telemetry. Add `OTEL_EXPORTER_OTLP_ENDPOINT` to export it. Without it, a service exports nothing.
 - `networks`: an existing network that PostgreSQL is on. `docker network ls` shows its name. If PostgreSQL runs on another host, remove that network, and use the host name in `Host=`.
-- `ports`: the reverse proxy on the host connects to `127.0.0.1:8080` for `optio` and `127.0.0.1:8081` for the server. If the proxy runs in Docker, put the services on the network of the proxy instead.
+- `ports`: the reverse proxy on the host connects to `127.0.0.1:8080` for Optio and `127.0.0.1:8081` for the server. If the proxy runs in Docker, put the services on the network of the proxy instead.
 
 The value `UploadMaxBytes` must be equal in the two services. The value `UploadMinIntervalSeconds` too.
 
@@ -352,12 +352,12 @@ The value `UploadMaxBytes` must be equal in the two services. The value `UploadM
 
 | Public host | Paths | Target |
 |---|---|---|
-| `custos.example.com` | All | `optio`, port 8080 |
+| `custos.example.com` | All | Optio, port 8080 |
 | `records.example.com` | `/mcp` and `/.well-known/oauth-protected-resource` | The server, port 8080 |
 
 - Keep the `Host` header of the request, and send `X-Forwarded-Proto` and `X-Forwarded-For`.
 - Keycloak gets `/.well-known/custos-client` through the proxy, so the certificate must be valid for Keycloak.
-- The stream at `/api/v1/stream` is a long response with Server-Sent Events. Turn off the buffer of the response for this path, and let a response run for longer than the lifetime of an access token. `optio` sends a comment each 15 seconds, and closes the stream when the token expires.
+- The stream at `/api/v1/stream` is a long response with Server-Sent Events. Turn off the buffer of the response for this path, and let a response run for longer than the lifetime of an access token. Optio sends a comment each 15 seconds, and closes the stream when the token expires.
 - Give no public route to the other paths of the server.
 
 ## 7. Start and check the system
@@ -371,9 +371,9 @@ curl https://records.example.com/.well-known/oauth-protected-resource
 ```
 
 1. `/health/ready` of each service must give `Healthy`. It checks the database of the service.
-2. The discovery document must show the public URL in `upload_endpoint` and `client_id`. With the Discord token of `optio`, it has `stream_endpoint`. With the model key and the system prompt, it has `query_endpoint`.
+2. The discovery document must show the public URL in `upload_endpoint` and `client_id`. With the Discord token of Optio, it has `stream_endpoint`. With the model key and the system prompt, it has `query_endpoint`.
 3. The metadata document of the server must show `"resource": "https://records.example.com/mcp"`.
-4. Set the URL of `optio` in Custos, and log in. Keycloak shows a consent page on the first login.
+4. Set the URL of Optio in Custos, and log in. Keycloak shows a consent page on the first login.
 5. After an upload, the table `uploads` of the database `custos` has one row, and the log of the server shows no error of the broker.
 6. With the Discord tokens, the logs have no warning about a token. In a guild, `/custosadmin settings view` and `/optioadmin settings` work.
 
@@ -382,5 +382,5 @@ curl https://records.example.com/.well-known/oauth-protected-resource
 - Run one instance of each service. The rate limits, the cache of the war API, the Discord gateway, the replay window of the stream, and the open confirmations are in the memory of the process.
 - Each image has a `HEALTHCHECK` with the flag `--healthcheck`, because the images have no shell and no `curl`. The check uses `/health/alive`. Check `/health/ready` from the proxy or from a monitor.
 - Back up the databases before you update an image. Each service applies new migrations when it starts.
-- The broker keeps the events of the last hour. After a restart, `optio` reads the events of its replay window again from the broker.
+- The broker keeps the events of the last hour. After a restart, Optio reads the events of its replay window again from the broker.
 - The archive and the purge of a war are manual ([server/README.md](../server/README.md#wars)).

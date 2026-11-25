@@ -11,7 +11,7 @@ internal static class StorageSetup
 
     /// <summary>
     /// Registers the database when the configuration has its connection string. Without it,
-    /// optio keeps no guild settings, and has no commands and no query.
+    /// Optio keeps no guild settings, and has no commands and no query.
     /// </summary>
     public static IHostApplicationBuilder AddOptioStorage(this IHostApplicationBuilder builder)
     {

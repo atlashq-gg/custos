@@ -2,17 +2,17 @@
 
 ## Unreleased
 
-The server is a domain service behind `optio` ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). It publishes its stockpile changes to the event broker ([ADR 0007](../docs/adr/0007-a-broker-carries-domain-events.md)).
+The server is a domain service behind Optio ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). It publishes its stockpile changes to the event broker ([ADR 0007](../docs/adr/0007-a-broker-carries-domain-events.md)).
 
-- Removed: the discovery document, the Client ID Metadata Document of Custos, and the options `PublicBaseUrl`, `ServiceName`, `Scopes`, `OpenIdConfiguration`, and `ClientId`. `optio` serves them now.
+- Removed: the discovery document, the Client ID Metadata Document of Custos, and the options `PublicBaseUrl`, `ServiceName`, `Scopes`, `OpenIdConfiguration`, and `ClientId`. Optio serves them now.
 - `Custos:Resource` replaces `Mcp:Resource`. The upload API and `/mcp` accept a token only with this audience. The upload API needs the scope `custos:write`, with no check of `azp`.
 - Events: after the commit of an upload, the server publishes one event `stockpile.changed` for each changed stockpile and each guild that can read it. It publishes to the exchange `events.custos`, with `ConnectionStrings:events`. The event holds the text for a person and the access policy of the guild. The counter `custos.events`.
 - The text of an event: the place, then at most 5 changes as the signed difference and the new total, for example `Rifle crates +20 (40)`, then `+N more`.
-- The realm file moves to `server/keycloak/custos-realm.json`. It has the client `optio` with the standard token exchange, and the optional scope `custos:client`. This change removes the AppHost of the server. The AppHost of `optio` starts the full system.
+- The realm file moves to `server/keycloak/custos-realm.json`. It has the client `optio` with the standard token exchange, and the optional scope `custos:client`. This change removes the AppHost of the server. The AppHost of Optio starts the full system.
 
 For operators:
 
-- The client ID of Custos is now a URL of `optio`, so each user logs in again.
+- The client ID of Custos is now a URL of Optio, so each user logs in again.
 - `Custos__PublicBaseUrl` is gone. `Mcp__Resource` is now `Custos__Resource`.
 - The scope `custos-guild` must also be a default scope of the client `optio`.
 - [docs/deploy.md](../docs/deploy.md) deploys the full system.

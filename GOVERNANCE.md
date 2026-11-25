@@ -22,7 +22,7 @@ Discussions happen in GitHub issues and pull requests. A decision that does not 
 
 ## The specification
 
-`spec/` is the authority for the contract between Custos and a service. Custos and `optio` conform to it. `optio` is an implementation, not the definition of the contract. The server is a domain service behind `optio` ([ADR 0006](docs/adr/0006-optio-is-the-service-of-the-contract.md)).
+`spec/` is the authority for the contract between Custos and a service. Custos and Optio conform to it. Optio is an implementation, not the definition of the contract. The server is a domain service behind Optio ([ADR 0006](docs/adr/0006-optio-is-the-service-of-the-contract.md)).
 
 ## Changes
 
@@ -38,7 +38,7 @@ Discussions happen in GitHub issues and pull requests. A decision that does not 
 - A release of an application is a tag `<project>-X.Y.Z`, for example `server-0.2.0`. The Maintainer creates the tags. The releases before this format keep their tags `<project>/vX.Y.Z`: `custos/v0.1.0`, `custos/v0.2.0`, and `server/v0.1.0`.
 - The tag `custos-X.Y.Z` builds the AppImage, the installer script, and the Windows installer. It attests the three files and attaches them to a GitHub release.
 - The tag `server-X.Y.Z` publishes the container image `ghcr.io/atlashq-gg/custos-server`. Each push to `main` that changes the server publishes the tag `unstable`.
-- The tag `optio-X.Y.Z` publishes the container image `ghcr.io/atlashq-gg/custos-optio`. Each push to `main` that changes `optio` publishes the tag `unstable`.
+- The tag `optio-X.Y.Z` publishes the container image `ghcr.io/atlashq-gg/custos-optio`. Each push to `main` that changes Optio publishes the tag `unstable`.
 
 ## Licenses
 

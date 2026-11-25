@@ -10,9 +10,9 @@ const int serverPort = 5080; // server/Custos.Server/Properties/launchSettings.j
 const int optioPort = 5090; // Optio/Properties/launchSettings.json
 const int keycloakPort = 8180;
 
-// Keycloak gets the Client ID Metadata Document of Custos from optio. Keycloak runs in a
+// Keycloak gets the Client ID Metadata Document of Custos from Optio. Keycloak runs in a
 // container, so it uses the Aspire container tunnel (ASPIRE_ENABLE_CONTAINER_TUNNEL in
-// launchSettings.json) and its host name. The client ID is the URL that Keycloak gets, so optio
+// launchSettings.json) and its host name. The client ID is the URL that Keycloak gets, so Optio
 // announces the same URL.
 const string tunnelHost = "aspire.dev.internal";
 var custosClientId = $"http://{tunnelHost}:{optioPort}/.well-known/custos-client";
@@ -54,7 +54,7 @@ var keycloak = builder
 var postgres = builder.AddPostgres("postgres").WithImageTag("18");
 var database = postgres.AddDatabase("custos");
 
-// The database of optio, for the settings of the guilds. The name is OptioDbContext.ConnectionName.
+// The database of Optio, for the settings of the guilds. The name is OptioDbContext.ConnectionName.
 var optioDatabase = postgres.AddDatabase("optio");
 
 // The event broker (ADR 0007), with the users and the exchanges of the definitions file. The
@@ -105,14 +105,14 @@ server
     .WithEnvironment("Discord__Token", builder.AddParameter("discord-token", secret: true))
     .WithEnvironment("Custos__DevelopmentDiscordUserId", discordUserId);
 
-// appsettings.Development.json of optio holds the localhost URLs of optio, the realm, and the
+// appsettings.Development.json of Optio holds the localhost URLs of Optio, the realm, and the
 // upload API of the server.
 var optio = builder
     .AddProject<Projects.Optio>("optio")
     .WithEnvironment("Optio__CustosClientId", custosClientId)
     .WithEnvironment("Optio__OptioClientSecret", optioSecret)
     .WithReference(server)
-    // optio reads the streams as the user optio of the definitions file, and does not wait for
+    // Optio reads the streams as the user optio of the definitions file, and does not wait for
     // the broker: its consumer connects again itself.
     .WithEnvironment(
         "ConnectionStrings__events",
@@ -120,7 +120,8 @@ var optio = builder
             $"amqp://optio:optio@{events.GetEndpoint("tcp").Property(EndpointProperty.HostAndPort)}"
         )
     )
-    // The bot of optio for the stream. It can be the bot of the server in development:
+    // The bot of Optio for the stream, of its own Discord application: each service registers its
+    // commands at the start, and a registration replaces all the commands of the application.
     //   dotnet user-secrets set Parameters:optio-discord-token <bot token>
     .WithEnvironment(
         "Optio__DiscordToken",
@@ -130,7 +131,7 @@ var optio = builder
     .WithReference(optioDatabase)
     .WaitFor(optioDatabase)
     // The query: the key of the model, the example system prompt, and the MCP endpoint of the
-    // server. Without the key, optio has no query_endpoint:
+    // server. Without the key, Optio has no query_endpoint:
     //   dotnet user-secrets set Parameters:optio-model-key <key>
     .WithEnvironment("Optio__ModelApiKey", builder.AddParameter("optio-model-key", secret: true))
     .WithEnvironment(
@@ -146,8 +147,8 @@ var optio = builder
     .WithHttpHealthCheck("/health/ready");
 
 // The tunnel serves only an endpoint that a container references. This reference also gives the
-// realm the host name of optio as Keycloak sees it (aspire.dev.internal). optio does not wait for
-// Keycloak: Keycloak needs the address of optio first, and optio gets the metadata of Keycloak
+// realm the host name of Optio as Keycloak sees it (aspire.dev.internal). Optio does not wait for
+// Keycloak: Keycloak needs the address of Optio first, and Optio gets the metadata of Keycloak
 // only on the first request that needs it.
 keycloak.WithEnvironment(
     "CUSTOS_CIMD_HOST",

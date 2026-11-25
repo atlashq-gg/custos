@@ -6,7 +6,7 @@ namespace Optio.Discord;
 internal static class DiscordSetup
 {
     /// <summary>
-    /// Registers the gateway of the bot of optio when the configuration has its token. With the
+    /// Registers the gateway of the bot of Optio when the configuration has its token. With the
     /// database, the gateway also serves <c>/optioadmin</c>.
     /// </summary>
     public static IHostApplicationBuilder AddOptioDiscord(this IHostApplicationBuilder builder)

@@ -9,8 +9,8 @@ using NetCord.Services.ComponentInteractions;
 namespace Optio.Discord;
 
 /// <summary>
-/// The Discord gateway of the bot of optio, with the intent <c>GUILD_MEMBERS</c>. The member
-/// directory reads its events. With the settings store, it also serves the commands of optio
+/// The Discord gateway of the bot of Optio, with the intent <c>GUILD_MEMBERS</c>. The member
+/// directory reads its events. With the settings store, it also serves the commands of Optio
 /// (<see cref="AdminCommands"/>) and registers them at the first <c>READY</c>.
 /// </summary>
 internal sealed partial class DiscordGateway : IHostedService, IDisposable
@@ -56,7 +56,7 @@ internal sealed partial class DiscordGateway : IHostedService, IDisposable
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            // optio still serves the upload. A stream gets 503 until Discord answers.
+            // Optio still serves the upload. A stream gets 503 until Discord answers.
             LogStartFailed(_logger, e);
         }
     }
@@ -133,9 +133,9 @@ internal sealed partial class DiscordGateway : IHostedService, IDisposable
     [LoggerMessage(Level = LogLevel.Error, Message = "The Discord gateway did not start")]
     private static partial void LogStartFailed(ILogger logger, Exception exception);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "The commands of optio were not registered")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "The commands of Optio were not registered")]
     private static partial void LogRegisterFailed(ILogger logger, Exception exception);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "A command of optio failed")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "A command of Optio failed")]
     private static partial void LogCommandFailed(ILogger logger, Exception exception);
 }

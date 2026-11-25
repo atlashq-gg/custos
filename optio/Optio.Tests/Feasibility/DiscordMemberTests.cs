@@ -7,7 +7,7 @@ using NetCord.Rest;
 namespace Optio.Tests.Feasibility;
 
 /// <summary>
-/// The feasibility tests T2 of M37 (issue #48): the member data of optio from Discord, with the
+/// The feasibility tests T2 of M37 (issue #48): the member data of Optio from Discord, with the
 /// privileged intent <c>GUILD_MEMBERS</c>. The tests connect to Discord with the bot token in
 /// the environment variable <c>Discord__Token</c>, and examine the user in
 /// <c>Discord__TestUserId</c>. Without both, they skip. CI does not run them.
@@ -278,7 +278,7 @@ public sealed class DiscordMemberTests
     }
 
     /// <summary>
-    /// T2.9: optio can remove a member from the concurrent cache of NetCord. The default cache
+    /// T2.9: Optio can remove a member from the concurrent cache of NetCord. The default cache
     /// is immutable: <c>RemoveGuildUser</c> gives a new cache, and the client keeps its own.
     /// </summary>
     [Test]

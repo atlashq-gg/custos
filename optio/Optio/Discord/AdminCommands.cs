@@ -14,7 +14,7 @@ namespace Optio.Discord;
 /// </summary>
 [SlashCommand(
     "optioadmin",
-    "optio administration",
+    "Optio administration",
     Contexts = [InteractionContextType.Guild],
     DefaultGuildPermissions = Permissions.Administrator,
     IntegrationTypes = [ApplicationIntegrationType.GuildInstall]
@@ -24,7 +24,7 @@ public sealed class AdminCommands(GuildSettingsStore store)
 {
     /// <summary>Opens the form with the settings of now. Close it to change nothing.</summary>
     [RequireUserPermissions<ApplicationCommandContext>(Permissions.Administrator)]
-    [SubSlashCommand("settings", "Show and change the settings of optio for this guild")]
+    [SubSlashCommand("settings", "Show and change the settings of Optio for this guild")]
     public async Task SettingsAsync()
     {
         var current = await store.GetAsync(Context.Interaction.GuildId!.Value, default);
@@ -42,7 +42,7 @@ public sealed class SettingsModal(GuildSettingsStore store)
     private const string PromptId = "prompt";
 
     internal static ModalProperties Create(GuildSettings current) =>
-        new ModalProperties(CustomId, "optio settings").AddComponents(
+        new ModalProperties(CustomId, "Optio settings").AddComponents(
             new LabelProperties(
                 "Prompt of the guild",
                 new TextInputProperties(PromptId, TextInputStyle.Paragraph)

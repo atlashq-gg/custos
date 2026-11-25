@@ -6,8 +6,8 @@ using OpenTelemetry.Trace;
 namespace Optio.Telemetry;
 
 /// <summary>
-/// Traces, metrics, and logs through OpenTelemetry. optio exports them with OTLP only when the
-/// environment has <c>OTEL_EXPORTER_OTLP_ENDPOINT</c>. The source and the meter of optio have the
+/// Traces, metrics, and logs through OpenTelemetry. Optio exports them with OTLP only when the
+/// environment has <c>OTEL_EXPORTER_OTLP_ENDPOINT</c>. The source and the meter of Optio have the
 /// name <see cref="Name"/>.
 /// </summary>
 internal static class TelemetrySetup

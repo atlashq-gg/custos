@@ -2,13 +2,13 @@
 
 Contract version `v0`. License: AGPL-3.0-or-later ([LICENSE](LICENSE)), except the catalog of the game, which is under CC BY-NC-SA 4.0 ([catalog/LICENSE.md](catalog/LICENSE.md)).
 
-The domain service of the guild records, behind [optio](../optio/README.md) ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). Custos calls `optio`, and `optio` relays the upload to the upload API of this server with a token of the user. The server parses the map data file and keeps the parsed data in PostgreSQL, for each Discord guild. It does not keep the file.
+The domain service of the guild records, behind [optio](../optio/README.md) ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). Custos calls Optio, and Optio relays the upload to the upload API of this server with a token of the user. The server parses the map data file and keeps the parsed data in PostgreSQL, for each Discord guild. It does not keep the file.
 
 The server also runs as a Discord bot. The roles of a member in Discord give the access to the records of a guild. An MCP endpoint lets a user search the records through an LLM harness.
 
 ## Run
 
-Requirements: .NET SDK 10 and Docker. The AppHost of `optio` starts the full system: Keycloak, PostgreSQL, the RabbitMQ broker, this server on `http://localhost:5080`, and `optio` ([optio/README.md](../optio/README.md#run)).
+Requirements: .NET SDK 10 and Docker. The AppHost of Optio starts the full system: Keycloak, PostgreSQL, the RabbitMQ broker, this server on `http://localhost:5080`, and Optio ([optio/README.md](../optio/README.md#run)).
 
 ```sh
 dotnet run --project ../optio/Optio.AppHost
@@ -25,13 +25,13 @@ The server needs a bot token in the correct format: it stops at the start with a
 
 Keycloak imports [the realm](keycloak/custos-realm.json) on each start. Changes in the Keycloak console last for one run. The realm declares the user attribute `discord_id`, and its default client scopes `basic` and `custos-discord` put the claims `sub` and `discord_id` into each access token. A realm file that lists client scopes replaces all built-in scopes of Keycloak, so the file holds `basic` too.
 
-The realm also holds the confidential client `optio` with the standard token exchange, and the optional scope `custos:client`. That scope adds the audience `optio` to the token of Custos, so that `optio` can exchange the token for a token of this server. The AppHost makes a new secret for `optio` on each start.
+The realm also holds the confidential client `optio` with the standard token exchange, and the optional scope `custos:client`. That scope adds the audience `optio` to the token of Custos, so that Optio can exchange the token for a token of this server. The AppHost makes a new secret for Optio on each start.
 
 ## Endpoints
 
 | Endpoint | Content |
 |---|---|
-| `POST /api/v1/uploads` | The upload API. `optio` relays the upload of Custos ([spec](../spec/03-upload.md)) to it. It parses the file, keeps the data for the guild of the user, and returns the stockpiles in the file. It needs no public route. |
+| `POST /api/v1/uploads` | The upload API. Optio relays the upload of Custos ([spec](../spec/03-upload.md)) to it. It parses the file, keeps the data for the guild of the user, and returns the stockpiles in the file. It needs no public route. |
 | `GET /openapi/v1.json` | The OpenAPI document, generated from the code. |
 | `GET /docs` | The Scalar page for the OpenAPI document. |
 | `GET /health/alive` | The liveness check. It does not check the database. |
@@ -47,7 +47,7 @@ The section `Custos` in `appsettings.json` or environment variables (`Custos__Au
 |---|---|---|
 | `Authority` | (required) | The issuer URL of the authorization server. |
 | `Resource` | (required) | The audience of the tokens of the server: the URL of the MCP endpoint as a client sees it, for example `https://custos.example.com/mcp`. The upload API and `/mcp` accept a token only with this value in `aud`. `http://localhost:5080/mcp` in development. |
-| `UploadMaxBytes` | `4194304` | The largest upload body. It must be equal to the value of `optio`. |
+| `UploadMaxBytes` | `4194304` | The largest upload body. It must be equal to the value of Optio. |
 | `UploadMinIntervalSeconds` | `60` | The shortest time between two uploads of one user. `10` in development. |
 | `DevelopmentGuildId` | (none) | The guild of an upload whose token has no claim `active_guild`. The server uses it only in the environment `Development`. `1236389163276959888` in development. |
 | `DiscordIdClaim` | `discord_id` | The claim of the access token with the Discord user ID, as a string. |
@@ -171,7 +171,7 @@ A user label has 1 to 64 characters: letters, digits, spaces, and `-` `'` `.` `,
 - `Custos:Resource` is the URL of the endpoint as a harness sees it. Its path must be `/mcp`.
 - The server serves the metadata document (RFC 9728) at `/.well-known/oauth-protected-resource` on the origin of `Custos:Resource`. `/.well-known/oauth-protected-resource/mcp` redirects to it.
 - A request without a valid token gets `401` with `WWW-Authenticate: Bearer resource_metadata="...", scope="custos:read custos:write"`.
-- The token needs the audience `Custos:Resource`, the claim `discord_id`, and the scope of the tool. A token of `optio` from a token exchange has the same form.
+- The token needs the audience `Custos:Resource`, the claim `discord_id`, and the scope of the tool. A token of Optio from a token exchange has the same form.
 - The upload API accepts a token with the audience `Custos:Resource` and the scope `custos:write`. The Discord roles of the member decide the rest. Thus an MCP harness with `custos:write` can also call the upload API.
 - A tool without the scope of the token is not in the list of tools. A call without the scope gets `403` with `error="insufficient_scope"`.
 - A refusal for access is a tool result with `isError` and a problem body: `urn:custos:mcp:forbidden`, `urn:custos:mcp:not-visible`, or `urn:custos:mcp:discord-unavailable`. A missing guild, a guild without the bot, and a guild where the caller is not a member get the same `not-visible` answer.
@@ -258,7 +258,7 @@ EF Core cannot declare a partitioned table. A migration that creates or changes 
 
 ## Authentication with Keycloak
 
-Custos logs in through `optio`: Keycloak gets the Client ID Metadata Document (CIMD) of Custos from `optio` ([optio/README.md](../optio/README.md)). The server sees only tokens that `optio` gets through a token exchange (RFC 8693), and tokens of MCP harnesses.
+Custos logs in through Optio: Keycloak gets the Client ID Metadata Document (CIMD) of Custos from Optio ([optio/README.md](../optio/README.md)). The server sees only tokens that Optio gets through a token exchange (RFC 8693), and tokens of MCP harnesses.
 
 - A token of the server has the audience `Custos:Resource`. The scope of the server adds it: `custos:read` or `custos:write`.
 - An exchanged token has `azp` `optio`, the claim `discord_id`, and the claims of the scopes of the client `optio`. A claim of a scope that only the client of Custos has, for example `active_guild` from a hardcoded scope, is not in it. Give such a scope to the client `optio` too.
@@ -333,4 +333,4 @@ docker run -p 8080:8080 -e Custos__PublicBaseUrl=https://custos.example.com -e C
 
 ## Deploy
 
-[docs/deploy.md](../docs/deploy.md) deploys the full system: Keycloak, PostgreSQL, the broker, this server, and `optio`. Only `/mcp` and its metadata document need a public route.
+[docs/deploy.md](../docs/deploy.md) deploys the full system: Keycloak, PostgreSQL, the broker, this server, and Optio. Only `/mcp` and its metadata document need a public route.
