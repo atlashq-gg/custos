@@ -39,7 +39,10 @@ public sealed class McpCallContext
 
 /// <summary>
 /// The request filters of the SDK that apply the guards. The call filter runs the guard before
-/// the tool. The list filter hides each tool whose scope the token does not have.
+/// the tool. The list filter shows each tool to a token with the read scope, also a write tool,
+/// so that a harness knows the write tools before the user accepts a change. The call of a write
+/// tool still needs the write scope. Without the read scope, a token sees only the tools of its
+/// scope.
 /// </summary>
 internal static class McpAccessFilter
 {
@@ -86,7 +89,10 @@ internal static class McpAccessFilter
                         tools is not null
                         && tools.TryGetPrimitive(t.Name, out var tool)
                         && tool.Metadata.OfType<McpGuardAttribute>().LastOrDefault() is { } guard
-                        && HasScope(request.User, ScopeName(guard.Scope, options))
+                        && (
+                            HasScope(request.User, options.ReadScope)
+                            || HasScope(request.User, ScopeName(guard.Scope, options))
+                        )
                     ),
                 ];
                 return result;

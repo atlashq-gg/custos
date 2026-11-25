@@ -149,7 +149,8 @@ if (!string.IsNullOrEmpty(builder.Configuration["Parameters:claude-api-key"]))
             "Optio__McpServices__0__Url",
             ReferenceExpression.Create($"{server.GetEndpoint("http")}/mcp")
         )
-        .WithEnvironment("Optio__McpServices__0__ReadScope", "custos:read");
+        .WithEnvironment("Optio__McpServices__0__ReadScope", "custos:read")
+        .WithEnvironment("Optio__McpServices__0__WriteScope", "custos:write");
 }
 
 // The tunnel serves only an endpoint that a container references. This reference also gives the

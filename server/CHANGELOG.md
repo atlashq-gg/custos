@@ -10,6 +10,7 @@ The server is a domain service behind Optio ([ADR 0006](../docs/adr/0006-optio-i
 - The text of an event: the place, then at most 5 changes as the signed difference and the new total, for example `Rifle crates +20 (40)`, then `+N more`.
 - The OpenTelemetry service name is `Custos` when `OTEL_SERVICE_NAME` does not set one.
 - The MCP endpoint gives the card of the server in `instructions`, and the title `Custos`. A harness with more than one service gives the card to its model.
+- A token with the read scope lists `set_structure_label` too, with its annotation `readOnlyHint` false. Its call still needs `custos:write`. Thus a harness knows the write tool before the user accepts a change.
 - The realm file moves to `server/keycloak/custos-realm.json`. It has the client `optio` with the standard token exchange, and the optional scope `custos:client`. This change removes the AppHost of the server. The AppHost of Optio starts the full system.
 
 For operators:
