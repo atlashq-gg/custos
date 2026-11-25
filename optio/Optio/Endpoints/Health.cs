@@ -5,7 +5,7 @@ namespace Optio.Endpoints;
 
 /// <summary>
 /// The health endpoints. A tag selects the checks of each endpoint: <see cref="LiveTag"/> for
-/// <see cref="AlivePath"/>, and <see cref="ReadyTag"/> for <see cref="ReadyPath"/>. optio holds no
+/// <see cref="AlivePath"/>, and <see cref="ReadyTag"/> for <see cref="ReadyPath"/>. Optio holds no
 /// database, so readiness has no check yet.
 /// </summary>
 internal static class Health
