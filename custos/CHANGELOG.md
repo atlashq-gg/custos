@@ -6,7 +6,7 @@ The stream of the service, and messages with more than one line. A pre-release.
 
 - Custos reads `stream_endpoint` of the discovery document, and keeps the stream of `spec/05-stream.md` open while Foxhole runs and the user is signed in. Each message shows in the overlay, or as a desktop notification when the overlay is not open.
 - When Custos connects again, it sends its position. It keeps the position in memory only. After a failure, it waits 1 second, doubled after each failure, to 60 seconds at most, with a random part.
-- Custos gets a new access token before the old one expires. A network error or an error of the token endpoint no longer signs the user out. Only a refused refresh token does.
+- Custos gets a new access token before the old one expires. A network error or an error of the token endpoint no longer signs the user out. Only a refused refresh token does. A token request waits 15 seconds at most.
 - A message with the reference of a kept message replaces it in place, and its text types again.
 - A line break in a message starts a new line. Each next line of a message starts with two spaces.
 - New keys `messages` (default 6) and `lines` (default 12) in `[overlay]`. A line above the limits is hidden, and it comes back when a newer message goes.

@@ -114,9 +114,9 @@ pub fn discovery_url(service_url: &Url) -> Url {
     url
 }
 
-/// The longest time of one request for the discovery. Custos waits for the discovery before it does
-/// anything else, so a service that does not answer must not block it for long.
-const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+/// The longest time of one request for the discovery or for a token. Custos waits for these requests
+/// before it does anything else, so a service that does not answer must not block it for long.
+pub(crate) const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 
 /// Gets and checks the discovery document of the service, then the metadata of the authorization server that it links.
 pub async fn fetch(http: &reqwest::Client, service_url: &Url) -> Result<Service, DiscoveryError> {

@@ -197,6 +197,7 @@ async fn request_tokens(
     let response = http
         .post(service.authorization_server.token_endpoint.clone())
         .form(form)
+        .timeout(crate::discovery::REQUEST_TIMEOUT)
         .send()
         .await?;
     if !response.status().is_success() {
