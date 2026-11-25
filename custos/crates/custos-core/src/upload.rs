@@ -90,7 +90,7 @@ pub async fn send(
         StatusCode::UNAUTHORIZED => Outcome::Unauthorized,
         StatusCode::NOT_FOUND => Outcome::NotFound,
         StatusCode::TOO_MANY_REQUESTS => Outcome::RateLimited {
-            retry_after: retry_after(&response),
+            retry_after: retry_after(response.headers()),
         },
         StatusCode::PAYLOAD_TOO_LARGE | StatusCode::UNSUPPORTED_MEDIA_TYPE | StatusCode::UNPROCESSABLE_ENTITY => {
             Outcome::Rejected {
@@ -106,9 +106,8 @@ pub async fn send(
 }
 
 /// `Retry-After` in seconds. The HTTP-date form is not supported and gives the default.
-fn retry_after(response: &reqwest::Response) -> Duration {
-    response
-        .headers()
+pub(crate) fn retry_after(headers: &reqwest::header::HeaderMap) -> Duration {
+    headers
         .get(reqwest::header::RETRY_AFTER)
         .and_then(|value| value.to_str().ok()?.trim().parse().ok())
         .map_or(DEFAULT_RETRY_AFTER, Duration::from_secs)

@@ -56,6 +56,10 @@ pub const TEMPLATE: &str = concat!(
 # The distance from the top or bottom edge, in percent of the monitor height, from 0 to 90. In the
 # top left corner, the default puts the overlay below the notifications of the game.
 # offset = 28
+# The most messages, and the most lines of text, that the overlay shows, from 1 to 30. The stricter
+# limit applies. An older line is hidden, and it comes back when a newer message goes.
+# messages = 6
+# lines = 12
 "#
 );
 
@@ -80,10 +84,16 @@ pub struct Overlay {
     pub anchor: Anchor,
     /// The distance from the top or bottom edge, in percent of the monitor height.
     pub offset: u8,
+    /// The most messages that the overlay shows.
+    pub messages: u8,
+    /// The most lines of text that the overlay shows. A line that wraps counts as one.
+    pub lines: u8,
 }
 
 /// The largest value of [`Overlay::offset`].
 pub const MAX_OVERLAY_OFFSET: u8 = 90;
+/// The largest value of [`Overlay::messages`] and [`Overlay::lines`].
+pub const MAX_OVERLAY_LIMIT: u8 = 30;
 
 impl Default for Overlay {
     fn default() -> Self {
@@ -91,6 +101,8 @@ impl Default for Overlay {
             enabled: true,
             anchor: Anchor::TopLeft,
             offset: 28,
+            messages: 6,
+            lines: 12,
         }
     }
 }
@@ -137,6 +149,8 @@ pub enum ConfigError {
     QueryOrFragment(Url),
     #[error("overlay.offset must be at most {MAX_OVERLAY_OFFSET}: {0}")]
     OverlayOffset(u8),
+    #[error("overlay.{0} must be from 1 to {MAX_OVERLAY_LIMIT}: {1}")]
+    OverlayLimit(&'static str, u8),
     #[error("cannot find the configuration folder of this user")]
     NoConfigDir,
 }
@@ -224,6 +238,11 @@ fn parse(text: &str) -> Result<Config, ParseError> {
     if config.overlay.offset > MAX_OVERLAY_OFFSET {
         return Err(ParseError::Rule(ConfigError::OverlayOffset(config.overlay.offset)));
     }
+    for (name, value) in [("messages", config.overlay.messages), ("lines", config.overlay.lines)] {
+        if !(1..=MAX_OVERLAY_LIMIT).contains(&value) {
+            return Err(ParseError::Rule(ConfigError::OverlayLimit(name, value)));
+        }
+    }
 
     Ok(config)
 }
@@ -262,6 +281,8 @@ mod tests {
             enabled = false
             anchor = "bottom-right"
             offset = 0
+            messages = 2
+            lines = 30
             "#,
         ) else {
             panic!()
@@ -273,6 +294,8 @@ mod tests {
                 enabled: false,
                 anchor: Anchor::BottomRight,
                 offset: 0,
+                messages: 2,
+                lines: 30,
             }
         );
         assert_eq!(config.save_dir.as_deref(), Some(Path::new("/tmp/saves")));
@@ -291,6 +314,18 @@ mod tests {
         assert!(matches!(
             parse("service_url = \"https://example.com\"\n[overlay]\noffset = 91"),
             Err(ParseError::Rule(ConfigError::OverlayOffset(91)))
+        ));
+    }
+
+    #[test]
+    fn overlay_limits_out_of_range_are_refused() {
+        assert!(matches!(
+            parse("service_url = \"https://example.com\"\n[overlay]\nmessages = 0"),
+            Err(ParseError::Rule(ConfigError::OverlayLimit("messages", 0)))
+        ));
+        assert!(matches!(
+            parse("service_url = \"https://example.com\"\n[overlay]\nlines = 31"),
+            Err(ParseError::Rule(ConfigError::OverlayLimit("lines", 31)))
         ));
     }
 

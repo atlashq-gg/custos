@@ -1,8 +1,8 @@
 # Custos
 
-Version 0.1.0. Contract version `v0`. License: MIT ([LICENSE](LICENSE)), except the icons. The icons come from the Foxhole War API of Siege Camp and are under CC BY-NC 4.0 ([icons/LICENSE.md](crates/custos-app/icons/LICENSE.md)). Thus the AppImage must not be sold or used for a commercial purpose.
+Contract version `v0`. License: MIT ([LICENSE](LICENSE)), except the icons. The icons come from the Foxhole War API of Siege Camp and are under CC BY-NC 4.0 ([icons/LICENSE.md](crates/custos-app/icons/LICENSE.md)). Thus the AppImage must not be sold or used for a commercial purpose.
 
-Custos is a tray application for Linux and Windows. It watches the map data file of Foxhole and sends it to a service that conforms to the [Custos specification](../spec/README.md). It shows the results in an overlay above the game, or as desktop notifications.
+Custos is a tray application for Linux and Windows. It watches the map data file of Foxhole and sends it to a service that conforms to the [Custos specification](../spec/README.md). It shows the results and the events of the service in an overlay above the game, or as desktop notifications.
 
 ## Behavior
 
@@ -11,6 +11,9 @@ Custos is a tray application for Linux and Windows. It watches the map data file
 - Custos does not send a file that the service already accepted, or a file that the service refused.
 - The interval is the larger of `upload_interval_seconds` and the minimum of the service. A `429` response makes Custos wait longer.
 - Custos only reads the save files. It sends no file name and no other data. The file name holds the Steam ID of the player.
+- If the service has a stream, Custos keeps it open while Foxhole runs, the user is signed in, and Custos is not paused. The stream gives the events of the service, for example a change of a stockpile. Custos shows each event in the overlay.
+- Custos keeps the position of the stream in memory. When it connects again, the service sends the events that Custos did not get. After a restart of Custos, the stream starts from now.
+- Custos gets a new access token before the old one expires. A network error does not sign the user out.
 
 ## Requirements
 
@@ -76,6 +79,10 @@ enabled = true
 anchor = "top-left"
 # The distance from the top or bottom edge, in percent of the monitor height, from 0 to 90. Default: 28.
 offset = 28
+# The most messages that the overlay shows, from 1 to 30. Default: 6.
+messages = 6
+# The most lines of text that the overlay shows, from 1 to 30. Default: 12.
+lines = 12
 ```
 
 On Windows, the template has no `steam_root`, and the default `save_dir` is `%LOCALAPPDATA%\Foxhole\Saved\SaveGames`. Write a Windows path in single quotes, so that TOML reads the backslashes as text:
@@ -102,7 +109,11 @@ Custos keeps the tokens in the Secret Service on Linux, and in the Credential Ma
 
 ## Overlay
 
-While Foxhole runs, Custos shows its messages as lines in a corner of the monitor that shows the game. The newest line is at the bottom. A line wraps when it is wider than 15 % of the monitor width. In the top left corner, the default `offset` of 28 % puts the lines below the notifications of the game. The distance from the side of the monitor is 8 pixels. The overlay looks like an old terminal: green text with a glow, and no background. Each new line types out after the line above it, as on a ticker tape. While no line types, a prompt shows at the bottom, and its cursor fades in and out. An error line is red. The font is the first of these that the computer has: JetBrains Mono, Cascadia Mono, Fira Code, Source Code Pro, Hack, and Noto Sans Mono. Without them, it is the default monospace font, for example Consolas on Windows 10. The overlay shows at most 6 lines. A line goes after 20 seconds, and an error line after 60 seconds. A new message of the same kind replaces the old line. A completed login removes the line that asks for the login. An accepted upload removes the error lines of the upload and of the service. When the game starts, the overlay shows the problems that are still current. Examples are a service that is not available, and a necessary sign-in. Such an error can show as a desktop notification before.
+While Foxhole runs, Custos shows its messages as lines in a corner of the monitor that shows the game. The newest line is at the bottom. A line wraps when it is wider than 15 % of the monitor width. In the top left corner, the default `offset` of 28 % puts the lines below the notifications of the game. The distance from the side of the monitor is 8 pixels. The overlay looks like an old terminal: green text with a glow, and no background. Each new line types out after the line above it, as on a ticker tape. While no line types, a prompt shows at the bottom, and its cursor fades in and out. An error line is red. The font is the first of these that the computer has: JetBrains Mono, Cascadia Mono, Fira Code, Source Code Pro, Hack, and Noto Sans Mono. Without them, it is the default monospace font, for example Consolas on Windows 10.
+
+A message can have more than one line. A line break in the text starts a new line, and each other control character shows as a space. The first line of a message has the prompt. Each next line starts with two spaces, under the text of the first line. The lines of a message type one after the other.
+
+The overlay shows at most `messages` messages and `lines` lines of text, from `[overlay]` in the configuration. The stricter limit applies, and a line that wraps counts as one. Each new line pushes the older lines up. A line above the limits is hidden, but it stays. When a newer message goes, a hidden line that is still in its lifetime comes back. A message goes after 20 seconds, and an error message after 60 seconds. A new message with the reference of a kept message replaces it in place: the new text types again, and its 20 seconds start again. A message of the service with a reference and no text removes the message with that reference. A completed login removes the line that asks for the login. An accepted upload removes the error lines of the upload and of the service. When the game starts, the overlay shows the problems that are still current. Examples are a service that is not available, and a necessary sign-in. Such an error can show as a desktop notification before.
 
 On Linux, Custos finds the monitor of the game through the window list of XWayland. If it cannot find the game window, the desktop selects the monitor. On Windows, the overlay shows on the primary monitor.
 
@@ -123,6 +134,9 @@ Custos shows these messages in the overlay while it is open, and as desktop noti
 | Sign in to send stockpile data | Custos has no valid token. Use **Sign in**. |
 | The service at … is not available | Custos cannot reach the service URL, or the service gave an error. The text gives the cause, for example `Connection refused`. Custos tries again each minute. When the service is available again, the message goes. |
 | An error from the service | The service refused the file, or it failed. |
+| An event of the service | A message on the stream of the service, for example a change of a stockpile. The title is the name of the service. A message of the kind `error` shows as an error. |
+| The events of … are not available | Custos cannot open the stream two times in a row. The text gives the cause. Custos tries again after a wait of 1 second, doubled after each failure, to 60 seconds at most. When the stream opens, the message goes. |
+| … sends no events to this user | The service refused the stream for this user. Custos tries again after the next sign-in. |
 
 Custos shows the same error at most one time in 15 minutes.
 
@@ -162,31 +176,33 @@ Set `RUST_LOG=debug` for more log output.
 
 ## Development
 
-Run Custos against a local service. The [server](../server/README.md) supplies the service and a login.
+Run Custos against a local service. [Optio](../optio/README.md) is the service of Custos. Its AppHost also starts the server, the login, and the event broker.
 
 1. Install the packages in [Build](#build). The local service also needs the .NET SDK 10 and Docker.
-2. Start the service from the `server/` folder: `dotnet run --project Custos.Server.AppHost`. It starts these resources:
+2. Start the service from the root folder of the repository: `dotnet run --project optio/Optio.AppHost`. It needs the parameters `discord-token`, `optio-discord-token`, and `discord-user-id`, in the user secrets of the AppHost or in the environment. It starts these resources:
 
    | Resource | URL |
    |---|---|
-   | Service | `http://localhost:5080` |
+   | Optio, the service of Custos | `http://localhost:5090` |
+   | Server | `http://localhost:5080` |
    | Keycloak | `http://localhost:8180` |
    | Aspire dashboard | `http://localhost:15180` |
 
-3. Set the service URL in `~/.config/custos/config.toml`: `service_url = "http://localhost:5080"`. Custos accepts HTTP only for `localhost`.
+3. Set the service URL in `~/.config/custos/config.toml`: `service_url = "http://localhost:5090"`. Custos accepts HTTP only for `localhost`.
 4. Start Custos from the `custos/` folder: `RUST_LOG=debug cargo run -p custos-app`.
 5. Use **Sign in** in the tray menu. The user is `dev` and the password is `dev`. Keycloak shows a consent page at the first login.
 
 Notes:
 
 - A development build has no installed desktop file. At startup, Custos registers the `custos://` scheme itself. If the browser does not return to Custos after the login, search the log for `cannot register the custos:// scheme`.
-- Custos sends data only while Foxhole runs. Without the game, set `save_dir` in the configuration file to a test folder.
+- Custos sends data and opens the stream only while Foxhole runs. Without the game, set `save_dir` in the configuration file to a test folder.
+- A guild with no read roles in its settings gives events only to its administrators. To get events as a plain member, give the guild a read role, for example `@everyone`.
 - The service imports the Keycloak realm at each start. A change in the Keycloak console lasts for one run.
 
 ## Layout
 
 | Folder | Content |
 |---|---|
-| [crates/custos-core](crates/custos-core) | The engine: configuration, discovery, login, save-file location, process detection, upload, the interval rule, and the message stream of the overlay. |
+| [crates/custos-core](crates/custos-core) | The engine: configuration, discovery, login, save-file location, process detection, upload, the interval rule, the stream of the service, and the lines of the overlay. |
 | [crates/custos-app](crates/custos-app) | The Tauri tray application: menu, overlay window, notifications, and the deep link. |
 | [packaging](packaging) | The installer script for Linux, and its test. |

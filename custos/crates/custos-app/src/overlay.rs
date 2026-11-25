@@ -1,4 +1,4 @@
-//! The overlay: the lines of the message [`Stream`] in a window above the game.
+//! The overlay: the [`Lines`] of the messages in a window above the game.
 //!
 //! On Linux, the window is a native GTK window on the overlay layer of the layer-shell protocol. On
 //! GNOME, which has no layer-shell protocol, it is an X11 window above the other windows. The defect
@@ -12,7 +12,7 @@ use std::cell::RefCell;
 use std::time::Instant;
 
 use custos_core::config::Overlay as Settings;
-use custos_core::stream::{Notification, Reference, Stream};
+use custos_core::lines::{Lines, Notification, Reference};
 use tauri::AppHandle;
 
 /// The number of seconds between two searches for the monitor of the game.
@@ -20,7 +20,7 @@ const PLACE_INTERVAL: u32 = 5;
 
 struct Overlay {
     view: platform::View,
-    stream: Stream,
+    lines: Lines,
     /// The number of seconds since the overlay opened.
     seconds: u32,
 }
@@ -36,7 +36,7 @@ pub fn open(app: &AppHandle, settings: Settings) -> Result<(), String> {
     OVERLAY.with_borrow_mut(|overlay| {
         *overlay = Some(Overlay {
             view,
-            stream: Stream::default(),
+            lines: Lines::new(settings.into()),
             seconds: 0,
         });
     });
@@ -50,34 +50,34 @@ pub fn close() {
     }
 }
 
-/// Adds the line to the overlay. Gives the notification back when the overlay is not open.
+/// Adds the message to the overlay. Gives the notification back when the overlay is not open.
 pub fn put(notification: Notification) -> Option<Notification> {
     OVERLAY.with_borrow_mut(|overlay| match overlay {
         Some(overlay) => {
-            overlay.stream.put(notification, Instant::now());
-            overlay.view.render(&overlay.stream);
+            overlay.lines.put(notification, Instant::now());
+            overlay.view.render(&overlay.lines);
             None
         }
         None => Some(notification),
     })
 }
 
-/// Removes the line with this reference.
+/// Removes the message with this reference.
 pub fn expire(reference: &Reference) {
     with(|overlay| {
-        if overlay.stream.expire(reference) {
-            overlay.view.render(&overlay.stream);
+        if overlay.lines.expire(reference) {
+            overlay.view.render(&overlay.lines);
         }
     });
 }
 
-/// Call once each second: removes the stale lines, and searches for the monitor of the game.
+/// Call once each second: removes the stale messages, and searches for the monitor of the game.
 fn tick() {
     with(|overlay| {
         overlay.seconds += 1;
         let moved = overlay.seconds % PLACE_INTERVAL == 0 && overlay.view.place();
-        if overlay.stream.prune(Instant::now()) || moved {
-            overlay.view.render(&overlay.stream);
+        if overlay.lines.prune(Instant::now()) || moved {
+            overlay.view.render(&overlay.lines);
         }
     });
 }
@@ -95,8 +95,8 @@ mod platform {
     use std::time::Instant;
 
     use custos_core::layout::{self, MARGIN, Rect, SIDE_MARGIN};
+    use custos_core::lines::{self, Lines, Row};
     use custos_core::screen;
-    use custos_core::stream::{self, Stream};
     use gtk::prelude::*;
     use gtk::{cairo, gdk, glib, pango};
     use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
@@ -125,8 +125,8 @@ mod platform {
         settings: Settings,
         /// The number of characters after which a line wraps.
         max_chars: i32,
-        /// The label of each line, with its prompt and its full text.
-        labels: Vec<(gtk::Label, &'static str, String)>,
+        /// The label of each line that shows now or later, with its line.
+        labels: Vec<(gtk::Label, Row)>,
         /// The index of the monitor of the game, when Custos found it.
         monitor: Option<usize>,
         /// True after the first placement.
@@ -191,7 +191,7 @@ mod platform {
             let prompt = gtk::Box::new(gtk::Orientation::Horizontal, 0);
             prompt.set_halign(align);
             let cursor = gtk::Label::new(Some(&CURSOR.to_string()));
-            prompt.add(&gtk::Label::new(Some(stream::PROMPT)));
+            prompt.add(&gtk::Label::new(Some(lines::PROMPT)));
             prompt.add(&cursor);
             terminal.add(&lines);
             terminal.add(&prompt);
@@ -219,11 +219,11 @@ mod platform {
                 ticker,
             };
             view.place();
-            view.render(&Stream::default());
             view.window.show_all();
+            view.render(&Lines::new(settings.into()));
             // The window draws a frame only when the text or the opacity of the cursor changes.
             view.window.add_tick_callback(|_, _| {
-                super::with(|overlay| overlay.view.animate(&overlay.stream));
+                super::with(|overlay| overlay.view.animate());
                 glib::ControlFlow::Continue
             });
             Ok(view)
@@ -238,8 +238,8 @@ mod platform {
             self.window.close();
         }
 
-        /// Shows the lines of the stream above the prompt.
-        pub fn render(&mut self, stream: &Stream) {
+        /// Shows the lines above the prompt.
+        pub fn render(&mut self, lines: &Lines) {
             for child in self.lines.children() {
                 self.lines.remove(&child);
             }
@@ -249,9 +249,7 @@ mod platform {
                 gtk::Align::End
             };
             self.labels.clear();
-            for notification in stream.lines() {
-                let prompt = notification.prompt();
-                let text = notification.line();
+            for row in lines.rows(Instant::now()) {
                 let label = gtk::Label::new(None);
                 label.set_halign(align);
                 label.set_xalign(0.0);
@@ -259,49 +257,57 @@ mod platform {
                 // The window gets its minimum size, and the minimum width of a wrapping label is its
                 // longest word. Thus the minimum width is the full line with the cursor, up to the limit.
                 // The width does not change while the line types.
-                let chars = i32::try_from(prompt.len() + text.chars().count() + 1).unwrap_or(i32::MAX);
+                let chars = i32::try_from(row.prompt.len() + row.text.chars().count() + 1).unwrap_or(i32::MAX);
                 label.set_width_chars(chars.min(self.max_chars));
                 label.set_max_width_chars(self.max_chars);
-                if notification.is_error {
+                if row.is_error {
                     // Not the class "error": a GTK theme can give it a background.
                     label.style_context().add_class("custos-error");
                 }
-                label.show();
+                // The line shows from its start (see `animate`).
+                label.set_visible(false);
                 self.lines.add(&label);
-                self.labels.push((label, prompt, text));
+                self.labels.push((label, row));
             }
-            self.animate(stream);
+            self.animate();
             // The window shrinks to the size of its lines.
             self.window.resize(1, 1);
         }
 
-        /// Types the lines. While no line types, shows the prompt, and fades its cursor in and out.
-        fn animate(&mut self, stream: &Stream) {
-            let typing = self.type_lines(stream);
+        /// Shows the lines that show now, and types them. While no line types, shows the prompt, and
+        /// fades its cursor in and out.
+        fn animate(&mut self) {
+            let now = Instant::now();
+            let mut typing = false;
+            let mut resized = false;
+            for (label, row) in &self.labels {
+                let shows = row.shows(now);
+                if label.is_visible() != shows {
+                    label.set_visible(shows);
+                    resized = true;
+                }
+                typing |= row.is_typing(now);
+                if shows {
+                    let typed = row.typed(now);
+                    let mut text: String = row.prompt.chars().chain(row.text.chars().take(typed)).collect();
+                    if row.is_typing(now) {
+                        text.push(CURSOR);
+                    }
+                    if label.text() != text {
+                        label.set_text(&text);
+                    }
+                }
+            }
             if self.prompt.is_visible() == typing {
                 self.prompt.set_visible(!typing);
+                resized = true;
+            }
+            if resized {
                 self.window.resize(1, 1);
             }
             if !typing {
-                self.cursor.set_opacity(stream::cursor_opacity(self.opened.elapsed()));
+                self.cursor.set_opacity(lines::cursor_opacity(self.opened.elapsed()));
             }
-        }
-
-        /// Shows the typed part of each line, with a cursor at the end of a line that types. Returns
-        /// true while a line is not complete.
-        fn type_lines(&self, stream: &Stream) -> bool {
-            let mut typing = false;
-            for ((label, prompt, text), typed) in self.labels.iter().zip(stream.typed(Instant::now())) {
-                let mut shown: String = prompt.chars().chain(text.chars().take(typed)).collect();
-                if typed < text.chars().count() {
-                    shown.push(CURSOR);
-                    typing = true;
-                }
-                if label.text() != shown {
-                    label.set_text(&shown);
-                }
-            }
-            typing
         }
 
         /// Puts the window on the monitor of the game, and sets the offset and the line width for that
@@ -402,7 +408,7 @@ mod platform {
     use std::time::{Duration, Instant};
 
     use custos_core::layout::{self, Rect};
-    use custos_core::stream::{self, Stream};
+    use custos_core::lines::{self, Lines};
     use serde_json::json;
     use tauri::webview::PageLoadEvent;
     use tauri::{AppHandle, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
@@ -477,22 +483,35 @@ mod platform {
             }
         }
 
-        /// Gives the lines of the stream to the page, which types them (see `dist/overlay.js`).
-        pub fn render(&mut self, stream: &Stream) {
-            let lines: Vec<_> = stream
-                .lines()
-                .zip(stream.typed(Instant::now()))
-                .map(
-                    |(n, typed)| json!({ "prompt": n.prompt(), "text": n.line(), "error": n.is_error, "typed": typed }),
-                )
+        /// Gives the lines to the page, which shows and types them at their times (see
+        /// `dist/overlay.js`).
+        pub fn render(&mut self, lines: &Lines) {
+            let now = Instant::now();
+            // Milliseconds from now, negative for a time in the past.
+            let from_now = |t: Instant| {
+                (t.saturating_duration_since(now).as_secs_f64() - now.saturating_duration_since(t).as_secs_f64())
+                    * 1000.0
+            };
+            let rows: Vec<_> = lines
+                .rows(now)
+                .into_iter()
+                .map(|row| {
+                    json!({
+                        "prompt": row.prompt,
+                        "text": row.text,
+                        "error": row.is_error,
+                        "show": from_now(row.start),
+                        "hide": row.hide_at.map(from_now),
+                    })
+                })
                 .collect();
             let anchor = self.settings.anchor;
             let page = json!({
                 "top": anchor.is_top(),
                 "left": anchor.is_left(),
-                "rate": stream::TYPING_RATE,
-                "period": stream::CURSOR_PERIOD.as_secs_f64(),
-                "lines": lines,
+                "rate": lines::TYPING_RATE,
+                "period": lines::CURSOR_PERIOD.as_secs_f64(),
+                "rows": rows,
             });
             // JSON is valid JavaScript.
             if let Err(e) = self.window.eval(format!("render({page})")) {
@@ -538,7 +557,7 @@ mod platform {
     /// the focus from the game, because the window is not focused.
     fn show() {
         super::with(|overlay| {
-            overlay.view.render(&overlay.stream);
+            overlay.view.render(&overlay.lines);
             if let Err(e) = overlay.view.window.show() {
                 tracing::warn!("cannot show the overlay: {e}");
             }

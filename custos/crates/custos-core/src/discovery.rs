@@ -20,6 +20,8 @@ pub struct Discovery {
     pub openid_configuration: Url,
     pub client_id: String,
     pub scopes: Vec<String>,
+    /// The stream of spec/05-stream.md. A service without it has no stream.
+    pub stream_endpoint: Option<Url>,
 }
 
 /// The members of the metadata of the authorization server that Custos uses.
@@ -68,7 +70,11 @@ impl Discovery {
                 offered: self.custos_versions_supported,
             });
         }
-        require_allowed([&self.upload_endpoint, &self.openid_configuration])?;
+        require_allowed(
+            [&self.upload_endpoint, &self.openid_configuration]
+                .into_iter()
+                .chain(self.stream_endpoint.as_ref()),
+        )?;
         Ok(self)
     }
 }
@@ -108,9 +114,9 @@ pub fn discovery_url(service_url: &Url) -> Url {
     url
 }
 
-/// The longest time of one request for the discovery. Custos waits for the discovery before it does
-/// anything else, so a service that does not answer must not block it for long.
-const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+/// The longest time of one request for the discovery or for a token. Custos waits for these requests
+/// before it does anything else, so a service that does not answer must not block it for long.
+pub(crate) const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 
 /// Gets and checks the discovery document of the service, then the metadata of the authorization server that it links.
 pub async fn fetch(http: &reqwest::Client, service_url: &Url) -> Result<Service, DiscoveryError> {
@@ -261,6 +267,24 @@ pub(crate) mod tests {
             fetch_from(&server).await,
             Err(DiscoveryError::NoCommonVersion { .. })
         ));
+    }
+
+    #[tokio::test]
+    async fn stream_endpoint_is_read_and_must_be_secure() {
+        let server = mock_service(
+            |d| d["stream_endpoint"] = "https://example.com/api/v1/stream".into(),
+            |_| {},
+        )
+        .await;
+        let service = fetch_from(&server).await.unwrap();
+        assert_eq!(service.discovery.stream_endpoint.unwrap().path(), "/api/v1/stream");
+
+        let server = mock_service(
+            |d| d["stream_endpoint"] = "http://example.com/api/v1/stream".into(),
+            |_| {},
+        )
+        .await;
+        assert!(matches!(fetch_from(&server).await, Err(DiscoveryError::Insecure(_))));
     }
 
     #[tokio::test]

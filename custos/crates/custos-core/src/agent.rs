@@ -1,5 +1,5 @@
-//! The loop of Custos. It watches the game and the save file, sends uploads, and keeps the login. The
-//! application sends [`Command`]s and shows the [`Event`]s.
+//! The loop of Custos. It watches the game and the save file, sends uploads, reads the stream of the
+//! service, and keeps the login. The application sends [`Command`]s and shows the [`Event`]s.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -9,14 +9,17 @@ use std::time::{Duration, Instant};
 use notify::RecommendedWatcher;
 use sha2::{Digest, Sha256};
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 
 use crate::auth::{self, PendingLogin, TokenStore, Tokens};
 use crate::config::Config;
 use crate::discovery::{self, Service};
+use crate::lines::{Kind, Notification, Reference};
 use crate::locate;
 use crate::process;
+use crate::root_cause;
 use crate::schedule::Schedule;
-use crate::stream::{Kind, Notification, Reference};
+use crate::stream::{self, Action, Backoff, End, Signal};
 use crate::upload::{self, Outcome, UploadResult};
 use crate::watch;
 
@@ -29,6 +32,8 @@ const SIGN_IN_REQUIRED: &str = "Sign in to send stockpile data. Use the Custos m
 /// The longest wait for a connection to the service. Without it, a host that does not answer blocks
 /// Custos until the timeout of the request.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+/// The wait before Custos asks the token endpoint again after it was not available.
+const REFRESH_RETRY: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
@@ -150,6 +155,43 @@ pub struct Agent {
     state: Option<State>,
     /// The last time that each error showed, by reference and text.
     shown_errors: HashMap<(Reference, String), Instant>,
+    /// No refresh of the token before this time, because the token endpoint was not available.
+    refresh_after: Option<Instant>,
+    /// The HTTP client of the stream. It has no total timeout.
+    stream_http: reqwest::Client,
+    stream: StreamState,
+}
+
+/// The state of the stream of spec/05-stream.md.
+#[derive(Default)]
+struct StreamState {
+    /// The task of the connection, and its signals.
+    task: Option<(JoinHandle<()>, mpsc::UnboundedReceiver<Signal>)>,
+    /// The expiry of the token of the connection, in seconds since the Unix epoch.
+    token_expires_at: Option<u64>,
+    /// True after the service answered `200` to the connection.
+    opened: bool,
+    /// True after a `401` that gave a new token. A second `401` signs out.
+    reauthorized: bool,
+    /// The `id` of the last event. Custos keeps it in memory only.
+    position: Option<String>,
+    backoff: Backoff,
+    /// No connection before this time.
+    next_try: Option<Instant>,
+    /// The failures since the stream was last open.
+    failures: u32,
+    /// True after a `403`. Custos does not connect again until the user changes.
+    forbidden: bool,
+}
+
+/// The result of a refresh of the access token.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Refresh {
+    Done,
+    /// The token endpoint refused the refresh token. The user must sign in.
+    Refused,
+    /// The token endpoint is not available. The tokens stay.
+    Unavailable,
 }
 
 impl Agent {
@@ -179,6 +221,9 @@ impl Agent {
             dirty: false,
             state: None,
             shown_errors: HashMap::new(),
+            refresh_after: None,
+            stream_http: stream::client(CONNECT_TIMEOUT),
+            stream: StreamState::default(),
         }
     }
 
@@ -195,9 +240,11 @@ impl Agent {
                     Some(command) => self.handle(command).await,
                 },
                 Some(()) = self.file_events.1.recv() => self.dirty = true,
+                Some(signal) = next_signal(&mut self.stream.task) => self.on_signal(signal).await,
                 _ = ticker.tick() => self.tick().await,
             }
         }
+        self.stop_stream();
     }
 
     async fn handle(&mut self, command: Command) {
@@ -243,6 +290,7 @@ impl Agent {
         if self.state == Some(State::Watching) && self.dirty && self.schedule.is_due(now) {
             self.upload(now).await;
         }
+        self.update_stream(now).await;
     }
 
     fn update_state(&mut self) {
@@ -371,7 +419,7 @@ impl Agent {
         let mut outcome = self.send(&service, &bytes).await;
         if outcome == Some(Outcome::Unauthorized) {
             // The token stopped working before its expiry. Refresh one time and send again.
-            outcome = if self.refresh_tokens(&service).await {
+            outcome = if self.refresh_tokens(&service).await == Refresh::Done {
                 self.send(&service, &bytes).await
             } else {
                 None
@@ -433,32 +481,203 @@ impl Agent {
         }
     }
 
+    /// Gets a new access token when the token expires soon. Returns false when Custos has no valid
+    /// token.
     async fn ensure_fresh_token(&mut self, service: &Service) -> bool {
         match &self.tokens {
             None => false,
-            Some(tokens) if tokens.is_expiring(auth::unix_now()) => self.refresh_tokens(service).await,
+            Some(tokens) if tokens.is_expiring(auth::unix_now()) => {
+                if self.refresh_after.is_some_and(|t| Instant::now() < t) {
+                    return false;
+                }
+                self.refresh_tokens(service).await == Refresh::Done
+            }
             Some(_) => true,
         }
     }
 
-    /// Gets a new access token. If that fails, Custos forgets the tokens and the user must sign in.
-    async fn refresh_tokens(&mut self, service: &Service) -> bool {
+    /// Gets a new access token. If the token endpoint refuses the refresh token, Custos forgets the
+    /// tokens and the user must sign in. A network error does not sign the user out.
+    async fn refresh_tokens(&mut self, service: &Service) -> Refresh {
         let Some(refresh_token) = self.tokens.as_ref().and_then(|t| t.refresh_token.clone()) else {
             self.forget_tokens().await;
-            return false;
+            return Refresh::Refused;
         };
 
         match auth::refresh(&self.http, service, &refresh_token).await {
             Ok(tokens) => {
+                self.refresh_after = None;
                 self.save_tokens(tokens).await;
-                true
+                Refresh::Done
             }
-            Err(e) => {
+            Err(e) if e.is_refusal() => {
                 tracing::warn!("refresh failed: {e}");
                 self.forget_tokens().await;
-                false
+                Refresh::Refused
+            }
+            Err(e) => {
+                self.refresh_after = Some(Instant::now() + REFRESH_RETRY);
+                self.notify_error(
+                    Kind::ServiceError,
+                    &format!(
+                        "Cannot get a new access token from {}: {}. Custos tries again later.",
+                        service.discovery.service_name,
+                        root_cause(&e)
+                    ),
+                );
+                Refresh::Unavailable
             }
         }
+    }
+
+    /// The endpoint of the stream, when Custos must keep the stream open: the service has a stream, the
+    /// user is signed in, Custos is not paused, Foxhole runs, and the service did not refuse the user.
+    fn stream_endpoint(&self) -> Option<url::Url> {
+        let endpoint = self.service.as_ref()?.discovery.stream_endpoint.clone()?;
+        let wanted = self.tokens.is_some() && !self.paused && self.game_running && !self.stream.forbidden;
+        wanted.then_some(endpoint)
+    }
+
+    /// Opens or closes the stream. While it is open, gets a new token before the old one expires.
+    async fn update_stream(&mut self, now: Instant) {
+        let (Some(endpoint), Some(service)) = (self.stream_endpoint(), self.service.clone()) else {
+            return self.stop_stream();
+        };
+        if self.stream.task.is_some() {
+            // The service closes the stream when the token of the connection expires. With a new token,
+            // Custos connects again at once.
+            self.ensure_fresh_token(&service).await;
+            return;
+        }
+        if self.stream.next_try.is_some_and(|t| now < t) {
+            return;
+        }
+        if !self.ensure_fresh_token(&service).await {
+            // The token endpoint is not available, and its error shows. Or the user must sign in.
+            self.stream.next_try = Some(now + self.stream.backoff.fail(rand::random()));
+            return;
+        }
+        let Some(tokens) = &self.tokens else { return };
+
+        let (sender, signals) = mpsc::unbounded_channel();
+        let task = tokio::spawn(stream::run(
+            self.stream_http.clone(),
+            endpoint,
+            tokens.access_token.clone(),
+            self.stream.position.clone(),
+            sender,
+        ));
+        self.stream.token_expires_at = tokens.expires_at;
+        self.stream.task = Some((task, signals));
+        tracing::debug!("connecting to the stream");
+    }
+
+    fn stop_stream(&mut self) {
+        if let Some((task, _)) = self.stream.task.take() {
+            task.abort();
+            self.stream.opened = false;
+            tracing::debug!("closed the stream");
+        }
+    }
+
+    async fn on_signal(&mut self, signal: Signal) {
+        match signal {
+            Signal::Opened => {
+                tracing::info!("the stream is open");
+                self.stream.opened = true;
+                self.stream.failures = 0;
+                self.stream.reauthorized = false;
+                self.expire(Kind::Stream);
+            }
+            Signal::Position(position) => self.stream.position = Some(position),
+            Signal::Message(message) => {
+                self.stream.backoff.reset();
+                match message.action(&self.service_name()) {
+                    Some(Action::Show(notification)) => self.notify(notification),
+                    Some(Action::Remove(reference)) => self.emit(Event::Expire(reference)),
+                    None => {}
+                }
+            }
+            Signal::Ended(end) => {
+                self.stream.task = None;
+                let opened = std::mem::take(&mut self.stream.opened);
+                self.on_stream_end(end, opened).await;
+            }
+        }
+    }
+
+    /// The action of spec/05-stream.md for the end of a connection.
+    async fn on_stream_end(&mut self, end: End, opened: bool) {
+        let now = Instant::now();
+        match end {
+            End::Closed(cause) => {
+                let expired = self
+                    .stream
+                    .token_expires_at
+                    .is_some_and(|at| auth::expires_soon(at, auth::unix_now()));
+                if opened && expired {
+                    tracing::debug!("the stream ended at the expiry of the token");
+                    self.stream.next_try = None;
+                } else {
+                    self.stream_failed(now, &cause, None);
+                }
+            }
+            End::Unauthorized => {
+                // The challenge steps: one new token, then a new login.
+                if std::mem::replace(&mut self.stream.reauthorized, true) {
+                    return self.forget_tokens().await;
+                }
+                let Some(service) = self.service.clone() else { return };
+                match self.refresh_tokens(&service).await {
+                    Refresh::Done => self.stream.next_try = None,
+                    Refresh::Refused => {}
+                    Refresh::Unavailable => self.stream.next_try = Some(now + self.stream.backoff.fail(rand::random())),
+                }
+            }
+            End::Forbidden => {
+                self.stream.forbidden = true;
+                self.notify_error(
+                    Kind::Stream,
+                    &format!(
+                        "{} sends no events to this user. Custos tries again after the next sign-in.",
+                        self.service_name()
+                    ),
+                );
+            }
+            End::NotFound => {
+                tracing::warn!("the stream endpoint does not exist. Custos gets the discovery document again.");
+                self.service = None;
+                self.last_discovery_attempt = None;
+            }
+            End::RateLimited(wait) => self.stream_failed(now, "the user has too many open streams", Some(wait)),
+            End::Failed(cause) => self.stream_failed(now, &cause, None),
+        }
+    }
+
+    /// Waits before the next connection. From the second failure in a row, shows an error.
+    fn stream_failed(&mut self, now: Instant, cause: &str, wait: Option<Duration>) {
+        let wait = wait.unwrap_or_else(|| self.stream.backoff.fail(rand::random()));
+        self.stream.next_try = Some(now + wait);
+        self.stream.failures += 1;
+        tracing::info!(
+            "the stream failed: {cause}. Custos connects again in {} ms.",
+            wait.as_millis()
+        );
+        if self.stream.failures >= 2 {
+            self.notify_error(
+                Kind::Stream,
+                &format!(
+                    "The events of {} are not available: {cause}. Custos tries again.",
+                    self.service_name()
+                ),
+            );
+        }
+    }
+
+    fn service_name(&self) -> String {
+        self.service
+            .as_ref()
+            .map_or_else(|| "the service".to_owned(), |s| s.discovery.service_name.clone())
     }
 
     fn sign_in(&mut self) {
@@ -489,8 +708,11 @@ impl Agent {
             Ok(tokens) => {
                 self.save_tokens(tokens).await;
                 self.expire(Kind::SignInRequired);
+                // The user can be a new one, so the stream tries again.
+                self.stream.forbidden = false;
+                self.stream.reauthorized = false;
                 self.notify(Notification {
-                    reference: Kind::Login.into(),
+                    reference: Some(Kind::Login.into()),
                     title: "Signed in".into(),
                     body: format!("Custos sends stockpile data to {}.", service.discovery.service_name),
                     is_error: false,
@@ -505,6 +727,8 @@ impl Agent {
             auth::revoke(&self.http, service, tokens).await;
         }
         self.forget_tokens().await;
+        self.stream.forbidden = false;
+        self.stream.position = None;
     }
 
     async fn load_tokens(&self) -> Option<Tokens> {
@@ -547,7 +771,7 @@ impl Agent {
     /// Shows an error, but not an identical error that showed less than [`ERROR_REPEAT`] before.
     fn notify_error(&mut self, kind: Kind, message: &str) {
         let now = Instant::now();
-        let key = (Reference::new(kind), message.to_owned());
+        let key = (Reference::Local(kind), message.to_owned());
         if self
             .shown_errors
             .get(&key)
@@ -558,7 +782,7 @@ impl Agent {
         tracing::warn!("{message}");
         self.shown_errors.insert(key.clone(), now);
         self.notify(Notification {
-            reference: key.0,
+            reference: Some(key.0),
             title: "Custos".into(),
             body: message.to_owned(),
             is_error: true,
@@ -567,7 +791,7 @@ impl Agent {
 
     /// Removes the message of this kind. The error can then show again at once if it occurs again.
     fn expire(&mut self, kind: Kind) {
-        let reference = Reference::new(kind);
+        let reference = Reference::Local(kind);
         self.shown_errors.retain(|(r, _), _| *r != reference);
         self.emit(Event::Expire(reference));
     }
@@ -578,14 +802,12 @@ impl Agent {
     }
 }
 
-/// The innermost cause of an error, for example "Connection refused (os error 111)". The outer errors
-/// of an HTTP request only repeat the URL.
-fn root_cause(error: &dyn std::error::Error) -> String {
-    let mut cause = error;
-    while let Some(source) = cause.source() {
-        cause = source;
+/// The next signal of the stream task. Waits for ever when no task runs.
+async fn next_signal(task: &mut Option<(JoinHandle<()>, mpsc::UnboundedReceiver<Signal>)>) -> Option<Signal> {
+    match task {
+        Some((_, signals)) => signals.recv().await,
+        None => std::future::pending().await,
     }
-    cause.to_string()
 }
 
 fn accepted_notification(service: &str, result: &UploadResult) -> Notification {
@@ -600,7 +822,7 @@ fn accepted_notification(service: &str, result: &UploadResult) -> Notification {
         let _ = write!(body, " Stockpiles: {}.", names.join(", "));
     }
     Notification {
-        reference: Kind::Upload.into(),
+        reference: Some(Kind::Upload.into()),
         title: "Stockpile data sent".into(),
         body,
         is_error: false,
@@ -634,8 +856,33 @@ mod tests {
         }
 
         async fn start_with(tokens: Option<Tokens>, game: Arc<AtomicBool>) -> Self {
-            let server =
-                crate::discovery::tests::mock_service(|d| d["upload_min_interval_seconds"] = 0.into(), |_| {}).await;
+            Self::start_service(tokens, game, false).await
+        }
+
+        /// A service with a stream at `/api/v1/stream`, and a game that runs. The service accepts each
+        /// upload.
+        async fn start_streaming(tokens: Option<Tokens>) -> Self {
+            let f = Self::start_service(tokens, Arc::new(AtomicBool::new(true)), true).await;
+            Mock::given(method("POST"))
+                .and(path("/api/v1/uploads"))
+                .respond_with(ResponseTemplate::new(200).set_body_raw(RESULT, "application/json"))
+                .mount(&f.server)
+                .await;
+            f
+        }
+
+        async fn start_service(tokens: Option<Tokens>, game: Arc<AtomicBool>, stream: bool) -> Self {
+            let server = crate::discovery::tests::mock_service(
+                |d| {
+                    d["upload_min_interval_seconds"] = 0.into();
+                    if stream {
+                        let upload = d["upload_endpoint"].as_str().unwrap().to_owned();
+                        d["stream_endpoint"] = upload.replace("/uploads", "/stream").into();
+                    }
+                },
+                |_| {},
+            )
+            .await;
 
             let save_dir = tempfile::tempdir().unwrap();
             std::fs::write(save_dir.path().join("1_MapData.sav"), b"GVAS0001").unwrap();
@@ -677,6 +924,23 @@ mod tests {
             }
         }
 
+        /// Waits until the service received a request that matches.
+        async fn request(&self, wanted: impl Fn(&wiremock::Request) -> bool) {
+            tokio::time::timeout(Duration::from_secs(5), async {
+                while !self.server.received_requests().await.unwrap().iter().any(&wanted) {
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+            })
+            .await
+            .expect("the request did not arrive");
+        }
+
+        /// The number of requests to the stream.
+        async fn stream_requests(&self) -> usize {
+            let requests = self.server.received_requests().await.unwrap();
+            requests.iter().filter(|r| r.url.path() == STREAM).count()
+        }
+
         fn start_game(&self) {
             self.game.store(true, Ordering::Relaxed);
         }
@@ -697,6 +961,16 @@ mod tests {
             .await
             .expect("the event did not arrive")
         }
+    }
+
+    const STREAM: &str = "/api/v1/stream";
+
+    fn event_stream(body: &str) -> ResponseTemplate {
+        ResponseTemplate::new(200).set_body_raw(body.to_owned(), "text/event-stream")
+    }
+
+    fn is_stream_error(e: &Event) -> bool {
+        matches!(e, Event::Notify(n) if n.is_error && n.reference == Some(Kind::Stream.into()))
     }
 
     fn tokens(access: &str) -> Tokens {
@@ -737,7 +1011,7 @@ mod tests {
         let Event::Notify(n) = f.next(is_notification).await else {
             unreachable!()
         };
-        assert_eq!(n.reference, Kind::Upload.into());
+        assert_eq!(n.reference, Some(Kind::Upload.into()));
         assert_eq!(n.title, "Stockpile data sent");
         assert!(n.body.contains("War 142"), "{}", n.body);
 
@@ -833,7 +1107,7 @@ mod tests {
             loop {
                 match events.recv().await {
                     Some(Event::GameRunning(true)) => started = true,
-                    Some(Event::Notify(n)) if started && n.reference == Kind::ServiceError.into() => return n,
+                    Some(Event::Notify(n)) if started && n.reference == Some(Kind::ServiceError.into()) => return n,
                     _ => {}
                 }
             }
@@ -950,5 +1224,208 @@ mod tests {
         f.next(is_state(State::Paused)).await;
         f.start_game();
         tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+
+    #[tokio::test]
+    async fn stream_shows_the_messages_and_resumes_at_the_position() {
+        let mut f = Fixture::start_streaming(Some(tokens("a1"))).await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .and(header("last-event-id", "1-2"))
+            .respond_with(event_stream("id: 1-2\n\n"))
+            .with_priority(1)
+            .mount(&f.server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .and(header("authorization", "Bearer a1"))
+            .respond_with(event_stream(
+                "id: 1-1\n\nid: 1-2\ndata: {\"kind\":\"event\",\"reference\":\"s:1\",\"text\":\"Depot\"}\n\n",
+            ))
+            .mount(&f.server)
+            .await;
+
+        let Event::Notify(n) = f.next(|e| matches!(e, Event::Notify(n) if n.title == "Test")).await else {
+            unreachable!()
+        };
+        assert_eq!(n.reference, Some(Reference::Service("s:1".into())));
+        assert_eq!(n.body, "Depot");
+        assert!(!n.is_error);
+
+        // The service closed the stream, so Custos connects again from its position.
+        f.request(|r| r.headers.get("last-event-id").is_some_and(|v| v == "1-2"))
+            .await;
+    }
+
+    #[tokio::test]
+    async fn message_with_a_reference_and_no_text_removes_the_line() {
+        let mut f = Fixture::start_streaming(Some(tokens("a1"))).await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .respond_with(event_stream(
+                "id: 1\ndata: {\"kind\":\"event\",\"reference\":\"s:1\"}\n\n",
+            ))
+            .mount(&f.server)
+            .await;
+
+        f.next(|e| *e == Event::Expire(Reference::Service("s:1".into()))).await;
+    }
+
+    #[tokio::test]
+    async fn forbidden_stream_shows_an_error_and_does_not_connect_again() {
+        let mut f = Fixture::start_streaming(Some(tokens("a1"))).await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .respond_with(ResponseTemplate::new(403))
+            .mount(&f.server)
+            .await;
+
+        f.next(is_stream_error).await;
+        tokio::time::sleep(Duration::from_millis(1500)).await;
+        assert_eq!(f.stream_requests().await, 1);
+    }
+
+    #[tokio::test]
+    async fn rate_limited_stream_waits_for_retry_after() {
+        let f = Fixture::start_streaming(Some(tokens("a1"))).await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .respond_with(ResponseTemplate::new(429).insert_header("Retry-After", "60"))
+            .mount(&f.server)
+            .await;
+
+        f.request(|r| r.url.path() == STREAM).await;
+        tokio::time::sleep(Duration::from_millis(1500)).await;
+        assert_eq!(f.stream_requests().await, 1);
+    }
+
+    #[tokio::test]
+    async fn failed_stream_shows_an_error_from_the_second_failure() {
+        let mut f = Fixture::start_streaming(Some(tokens("a1"))).await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .respond_with(ResponseTemplate::new(503))
+            .mount(&f.server)
+            .await;
+
+        let Event::Notify(n) = f.next(is_stream_error).await else {
+            unreachable!()
+        };
+        assert!(n.body.contains("503"), "{}", n.body);
+        assert!(f.stream_requests().await >= 2);
+    }
+
+    #[tokio::test]
+    async fn unauthorized_stream_refreshes_one_time() {
+        let mut f = Fixture::start_streaming(Some(tokens("old"))).await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .and(header("authorization", "Bearer old"))
+            .respond_with(ResponseTemplate::new(401))
+            .mount(&f.server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/token"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"access_token": "new"})))
+            .mount(&f.server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .and(header("authorization", "Bearer new"))
+            .respond_with(event_stream("id: 1\ndata: {\"kind\":\"event\",\"text\":\"a\"}\n\n"))
+            .mount(&f.server)
+            .await;
+
+        f.next(|e| matches!(e, Event::Notify(n) if n.body == "a")).await;
+        assert_eq!(f.store.load().unwrap().unwrap().access_token, "new");
+    }
+
+    #[tokio::test]
+    async fn second_unauthorized_stream_signs_out() {
+        let mut f = Fixture::start_streaming(Some(tokens("old"))).await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .respond_with(ResponseTemplate::new(401))
+            .mount(&f.server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/token"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"access_token": "new"})))
+            .mount(&f.server)
+            .await;
+
+        f.next(is_state(State::SignedOut)).await;
+        assert_eq!(f.store.load().unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn missing_stream_endpoint_gets_the_discovery_again() {
+        let f = Fixture::start_streaming(Some(tokens("a1"))).await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&f.server)
+            .await;
+
+        f.request(|r| r.url.path() == STREAM).await;
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let requests = f.server.received_requests().await.unwrap();
+                let discovery = "/.well-known/custos-configuration";
+                if requests.iter().filter(|r| r.url.path() == discovery).count() >= 2 {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("Custos did not get the discovery document again");
+    }
+
+    #[tokio::test]
+    async fn expiring_token_is_refreshed_before_the_stream_opens() {
+        let expiring = Tokens {
+            expires_at: Some(auth::unix_now() + 10),
+            ..tokens("old")
+        };
+        let f = Fixture::start_streaming(Some(expiring)).await;
+        Mock::given(method("POST"))
+            .and(path("/token"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"access_token": "new", "expires_in": 300})),
+            )
+            .mount(&f.server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .respond_with(event_stream("id: 1\n\n"))
+            .mount(&f.server)
+            .await;
+
+        f.request(|r| r.url.path() == STREAM).await;
+        let requests = f.server.received_requests().await.unwrap();
+        let stream = requests.iter().find(|r| r.url.path() == STREAM).unwrap();
+        assert_eq!(stream.headers.get("authorization").unwrap(), "Bearer new");
+    }
+
+    #[tokio::test]
+    async fn unavailable_token_endpoint_keeps_the_tokens() {
+        let expired = Tokens {
+            expires_at: Some(0),
+            ..tokens("old")
+        };
+        let mut f = Fixture::start(Some(expired)).await;
+        Mock::given(method("POST"))
+            .and(path("/token"))
+            .respond_with(ResponseTemplate::new(503))
+            .mount(&f.server)
+            .await;
+
+        f.start_game();
+        let Event::Notify(n) = f.next(is_notification).await else {
+            unreachable!()
+        };
+        assert!(n.body.starts_with("Cannot get a new access token"), "{}", n.body);
+        assert_eq!(f.store.load().unwrap().unwrap().refresh_token.as_deref(), Some("r1"));
     }
 }

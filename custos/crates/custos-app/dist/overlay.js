@@ -1,11 +1,12 @@
-// The overlay page on Windows. Custos keeps the lines (stream.rs in custos-core) and calls render() at
-// each change. The page types the lines at the rate of the stream, one after the other.
+// The overlay page on Windows. Custos keeps the lines (lines.rs in custos-core) and calls render() at
+// each change. Each line has the times when it shows and when newer lines push it out, in milliseconds
+// from the render. The page shows each line in its time, and types it at the rate of Custos.
 "use strict";
 
 const CURSOR = "█";
 const lines = document.getElementById("lines");
 const prompt = document.getElementById("prompt");
-// For each line: its characters, the number of typed characters at the last render, and its elements.
+// For each line: its characters, its times, the state at the last frame, and its elements.
 let shown = [];
 let rendered = 0;
 let rate = 60;
@@ -17,18 +18,19 @@ function render(page) {
     document.body.classList.toggle("right", !page.left);
     document.body.style.setProperty("--cursor-period", `${page.period}s`);
     rate = page.rate;
-    shown = page.lines.map((line) => {
+    shown = page.rows.map((row) => {
         const label = document.createElement("label");
-        if (line.error) {
+        if (row.error) {
             label.className = "custos-error";
         }
+        label.hidden = true;
         const typed = document.createTextNode("");
         const cursor = document.createElement("span");
         cursor.textContent = CURSOR;
         const rest = document.createElement("span");
         rest.className = "rest";
-        label.append(line.prompt, typed, cursor, rest);
-        return { text: Array.from(line.text), typed: line.typed, count: -1, label, typedNode: typed, cursor, rest };
+        label.append(row.prompt, typed, cursor, rest);
+        return { text: Array.from(row.text), show: row.show, hide: row.hide, count: -1, label, typedNode: typed, cursor, rest };
     });
     lines.replaceChildren(...shown.map((line) => line.label));
     cancelAnimationFrame(frame);
@@ -36,14 +38,16 @@ function render(page) {
     type(rendered);
 }
 
-// Shows the typed part of each line. A line types when the line above it is complete. While no line
-// types, shows the prompt.
+// Shows each line in its time, and its typed part. While no line types, shows the prompt. Draws
+// frames only while a line types or a time is still to come.
 function type(now) {
-    let budget = Math.floor(((now - rendered) * rate) / 1000);
+    const elapsed = now - rendered;
     let typing = false;
+    let waiting = false;
     for (const line of shown) {
-        const count = Math.min(line.text.length, line.typed + budget);
-        budget -= count - line.typed;
+        line.label.hidden = elapsed < line.show || (line.hide !== null && elapsed >= line.hide);
+        waiting ||= line.hide !== null && elapsed < line.hide;
+        const count = Math.max(0, Math.min(line.text.length, Math.floor(((elapsed - line.show) * rate) / 1000)));
         typing ||= count < line.text.length;
         if (count !== line.count) {
             line.count = count;
@@ -53,5 +57,5 @@ function type(now) {
         }
     }
     prompt.hidden = typing;
-    frame = typing ? requestAnimationFrame(type) : 0;
+    frame = typing || waiting ? requestAnimationFrame(type) : 0;
 }
