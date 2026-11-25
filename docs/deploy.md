@@ -187,12 +187,12 @@ Add the bot of Optio to each guild that uses the stream. A stream of a guild wit
 
 ## 4. Prepare NATS
 
-The broker carries the events of the server to Optio. The operator defines only the broker users and their permissions. Optio makes the stream of the events when it starts ([optio/docs/producers.md](../optio/docs/producers.md#broker)).
+The broker carries the events of the server to Optio, and holds the state of the queries. The operator defines only the broker users and their permissions. Optio makes the stream and the buckets when it starts ([optio/docs/producers.md](../optio/docs/producers.md#broker)).
 
 1. Copy [optio/nats/nats.conf](../optio/nats/nats.conf) next to the Compose file. It turns on JetStream with the store `/data`, and defines the users `custos` and `optio` with their permissions.
 2. Select a password for each user. Use only letters and digits, because the password is part of a URL in the configuration of each service. The NATS server reads the passwords from its environment variables `CUSTOS_PASSWORD` and `OPTIO_PASSWORD` (step 5).
 
-The configuration defines no stream. For each new domain service that publishes events, add a user with the permissions of [optio/docs/producers.md](../optio/docs/producers.md#broker). Optio needs no change.
+The configuration defines no stream and no bucket. For each new domain service that publishes events, add a user with the permissions of [optio/docs/producers.md](../optio/docs/producers.md#broker). Optio needs no change.
 
 ## 5. Write the Compose file
 
@@ -240,6 +240,7 @@ services:
     secrets:
       - Optio__OptioClientSecret
       - Optio__DiscordToken
+      - Optio__ClaudeApiKey
     ports:
       - "127.0.0.1:8080:8080"
 
@@ -261,7 +262,11 @@ configs:
         "Optio": {
           "PublicBaseUrl": "https://custos.example.com",
           "Authority": "https://id.example.com/realms/custos",
-          "UploadApiUrl": "http://server:8080/api/v1/uploads"
+          "UploadApiUrl": "http://server:8080/api/v1/uploads",
+          "SystemPrompt": "You are Optio, the assistant of the logistics of a Foxhole guild.",
+          "McpServices": [
+            { "Name": "custos", "Url": "http://server:8080/mcp", "ReadScope": "custos:read" }
+          ]
         }
       }
 
@@ -272,6 +277,8 @@ secrets:
     environment: OPTIO_CLIENT_SECRET
   Optio__DiscordToken:
     environment: OPTIO_DISCORD_TOKEN
+  Optio__ClaudeApiKey:
+    environment: OPTIO_CLAUDE_API_KEY
 
 volumes:
   events-data:
@@ -291,6 +298,7 @@ OPTIO_BROKER_PASSWORD=changeMe2
 SERVER_DISCORD_TOKEN=<bot token of the server>
 OPTIO_DISCORD_TOKEN=<bot token of Optio>
 OPTIO_CLIENT_SECRET=<secret of the client optio>
+OPTIO_CLAUDE_API_KEY=<key of the Claude API>
 ```
 
 - `image`: a release tag (`X.Y.Z`) of each service. The tags above are examples. `unstable` changes with each push to `main` ([optio/README.md](../optio/README.md#container), [server/README.md](../server/README.md#container)).
@@ -300,6 +308,7 @@ OPTIO_CLIENT_SECRET=<secret of the client optio>
 - `Authority`: the issuer of the realm, exactly as the `iss` claim of a token has it. Each service gets the metadata and the signing keys of Keycloak from this URL, so each container must reach it.
 - `Resource` of the server: the public URL of the MCP endpoint. It is the audience of each token of the server, also of a token that Optio gets by exchange. Thus it is the public URL even when Optio calls the server on the internal network.
 - `UploadApiUrl`: the internal URL of the upload API of the server. The upload API needs no public route.
+- `SystemPrompt` and `McpServices`: the query. A prompt of more lines is easier in its own file: [optio/docs/system-prompt.example.txt](../optio/docs/system-prompt.example.txt) is an example. `Url` is the internal URL of the MCP endpoint of the server. Optio gets the token for it by exchange, with the audience `Resource`. Without `Optio__ClaudeApiKey`, `SystemPrompt`, or `McpServices`, Optio answers no query, and the discovery document has no `query_endpoint`.
 - `secrets`: Compose gets each secret from a variable of the file `.env` next to the Compose file, and mounts it as `/run/secrets/<name>`. Each service reads each file of `/run/secrets` as a configuration key, and `__` in a file name is `:`. Without `Discord__Token`, the server has no Discord connection. Without `Optio__DiscordToken`, Optio has no stream.
 - `ConnectionStrings__*`: the passwords come from the file `.env` too. Without `ConnectionStrings__events`, the server publishes no events, and Optio has no stream. A service starts without the broker, and connects again by itself.
 - `ASPNETCORE_FORWARDEDHEADERS_ENABLED`: each service applies `X-Forwarded-Proto` and `X-Forwarded-For` of the proxy. A service then trusts these headers from each client that reaches its port, so only the proxy must reach it.

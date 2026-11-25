@@ -68,6 +68,33 @@ The stream sends the events of the domain services to Custos ([spec](../spec/05-
 - When the reader fails, for example because an operator removed the broker stream, the stream ends. At the next connection, Optio makes the broker stream again.
 - Optio keeps no events in memory. It holds only the count of open streams of each user.
 
+## Query
+
+The query answers a question of the user in plain language, on the stream ([spec](../spec/06-query.md)). It is on when the stream is on and the configuration has `ClaudeApiKey`, `SystemPrompt`, and one item of `McpServices` or more. Then the discovery document has `query_endpoint`.
+
+1. Custos sends `POST /api/v1/query` with a reference that it makes and the question. The client is the claim `sid` of the token, so a token with no `sid` gets `403`.
+2. Optio writes the record of the query to the bucket `OPTIO_QUERIES`, and responds `202`. Each change of state is a compare-and-set on the record, and the winner publishes the message of the change below `queries.<guild>.<user>.<client>` in the stream `OPTIO`. Thus the messages replay with the events, and only the streams of the client get them.
+3. The model gets the system prompt, a section for each MCP service with its card, `OperatorText`, the guild, and the read-only tools of the services. Each tool name is `{service}_{tool}`. Code sets the argument `guild_id`.
+4. Each tool call publishes a status, for example `Custos: Find items`. A failure of a tool goes to the model as a tool error. A service that is not available is not in the tool list, and the prompt states it.
+5. A part has a budget of `PartBudgetSeconds` and of `MaxToolCallsPerPart` tool calls. At the end of a budget, the model gets one last step in which it cannot call a tool.
+6. The query closes with the answer. The question, the tool calls, the results, and the answer go to the conversation of the client in the bucket `OPTIO_CONVERSATIONS`. A query in the follow-up window continues the conversation, unless it has `new_conversation`.
+
+| Answer | Cause |
+|---|---|
+| `403` | The token names no guild, user, or session. |
+| `404` | An action for a reference that is not the last query of the client. |
+| `409` | Another client of the user has an open query, or the state of the query does not permit the action. |
+| `429` | The user started `MaxQueriesPerHour` queries in the last hour. `Retry-After` gives the wait. |
+| `503` | The broker is not available. |
+
+- A new query of a client closes its open query with the cause `replaced`. `stop` closes it with `stopped`.
+- A stream that opens sends the state of the open query of its client after the position.
+- Optio keeps the card and the tool list of each service for `CatalogMinutes`, and gets them again with the token of a query. It gets a token of the user for the read scope of each service by exchange.
+- At its start, Optio closes each query that an earlier instance left open, with the cause `interrupted`. At a normal stop, it closes its running queries the same way.
+- The limit of queries in each hour is in memory. A restart of Optio resets it.
+- Each tool call writes an audit line to the log.
+- This version calls only read-only tools. A tool that a service does not mark read-only is not in the list.
+
 ## Producers
 
 A domain service sends events to Optio through NATS JetStream. Each event holds the text for the user and the policy that tells who can read it. The contract for such a producer is [docs/producers.md](docs/producers.md), with the schema [schemas/event.schema.json](schemas/event.schema.json). A new producer needs a NATS user, and no change in Optio.
@@ -99,6 +126,19 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 | `DiscordToken` | (none) | The token of the Discord bot of Optio. Without it, Optio has no stream. |
 | `DevelopmentGuildId` | (none) | The guild of a stream whose token has no claim `active_guild`. Only in the environment `Development`, as in the server. `1236389163276959888` in development. |
 | `DevelopmentDiscordUserId` | (none) | The user of a stream whose token has no claim `discord_id`. Only in the environment `Development`. |
+| `ClaudeApiKey` | (none) | The key of the Claude API. Keep it in `/run/secrets/Optio__ClaudeApiKey`. Without it, Optio answers no query. |
+| `ModelId` | `claude-haiku-5-5` | The model of the query. |
+| `ModelEffort` | `medium` | The effort of the model: `low`, `medium`, `high`, `xhigh`, or `max`. |
+| `SystemPrompt` | (none) | The system prompt. [docs/system-prompt.example.txt](docs/system-prompt.example.txt) is an example. Without it, Optio answers no query. |
+| `OperatorText` | (none) | The text about the services together: the words that they share, and how their records relate. |
+| `McpServices` | `[]` | The MCP services of the query. Each item has `Name` (lowercase letters and digits, at most 16), `Url`, `ReadScope`, and optionally `Title` and `Card`. `Card` replaces the card that the service gives. |
+| `HiddenTools` | `[]` | The tools that the model does not get, as `{service}_{tool}`. |
+| `MaxQueriesPerHour` | `20` | The queries of one user in one hour. |
+| `FollowUpMinutes` | `10` | The follow-up window, and the lifetime of a conversation. |
+| `MaxConversationBytes` | `100000` | The largest conversation. Optio removes its oldest queries to fit. |
+| `PartBudgetSeconds` | `60` | The budget of time of one part of a query. |
+| `MaxToolCallsPerPart` | `8` | The budget of tool calls of one part of a query. |
+| `CatalogMinutes` | `10` | How long Optio keeps the card and the tool list of a service. |
 
 The connection string of the broker is `ConnectionStrings:events` (`ConnectionStrings__events`), a NATS URL with the user `optio`, for example `nats://optio:...@broker:4222`. Without it, Optio has no stream. Optio starts without the broker, and connects again by itself.
 

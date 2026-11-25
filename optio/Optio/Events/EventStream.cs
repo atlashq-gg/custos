@@ -40,7 +40,7 @@ internal sealed partial class EventStream(
     {
         var maxAge = options.ReplayWindow;
         var duplicates = TimeSpan.FromMinutes(2);
-        return new StreamConfig(Name, ["events.>"])
+        return new StreamConfig(Name, ["events.>", "queries.>"])
         {
             Retention = StreamConfigRetention.Limits,
             Storage = StreamConfigStorage.File,
@@ -106,18 +106,18 @@ internal sealed partial class EventStream(
     }
 
     /// <summary>
-    /// Reads the events of <paramref name="guild"/> after <paramref name="start"/> with an ordered
-    /// consumer, in the order of the stream. The reader fetches from the broker only while the
-    /// client reads. It completes when it fails, for example when the stream goes, and it stops
-    /// with <paramref name="cancellationToken"/>.
+    /// Reads the messages of the <paramref name="filters"/> after <paramref name="start"/> with an
+    /// ordered consumer, in the order of the stream. The reader fetches from the broker only while
+    /// the client reads. It completes when it fails, for example when the stream goes, and it
+    /// stops with <paramref name="cancellationToken"/>.
     /// </summary>
-    public ChannelReader<ProducerEvent?> Read(
-        ulong guild,
+    public ChannelReader<StreamItem> Read(
+        string[] filters,
         Position start,
         CancellationToken cancellationToken
     )
     {
-        var events = Channel.CreateBounded<ProducerEvent?>(
+        var events = Channel.CreateBounded<StreamItem>(
             new BoundedChannelOptions(ReaderCapacity)
             {
                 FullMode = BoundedChannelFullMode.Wait,
@@ -134,22 +134,24 @@ internal sealed partial class EventStream(
                         Name,
                         new NatsJSOrderedConsumerOpts
                         {
-                            FilterSubjects = [ProducerEvent.Filter(guild)],
+                            FilterSubjects = filters,
                             DeliverPolicy = ConsumerConfigDeliverPolicy.ByStartSequence,
                             OptStartSeq = start.Sequence + 1,
                         },
                         cancellationToken
                     );
                     await foreach (
-                        var msg in consumer.ConsumeAsync<ReadOnlyMemory<byte>>(
+                        var msg in consumer.ConsumeAsync<byte[]>(
                             cancellationToken: cancellationToken
                         )
                     )
                     {
-                        // Null for an event that is not valid: the client stream counts it.
-                        var sequence = msg.Metadata?.Sequence.Stream ?? 0;
                         await events.Writer.WriteAsync(
-                            ProducerEvent.Parse(msg.Subject, sequence, msg.Data),
+                            new StreamItem(
+                                msg.Subject,
+                                msg.Metadata?.Sequence.Stream ?? 0,
+                                msg.Data ?? []
+                            ),
                             cancellationToken
                         );
                     }
@@ -158,7 +160,7 @@ internal sealed partial class EventStream(
                 { }
                 catch (Exception e)
                 {
-                    LogReaderFailed(logger, e, guild);
+                    LogReaderFailed(logger, e, string.Join(' ', filters));
                 }
                 events.Writer.TryComplete();
             },
@@ -205,7 +207,17 @@ internal sealed partial class EventStream(
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "The reader of a stream of guild {GuildId} failed"
+        Message = "The reader of a stream with the filters {Filters} failed"
     )]
-    private static partial void LogReaderFailed(ILogger logger, Exception exception, ulong guildId);
+    private static partial void LogReaderFailed(
+        ILogger logger,
+        Exception exception,
+        string filters
+    );
+}
+
+/// <summary>A message of the stream on the broker, with its subject and its sequence.</summary>
+internal sealed record StreamItem(string Subject, ulong Sequence, byte[] Data)
+{
+    public bool IsQuery => Subject.StartsWith("queries.", StringComparison.Ordinal);
 }

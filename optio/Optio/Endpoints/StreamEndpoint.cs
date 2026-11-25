@@ -1,10 +1,12 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Options;
 using Optio.Discord;
 using Optio.Events;
+using Optio.Queries;
 using Optio.Streams;
 using Optio.Telemetry;
 
@@ -13,8 +15,10 @@ namespace Optio.Endpoints;
 /// <summary>
 /// The stream of spec/05-stream.md. Each open stream belongs to a member of the guild in
 /// <c>active_guild</c>. It has its own reader on the broker, and gets the events that the member
-/// can read. The stream first sends its position, then the events after the position. It sends a
-/// comment at least each <see cref="KeepAlive"/>, and it ends when the access token expires.
+/// can read, and the query messages of its client (spec/06-query.md). The stream first sends its
+/// position, then the state of the open query of the client, then the messages after the
+/// position. It sends a comment at least each <see cref="KeepAlive"/>, and it ends when the access
+/// token expires.
 /// </summary>
 internal static partial class StreamEndpoint
 {
@@ -110,9 +114,22 @@ internal static partial class StreamEndpoint
                     http.Request.Headers["Last-Event-ID"].FirstOrDefault(),
                     now
                 );
+                // The query messages of the client, when Optio has the query.
+                var queries = http.RequestServices.GetService<QueryService>();
+                var client = queries is null ? null : QueryClient.Of(user, guild, userId);
                 await SendAsync(
                     http,
-                    new Reader(events, members, metrics, time, guild, userId),
+                    new Reader(
+                        events,
+                        members,
+                        metrics,
+                        time,
+                        guild,
+                        userId,
+                        queries,
+                        client,
+                        logger
+                    ),
                     start,
                     state,
                     Expiry(user),
@@ -157,7 +174,7 @@ internal static partial class StreamEndpoint
         {
             await response.StartAsync(open.Token);
             // The position first, so that a client with no event also has one.
-            await WriteAsync(response, start, null, open.Token);
+            await WriteAsync(response, start, (byte[]?)null, open.Token);
             if (state is MemberState.NoBot)
             {
                 await WriteAsync(
@@ -174,7 +191,10 @@ internal static partial class StreamEndpoint
                 );
             }
 
-            var events = reader.Events.Read(reader.Guild, start, open.Token);
+            if (await reader.OpenQueryAsync(open.Token) is { } openQuery)
+                await WriteAsync(response, start, openQuery, open.Token);
+
+            var events = reader.Events.Read(reader.Filters, start, open.Token);
             // The comment comes 15 seconds after the last write, also while the reader gets only
             // events that the member cannot read.
             var tick = new CancellationTokenSource(KeepAlive, reader.Time);
@@ -182,19 +202,30 @@ internal static partial class StreamEndpoint
             {
                 while (true)
                 {
-                    while (events.TryRead(out var producerEvent))
+                    while (events.TryRead(out var item))
                     {
-                        if (await reader.CanReadAsync(producerEvent, open.Token) is not { } e)
-                            continue;
-                        await WriteAsync(
-                            response,
-                            start with
-                            {
-                                Sequence = e.Sequence,
-                            },
-                            new StreamMessage("event", e.Text, e.Reference, e.Source),
-                            open.Token
-                        );
+                        var position = start with { Sequence = item.Sequence };
+                        if (item.IsQuery)
+                        {
+                            // Optio made the message, for this client only.
+                            await WriteAsync(response, position, item.Data, open.Token);
+                        }
+                        else
+                        {
+                            var producerEvent = ProducerEvent.Parse(
+                                item.Subject,
+                                item.Sequence,
+                                item.Data
+                            );
+                            if (await reader.CanReadAsync(producerEvent, open.Token) is not { } e)
+                                continue;
+                            await WriteAsync(
+                                response,
+                                position,
+                                new StreamMessage("event", e.Text, e.Reference, e.Source),
+                                open.Token
+                            );
+                        }
                         tick.Dispose();
                         tick = new CancellationTokenSource(KeepAlive, reader.Time);
                     }
@@ -231,14 +262,28 @@ internal static partial class StreamEndpoint
     }
 
     /// <summary>Writes one event. With no message, the event only sets the position.</summary>
-    private static async Task WriteAsync(
+    private static Task WriteAsync(
         HttpResponse response,
         Position position,
         StreamMessage? message,
         CancellationToken cancellationToken
+    ) =>
+        WriteAsync(
+            response,
+            position,
+            message is null ? null : JsonSerializer.SerializeToUtf8Bytes(message, Json),
+            cancellationToken
+        );
+
+    /// <summary>Writes one event with a message as one line of JSON.</summary>
+    private static async Task WriteAsync(
+        HttpResponse response,
+        Position position,
+        byte[]? message,
+        CancellationToken cancellationToken
     )
     {
-        var data = message is null ? "" : $"data: {JsonSerializer.Serialize(message, Json)}\n";
+        var data = message is null ? "" : $"data: {Encoding.UTF8.GetString(message)}\n";
         await response.WriteAsync($"id: {position}\n{data}\n", cancellationToken);
         await response.Body.FlushAsync(cancellationToken);
     }
@@ -273,10 +318,37 @@ internal static partial class StreamEndpoint
         OptioMetrics metrics,
         TimeProvider time,
         ulong guild,
-        ulong user
+        ulong user,
+        QueryService? queries,
+        QueryClient? client,
+        ILogger logger
     )
     {
         public EventStream Events => events;
+
+        /// <summary>The filters of the broker: the events of the guild, and the query messages
+        /// of the client.</summary>
+        public string[] Filters =>
+            client is null
+                ? [ProducerEvent.Filter(guild)]
+                : [ProducerEvent.Filter(guild), client.Subject];
+
+        /// <summary>The message of the open query of the client. A failure only goes to the log:
+        /// the stream then has the replay.</summary>
+        public async Task<byte[]?> OpenQueryAsync(CancellationToken cancellationToken)
+        {
+            if (queries is null || client is null)
+                return null;
+            try
+            {
+                return (await queries.OpenMessageAsync(client, cancellationToken))?.ToStream();
+            }
+            catch (Exception e) when (!cancellationToken.IsCancellationRequested)
+            {
+                LogNoOpenQuery(logger, e);
+                return null;
+            }
+        }
 
         public TimeProvider Time => time;
 
@@ -350,4 +422,10 @@ internal static partial class StreamEndpoint
         Message = "Discord did not answer in time for a stream of guild {GuildId}"
     )]
     private static partial void LogDiscordUnavailable(ILogger logger, ulong guildId);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The state of the open query was not available for a stream"
+    )]
+    private static partial void LogNoOpenQuery(ILogger logger, Exception exception);
 }

@@ -19,6 +19,8 @@ using Microsoft.IdentityModel.Tokens;
 using Optio.Discord;
 using Optio.Endpoints;
 using Optio.Events;
+using Optio.Harness;
+using Optio.Queries;
 using Optio.Streams;
 using Optio.Tokens;
 
@@ -31,8 +33,12 @@ namespace Optio.Tests.Infrastructure;
 /// <see cref="Time"/> as the clock. With <paramref name="broker"/>, Optio reads the events from
 /// that broker. Without it, Optio has no broker.
 /// </summary>
-internal sealed class OptioFactory(bool stream = false, string? broker = null)
-    : WebApplicationFactory<Program>
+internal sealed class OptioFactory(
+    bool stream = false,
+    string? broker = null,
+    bool query = false,
+    Dictionary<string, string>? settings = null
+) : WebApplicationFactory<Program>
 {
     public const string PublicBaseUrl = "http://optio.test";
     public const string Issuer = "http://idp.test/realms/custos";
@@ -51,6 +57,12 @@ internal sealed class OptioFactory(bool stream = false, string? broker = null)
     public FakeMembers Members { get; } = new();
 
     public FakeTimeProvider Time { get; } = new(DateTimeOffset.UtcNow);
+
+    /// <summary>The model of the queries, with <paramref name="query"/>.</summary>
+    public FakeModel Model { get; } = new();
+
+    /// <summary>The MCP services of the queries, with <paramref name="query"/>.</summary>
+    public FakeTools Tools { get; } = new();
 
     /// <summary>Waits until Optio has made the stream on the broker.</summary>
     public async Task WaitForStreamAsync()
@@ -82,6 +94,16 @@ internal sealed class OptioFactory(bool stream = false, string? broker = null)
             );
             builder.UseSetting("Optio:DiscordToken", "test");
         }
+        if (query)
+        {
+            builder.UseSetting("Optio:ClaudeApiKey", "test");
+            builder.UseSetting("Optio:SystemPrompt", "You help the players of a guild.");
+            builder.UseSetting("Optio:McpServices:0:Name", "custos");
+            builder.UseSetting("Optio:McpServices:0:Url", "http://server.test/mcp");
+            builder.UseSetting("Optio:McpServices:0:ReadScope", "custos:read");
+        }
+        foreach (var (key, value) in settings ?? [])
+            builder.UseSetting(key, value);
 
         builder.ConfigureTestServices(services =>
         {
@@ -102,6 +124,13 @@ internal sealed class OptioFactory(bool stream = false, string? broker = null)
                 services.RemoveAll<IHostedService>();
                 if (broker is not null)
                     services.AddHostedService(s => s.GetRequiredService<EventStream>());
+                if (query)
+                {
+                    services.AddSingleton<IModelClient>(Model);
+                    services.AddSingleton<IToolSource>(Tools);
+                    if (broker is not null)
+                        services.AddHostedService(s => s.GetRequiredService<QueryService>());
+                }
             }
             services.PostConfigureAll<JwtBearerOptions>(jwt =>
             {
@@ -139,12 +168,13 @@ internal sealed class OptioFactory(bool stream = false, string? broker = null)
 
     /// <summary>A client of a member of <see cref="FakeMembers.Guild"/> with a token of
     /// Custos.</summary>
-    public HttpClient CreateMemberClient(ulong user = FakeMembers.Reader) =>
+    public HttpClient CreateMemberClient(ulong user = FakeMembers.Reader, string? sid = null) =>
         CreateCustosClient(
             claims:
             [
                 new Claim("active_guild", FakeMembers.Guild.ToString()),
                 new Claim("discord_id", user.ToString()),
+                .. sid is null ? Array.Empty<Claim>() : [new Claim("sid", sid)],
             ]
         );
 

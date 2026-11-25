@@ -177,6 +177,19 @@ public sealed class McpEndpointTests
     }
 
     [Test]
+    public async Task Server_gives_its_card_and_its_title()
+    {
+        using var http = _factory.CreateMcpClient(User.ToString(), "openid");
+        await using var client = await ConnectAsync(http);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(client.ServerInstructions, Is.EqualTo(McpSetup.Card));
+            Assert.That(client.ServerInfo?.Title, Is.EqualTo("Custos"));
+        }
+    }
+
+    [Test]
     public async Task Token_without_the_read_scope_sees_no_tool_and_gets_the_scope_challenge()
     {
         using var http = _factory.CreateMcpClient(User.ToString(), "openid");
