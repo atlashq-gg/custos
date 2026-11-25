@@ -8,21 +8,31 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Time.Testing;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Optio.Discord;
 using Optio.Endpoints;
+using Optio.Events;
+using Optio.Streams;
 using Optio.Tokens;
 
 namespace Optio.Tests.Infrastructure;
 
 /// <summary>
 /// optio in the test host, with a fake authorization server for the token exchange and a fake
-/// upload API of the server. The tokens of Custos are signed with a test key.
+/// upload API of the server. The tokens of Custos are signed with a test key. With
+/// <paramref name="stream"/>, the stream is on, with <see cref="Members"/> as Discord and
+/// <see cref="Time"/> as the clock. With <paramref name="broker"/>, Optio reads the events from
+/// that broker. Without it, Optio has no broker.
 /// </summary>
-internal sealed class OptioFactory : WebApplicationFactory<Program>
+internal sealed class OptioFactory(bool stream = false, string? broker = null)
+    : WebApplicationFactory<Program>
 {
     public const string PublicBaseUrl = "http://optio.test";
     public const string Issuer = "http://idp.test/realms/custos";
@@ -38,6 +48,21 @@ internal sealed class OptioFactory : WebApplicationFactory<Program>
 
     public FakeUploadApi UploadApi { get; } = new();
 
+    public FakeMembers Members { get; } = new();
+
+    public FakeTimeProvider Time { get; } = new(DateTimeOffset.UtcNow);
+
+    /// <summary>Waits until Optio has made the stream on the broker.</summary>
+    public async Task WaitForStreamAsync()
+    {
+        var events = Services.GetRequiredService<EventStream>();
+        for (var i = 0; !events.IsReady; i++)
+        {
+            Assert.That(i, Is.LessThan(200), "The stream is not ready.");
+            await Task.Delay(50);
+        }
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -48,6 +73,15 @@ internal sealed class OptioFactory : WebApplicationFactory<Program>
         builder.UseSetting("Optio:OptioClientSecret", Secret);
         builder.UseSetting("Optio:UploadApiUrl", UploadApiUrl);
         builder.UseSetting("Optio:UploadMaxBytes", UploadMaxBytes.ToString());
+        if (stream)
+        {
+            // Nothing listens on port 1.
+            builder.UseSetting(
+                "ConnectionStrings:events",
+                broker ?? "nats://optio:optio@127.0.0.1:1"
+            );
+            builder.UseSetting("Optio:DiscordToken", "test");
+        }
 
         builder.ConfigureTestServices(services =>
         {
@@ -60,6 +94,15 @@ internal sealed class OptioFactory : WebApplicationFactory<Program>
             services.ConfigureAll<HttpStandardResilienceOptions>(resilience =>
                 resilience.Retry.Delay = TimeSpan.Zero
             );
+            if (stream)
+            {
+                services.AddSingleton<IMemberDirectory>(Members);
+                services.AddSingleton<TimeProvider>(Time);
+                // The fake members need no start. Optio makes the stream only on a broker.
+                services.RemoveAll<IHostedService>();
+                if (broker is not null)
+                    services.AddHostedService(s => s.GetRequiredService<EventStream>());
+            }
             services.PostConfigureAll<JwtBearerOptions>(jwt =>
             {
                 var metadata = new OpenIdConnectConfiguration
@@ -82,24 +125,45 @@ internal sealed class OptioFactory : WebApplicationFactory<Program>
     public HttpClient CreateCustosClient(
         string subject = "dev",
         string azp = ClientId,
-        string audience = "optio"
+        string audience = "optio",
+        params Claim[] claims
     )
     {
         var client = CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Bearer",
-            CustosToken(subject, azp, audience)
+            CustosToken(subject, azp, audience, claims)
         );
         return client;
     }
 
-    public static string CustosToken(string subject, string azp = ClientId, string aud = "optio") =>
+    /// <summary>A client of a member of <see cref="FakeMembers.Guild"/> with a token of
+    /// Custos.</summary>
+    public HttpClient CreateMemberClient(ulong user = FakeMembers.Reader) =>
+        CreateCustosClient(
+            claims:
+            [
+                new Claim("active_guild", FakeMembers.Guild.ToString()),
+                new Claim("discord_id", user.ToString()),
+            ]
+        );
+
+    public static string CustosToken(
+        string subject,
+        string azp = ClientId,
+        string aud = "optio",
+        params Claim[] claims
+    ) =>
         new JsonWebTokenHandler().CreateToken(
             new SecurityTokenDescriptor
             {
                 Issuer = Issuer,
                 Audience = aud,
-                Subject = new ClaimsIdentity([new Claim("sub", subject), new Claim("azp", azp)]),
+                Subject = new ClaimsIdentity([
+                    new Claim("sub", subject),
+                    new Claim("azp", azp),
+                    .. claims,
+                ]),
                 Expires = DateTime.UtcNow.AddMinutes(5),
                 SigningCredentials = new SigningCredentials(
                     SigningKey,

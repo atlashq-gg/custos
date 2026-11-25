@@ -8,12 +8,12 @@ using NATS.Client.Core;
 using NATS.Client.JetStream;
 using NATS.Client.JetStream.Models;
 
-namespace Optio.Tests.Feasibility;
+namespace Optio.Tests.Infrastructure;
 
 /// <summary>
-/// A NATS container for the feasibility tests M38 of issue #48. It loads a copy of
-/// <c>optio/nats/nats.conf</c> with one more user, <c>admin</c>, that has all permissions. The
-/// password of each user is its name. The host port does not change at a restart.
+/// A NATS container with a copy of <c>optio/nats/nats.conf</c> and one more user, <c>admin</c>,
+/// that has all permissions. The password of each user is its name. The host port does not change
+/// at a restart.
 /// </summary>
 internal sealed class NatsBroker : IAsyncDisposable
 {
@@ -61,6 +61,22 @@ internal sealed class NatsBroker : IAsyncDisposable
     }
 
     public static string Url(string user, int port) => $"nats://{user}:{user}@localhost:{port}";
+
+    public string Url(string user) => Url(user, Port);
+
+    /// <summary>Publishes with JetStream as the producer <c>custos</c>, and needs the
+    /// acknowledgement.</summary>
+    public async Task PublishAsync(string subject, byte[] body)
+    {
+        await using var custos = Connect("custos");
+        (await new NatsJSContext(custos).PublishAsync(subject, body)).EnsureSuccess();
+    }
+
+    public async Task DeleteStreamAsync(string stream = Stream)
+    {
+        await using var admin = Connect("admin");
+        await new NatsJSContext(admin).DeleteStreamAsync(stream);
+    }
 
     public static int FreePort()
     {

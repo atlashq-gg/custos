@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
+using Optio.Events;
 
 namespace Optio.Endpoints;
 
@@ -14,7 +15,8 @@ public sealed record DiscoveryDocument(
     string ClientId,
     string[] Scopes,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        string? ServiceDocumentation
+        string? ServiceDocumentation,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? StreamEndpoint
 );
 
 internal static class Discovery
@@ -26,7 +28,7 @@ internal static class Discovery
 
     public static IEndpointRouteBuilder MapDiscovery(this IEndpointRouteBuilder app)
     {
-        app.MapGet(Path, (IOptions<OptioOptions> options) =>
+        app.MapGet(Path, (HttpContext http, IOptions<OptioOptions> options) =>
             {
                 var o = options.Value;
                 return new DiscoveryDocument(
@@ -38,7 +40,11 @@ internal static class Discovery
                     OpenidConfiguration: o.ResolvedOpenIdConfiguration,
                     ClientId: o.ResolvedCustosClientId,
                     Scopes: o.Scopes,
-                    ServiceDocumentation: o.ServiceDocumentation
+                    ServiceDocumentation: o.ServiceDocumentation,
+                    // Only when the stream is configured (StreamSetup).
+                    StreamEndpoint: http.RequestServices.GetService<EventStream>() is null
+                        ? null
+                        : OptioOptions.Combine(o.PublicBaseUrl, StreamEndpoint.Path)
                 );
             })
             .AllowAnonymous();

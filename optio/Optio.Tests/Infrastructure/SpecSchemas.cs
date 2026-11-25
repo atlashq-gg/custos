@@ -8,8 +8,12 @@ internal static class SpecSchemas
 {
     private static readonly Lazy<JsonSchema> Discovery = new(() => Load("discovery.schema.json"));
 
+    private static readonly Lazy<JsonSchema> Message = new(() => Load("message.schema.json"));
+
     public static void AssertDiscoveryDocument(JsonElement document) =>
         AssertValid(Discovery.Value, document);
+
+    public static void AssertMessage(JsonElement document) => AssertValid(Message.Value, document);
 
     private static JsonSchema Load(string name) =>
         JsonSchema.FromFile(Path.Combine(AppContext.BaseDirectory, "spec", name));
