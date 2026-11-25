@@ -14,4 +14,5 @@ No release yet. The first release is 0.1.0 ([#48](https://github.com/atlashq-gg/
 - The write tools of the MCP services, with a `confirm` message and the answer of the user. The model writes the question, and code makes sure that it shows each short value of the change. After the user accepts, the model reads the result and writes the answer. A write tool with its own `confirm` argument gets `true` from code.
 - More than one MCP service. When two services have a tool with the same name, the model sees both with the name of their service.
 - One audit line in the log and the counter `optio.tool.calls` for each tool call.
+- `/health/ready` checks the database.
 - The producer contract in `docs/producers.md`, and the broker definitions of development in `rabbitmq/definitions.json`.

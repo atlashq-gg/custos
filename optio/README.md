@@ -188,7 +188,7 @@ The connection string of the broker is `ConnectionStrings:events` (`ConnectionSt
 | Endpoint | Content |
 |---|---|
 | `GET /health/alive` | `Healthy` while the process runs. |
-| `GET /health/ready` | `Healthy` when `optio` can serve requests. |
+| `GET /health/ready` | `Healthy` when `optio` can serve requests. With its database, it checks the database. The broker and Discord are not a part of it: without them, the upload still works. |
 
 - `optio --version` prints the version.
 - `optio --healthcheck` asks `/health/alive` on this machine. The exit code is 0 for a healthy service. The `HEALTHCHECK` of the image uses it.

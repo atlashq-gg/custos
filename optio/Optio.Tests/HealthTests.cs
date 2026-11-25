@@ -1,4 +1,7 @@
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using Optio.Tests.Infrastructure;
 
 namespace Optio.Tests;
@@ -24,6 +27,27 @@ public sealed class HealthTests
         {
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo("Healthy"));
+        }
+    }
+
+    /// <summary>Needs Docker for PostgreSQL.</summary>
+    [Test]
+    public async Task Readiness_checks_the_database_of_optio()
+    {
+        using var factory = new OptioFactory(query: true);
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/health/ready");
+
+        var registrations = factory
+            .Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>()
+            .Value.Registrations;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await response.Content.ReadAsStringAsync(), Is.EqualTo("Healthy"));
+            Assert.That(
+                registrations.Where(r => r.Tags.Contains("ready")).Select(r => r.Name),
+                Is.EqualTo(new[] { "database" })
+            );
         }
     }
 

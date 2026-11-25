@@ -247,18 +247,14 @@ services:
     image: ghcr.io/atlashq-gg/custos-optio:0.1.0
     restart: unless-stopped
     environment:
-      Optio__PublicBaseUrl: https://custos.example.com
-      Optio__Authority: https://id.example.com/realms/custos
-      Optio__UploadApiUrl: http://server:8080/api/v1/uploads
-      Optio__McpServices__0__Name: custos
-      Optio__McpServices__0__Url: http://server:8080/mcp
-      Optio__McpServices__0__ReadScope: custos:read
-      Optio__McpServices__0__WriteScope: custos:write
       ConnectionStrings__optio: >-
         Host=postgres;Port=5432;Database=optio;Username=optio;Password=${OPTIO_DB_PASSWORD}
       ConnectionStrings__events: amqp://optio:${OPTIO_BROKER_PASSWORD}@broker:5672
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       OTEL_SERVICE_NAME: custos-optio
+    configs:
+      - source: optio-settings
+        target: /app/appsettings.Production.json
     secrets:
       - Optio__OptioClientSecret
       - Optio__DiscordToken
@@ -269,6 +265,25 @@ services:
     networks:
       - default
       - postgres
+
+configs:
+  optio-settings:
+    content: |
+      {
+        "Optio": {
+          "PublicBaseUrl": "https://custos.example.com",
+          "Authority": "https://id.example.com/realms/custos",
+          "UploadApiUrl": "http://server:8080/api/v1/uploads",
+          "McpServices": [
+            {
+              "Name": "custos",
+              "Url": "http://server:8080/mcp",
+              "ReadScope": "custos:read",
+              "WriteScope": "custos:write"
+            }
+          ]
+        }
+      }
 
 secrets:
   Discord__Token:
@@ -292,10 +307,11 @@ networks:
 ```
 
 - `image`: a release tag (`X.Y.Z`) of each service. The tags above are examples. `unstable` changes with each push to `main` ([optio/README.md](../optio/README.md#container), [server/README.md](../server/README.md#container)).
-- `Optio__PublicBaseUrl`: the origin that Custos and Keycloak use to reach `optio`. The client ID of Custos is `{PublicBaseUrl}/.well-known/custos-client`.
-- `Optio__Authority` and `Custos__Authority`: the issuer of the realm, exactly as the `iss` claim of a token has it. Each service gets the metadata and the signing keys of Keycloak from this URL, so each container must reach it.
+- `optio-settings`: the settings of `optio` as JSON, in the section `Optio` ([optio/README.md](../optio/README.md#configuration)). Compose mounts the file as `/app/appsettings.Production.json`, and `optio` reads it when it starts. Compose replaces `${...}` in the content, so do not put a `$` in a value.
+- `PublicBaseUrl`: the origin that Custos and Keycloak use to reach `optio`. The client ID of Custos is `{PublicBaseUrl}/.well-known/custos-client`.
+- `Authority` of `optio` and `Custos__Authority` of the server: the issuer of the realm, exactly as the `iss` claim of a token has it. Each service gets the metadata and the signing keys of Keycloak from this URL, so each container must reach it.
 - `Custos__Resource`: the public URL of the MCP endpoint. It is the audience of each token of the server, also of a token that `optio` gets by exchange. Thus it is the public URL even when `optio` calls the server on the internal network.
-- `Optio__UploadApiUrl` and `Optio__McpServices__0__Url`: the internal URLs of the server. The upload API needs no public route.
+- `UploadApiUrl` and the `Url` of the MCP service: the internal URLs of the server. The upload API needs no public route. Add an entry to `McpServices` for each other domain service ([optio/README.md](../optio/README.md#add-a-service)).
 - `Optio__SystemPrompt`: the system prompt of the query, in the file `system-prompt.txt`. It is not a secret, but a file is the easier way to give a value with many lines. The repository holds an example: [optio/docs/system-prompt.example.txt](../optio/docs/system-prompt.example.txt).
 - `ConnectionStrings__*`: put the passwords in a `.env` file next to the Compose file (`CUSTOS_DB_PASSWORD=...`). Do not commit that file.
 - `secrets`: Compose mounts each file as `/run/secrets/<name>`. Each service reads each file of `/run/secrets` as a configuration key, and `__` in a file name is `:`. Do not commit these files. Without `Discord__Token`, the server has no Discord connection. Without `Optio__DiscordToken`, `optio` has no stream. Without `Optio__ModelApiKey` or `Optio__SystemPrompt`, `optio` serves no query.
@@ -328,7 +344,7 @@ curl https://custos.example.com/.well-known/custos-configuration
 curl https://records.example.com/.well-known/oauth-protected-resource
 ```
 
-1. `/health/ready` of each service must give `Healthy`. For the server, it checks the database.
+1. `/health/ready` of each service must give `Healthy`. It checks the database of the service.
 2. The discovery document must show the public URL in `upload_endpoint` and `client_id`. With the Discord token of `optio`, it has `stream_endpoint`. With the model key and the system prompt, it has `query_endpoint`.
 3. The metadata document of the server must show `"resource": "https://records.example.com/mcp"`.
 4. Set the URL of `optio` in Custos, and log in. Keycloak shows a consent page on the first login.
