@@ -21,6 +21,7 @@ using Optio.Endpoints;
 using Optio.Events;
 using Optio.Harness;
 using Optio.Queries;
+using Optio.Storage;
 using Optio.Streams;
 using Optio.Tokens;
 
@@ -37,7 +38,8 @@ internal sealed class OptioFactory(
     bool stream = false,
     string? broker = null,
     bool query = false,
-    Dictionary<string, string>? settings = null
+    Dictionary<string, string>? settings = null,
+    bool database = false
 ) : WebApplicationFactory<Program>
 {
     public const string PublicBaseUrl = "http://optio.test";
@@ -102,6 +104,8 @@ internal sealed class OptioFactory(
             builder.UseSetting("Optio:McpServices:0:Url", "http://server.test/mcp");
             builder.UseSetting("Optio:McpServices:0:ReadScope", "custos:read");
         }
+        if (database)
+            builder.UseSetting("ConnectionStrings:optio", Postgres.NewDatabase());
         foreach (var (key, value) in settings ?? [])
             builder.UseSetting(key, value);
 
@@ -122,6 +126,8 @@ internal sealed class OptioFactory(
                 services.AddSingleton<TimeProvider>(Time);
                 // The fake members need no start. Optio makes the stream only on a broker.
                 services.RemoveAll<IHostedService>();
+                if (database)
+                    services.AddHostedService<DatabaseMigrator>();
                 if (broker is not null)
                     services.AddHostedService(s => s.GetRequiredService<EventStream>());
                 if (query)
