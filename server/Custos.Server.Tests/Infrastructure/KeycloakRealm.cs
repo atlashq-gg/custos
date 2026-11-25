@@ -108,22 +108,40 @@ internal sealed partial class KeycloakRealm
     /// The login of the user <c>dev</c> through <see cref="CustosClient"/> with
     /// <paramref name="scope"/>. Gives the access token.
     /// </summary>
-    public async Task<string> CustosTokenAsync(string scope)
+    public async Task<string> CustosTokenAsync(string scope) =>
+        (await CustosLoginAsync(scope)).GetProperty("access_token").GetString()!;
+
+    /// <summary>
+    /// The login of the user <c>dev</c> through <see cref="CustosClient"/> with
+    /// <paramref name="scope"/>. Gives the answer of the token endpoint.
+    /// </summary>
+    public async Task<JsonElement> CustosLoginAsync(string scope)
     {
         using var http = new HttpClient(new CookieJar());
         var openid = await OpenIdAsync(
             http,
             $"{Origin}/realms/{Realm}/.well-known/openid-configuration"
         );
-        var token = await LoginAsync(
-            http,
-            openid,
-            CustosClient,
-            CustosRedirectUri,
-            scope,
-            resource: null
+        return await LoginAsync(http, openid, CustosClient, CustosRedirectUri, scope, null);
+    }
+
+    /// <summary>A refresh of a token of <see cref="CustosClient"/>. Gives the answer of the token
+    /// endpoint.</summary>
+    public async Task<JsonElement> RefreshAsync(string refreshToken)
+    {
+        using var http = new HttpClient();
+        using var response = await http.PostAsync(
+            TokenEndpoint,
+            new FormUrlEncodedContent(
+                new Dictionary<string, string>
+                {
+                    ["grant_type"] = "refresh_token",
+                    ["client_id"] = CustosClient,
+                    ["refresh_token"] = refreshToken,
+                }
+            )
         );
-        return token.GetProperty("access_token").GetString()!;
+        return await response.Content.ReadFromJsonAsync<JsonElement>();
     }
 
     /// <summary>
