@@ -74,16 +74,17 @@ The query answers a question of the user in plain language, on the stream ([spec
 
 1. Custos sends `POST /api/v1/query` with a reference that it makes and the question. The client is the claim `sid` of the token, so a token with no `sid` gets `403`.
 2. Optio writes the record of the query to the bucket `OPTIO_QUERIES`, and responds `202`. Each change of state is a compare-and-set on the record, and the winner publishes the message of the change below `queries.<guild>.<user>.<client>` in the stream `OPTIO`. Thus the messages replay with the events, and only the streams of the client get them.
-3. The model gets the system prompt, a section for each MCP service with its card, `OperatorText`, the guild, and the read-only tools of the services. Each tool name is `{service}_{tool}`. Code sets the argument `guild_id`.
+3. The model gets the system prompt, a section for each MCP service with its card, `OperatorText`, the guild, and the tools of the services. Each tool name is `{service}_{tool}`. Code sets the argument `guild_id`. A tool that the service does not mark read-only is a write tool, and only a service with `WriteScope` gives its write tools.
 4. Each tool call publishes a status, for example `Custos: Find items`. A failure of a tool goes to the model as a tool error. A service that is not available is not in the tool list, and the prompt states it.
 5. A part has a budget of `PartBudgetSeconds` and of `MaxToolCallsPerPart` tool calls. At the end of a budget, the model gets one last step in which it cannot call a tool.
-6. The query closes with the answer. The question, the tool calls, the results, and the answer go to the conversation of the client in the bucket `OPTIO_CONVERSATIONS`. A query in the follow-up window continues the conversation, unless it has `new_conversation`.
+6. When the model calls a write tool, no call of that step runs. The query goes to `waiting` with the question, for `QuestionSeconds`. After `accept`, it goes to `applying`: Optio gets a token of the write scope from the token of the decision, and runs the calls of the step. The results go to the model, and the loop continues in a new part. After `refuse` or the end of the question, the query closes, and nothing changes.
+7. The query closes with the answer. The question, the tool calls, the results, and the answer go to the conversation of the client in the bucket `OPTIO_CONVERSATIONS`. A query in the follow-up window continues the conversation, unless it has `new_conversation`.
 
 | Answer | Cause |
 |---|---|
 | `403` | The token names no guild, user, or session. |
 | `404` | An action for a reference that is not the last query of the client. |
-| `409` | Another client of the user has an open query, or the state of the query does not permit the action. |
+| `409` | Another client of the user has an open query, the state of the query does not permit the action, or a change of the last query is still in progress after 10 seconds. |
 | `429` | The user started `MaxQueriesPerHour` queries in the last hour. `Retry-After` gives the wait. |
 | `503` | The broker is not available. |
 
@@ -94,7 +95,10 @@ The query answers a question of the user in plain language, on the stream ([spec
 - The limit of queries in each hour is in memory. A restart of Optio resets it.
 - Each tool call writes an audit line to the log.
 - The prompt of the guild comes last in the system prompt, in its own block. An administrator of the guild sets it with `/optioadmin settings` in Discord, 1000 characters at most. When Optio has a database but cannot read it, the query fails.
-- This version calls only read-only tools. A tool that a service does not mark read-only is not in the list.
+- The question: the model writes it in the argument `confirm_text` of the write tool. Code uses it only when it is one line of 120 characters at most, holds each text value of 40 characters or less, and each quoted text comes from the call or from a tool result of the query. Code then gives each quoted text the case of its source. Else code makes the question from the tool title and the values, for example `Set the label of a structure? "Main Depot"`. Code sets the argument `confirm` of a write tool to true.
+- Each ID argument of a write call must come from a tool result of the query. Else no call of the step runs, and the model gets a tool error.
+- A failure of a service during `applying` closes the query with `result_unknown`. A new query of the client waits up to 10 seconds for a change in progress.
+- A question continues after a restart of Optio: the record holds the step. A running query closes with `interrupted`, or with `result_unknown` during a change.
 
 ## Producers
 
@@ -132,11 +136,12 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 | `ModelEffort` | `medium` | The effort of the model: `low`, `medium`, `high`, `xhigh`, or `max`. |
 | `SystemPrompt` | (none) | The system prompt. [docs/system-prompt.example.txt](docs/system-prompt.example.txt) is an example. Without it, Optio answers no query. |
 | `OperatorText` | (none) | The text about the services together: the words that they share, and how their records relate. |
-| `McpServices` | `[]` | The MCP services of the query. Each item has `Name` (lowercase letters and digits, at most 16), `Url`, `ReadScope`, and optionally `Title` and `Card`. `Card` replaces the card that the service gives. |
+| `McpServices` | `[]` | The MCP services of the query. Each item has `Name` (lowercase letters and digits, at most 16), `Url`, `ReadScope`, and optionally `WriteScope`, `Title`, and `Card`. Without `WriteScope`, the query uses no write tool of the service. `Card` replaces the card that the service gives. |
 | `HiddenTools` | `[]` | The tools that the model does not get, as `{service}_{tool}`. |
 | `MaxQueriesPerHour` | `20` | The queries of one user in one hour. |
 | `FollowUpMinutes` | `10` | The follow-up window, and the lifetime of a conversation. |
 | `MaxConversationBytes` | `100000` | The largest conversation. Optio removes its oldest queries to fit. |
+| `QuestionSeconds` | `60` | The lifetime of a question before a change. |
 | `PartBudgetSeconds` | `60` | The budget of time of one part of a query. |
 | `MaxToolCallsPerPart` | `8` | The budget of tool calls of one part of a query. |
 | `CatalogMinutes` | `10` | How long Optio keeps the card and the tool list of a service. |

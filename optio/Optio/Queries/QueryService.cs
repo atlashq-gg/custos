@@ -21,9 +21,18 @@ internal sealed record QueryOutcome(
 /// <summary>
 /// The queries of the clients. A query starts with its record in the bucket, then runs in the
 /// background. Each change of state goes first to the record, and the winner of the change
-/// publishes its message. A client has one open query, and a user has one open query. At the
-/// start, Optio closes each query that a stopped instance left open. At a normal stop, it closes
-/// its running queries. Both get the cause <c>interrupted</c>.
+/// publishes its message. A client has one open query, and a user has one open query.
+/// <para>
+/// A part that asks a question ends in the state <c>waiting</c>. Optio owns the timer of the
+/// question. After <c>accept</c>, the query goes to <c>applying</c>, runs the step with the token
+/// of the decision, and goes on in a new part. A failure in <c>applying</c> closes the query with
+/// <c>result_unknown</c>.
+/// </para>
+/// <para>
+/// At the start, Optio closes each running query that a stopped instance left open, and starts the
+/// timer of each question again. At a normal stop, it closes its running queries. A question
+/// stays.
+/// </para>
 /// </summary>
 internal sealed partial class QueryService(
     QueryStore store,
@@ -39,11 +48,24 @@ internal sealed partial class QueryService(
     /// <summary>The time for a closing message at a stop of Optio.</summary>
     private static readonly TimeSpan StopTime = TimeSpan.FromSeconds(5);
 
-    /// <summary>The instance of Optio. A record of another owner at the start is
+    /// <summary>The longest wait of a new query for a change in progress.</summary>
+    internal static readonly TimeSpan ApplyWait = TimeSpan.FromSeconds(10);
+
+    /// <summary>The time after the end of a budget in which the next message comes.</summary>
+    private static readonly TimeSpan Margin = TimeSpan.FromSeconds(5);
+
+    /// <summary>The instance of Optio. A running record of another owner at the start is
     /// interrupted.</summary>
     private readonly string _owner = Guid.NewGuid().ToString("N");
 
     private readonly ConcurrentDictionary<string, Run> _runs = new();
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _timers = new();
+
+    /// <summary>The messages of each waiting query with the content of the provider, for the
+    /// part after the decision. After a restart, the record gives them without that
+    /// content.</summary>
+    private readonly ConcurrentDictionary<string, IReadOnlyList<ModelMessage>> _live = new();
+
     private readonly SemaphoreSlim[] _locks =
     [
         .. Enumerable.Range(0, 64).Select(_ => new SemaphoreSlim(1, 1)),
@@ -80,25 +102,36 @@ internal sealed partial class QueryService(
                     Problem: "Another Custos of yours has an open query. Wait for its end."
                 );
 
+            // A change in progress completes first.
+            for (var waited = TimeSpan.Zero; record?.State == QueryStates.Applying; )
+            {
+                if (waited >= ApplyWait)
+                    return new QueryOutcome(
+                        StatusCodes.Status409Conflict,
+                        Problem: "A change of your last query is in progress. Ask again soon."
+                    );
+                await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
+                waited += TimeSpan.FromMilliseconds(100);
+                (record, _) = await store.GetAsync(client.Key, cancellationToken);
+            }
             if (record is { IsOpen: true })
             {
                 var replaced = await store.ChangeAsync(
                     client.Key,
                     record.Reference,
                     r =>
-                        r.IsOpen
+                        r.State is QueryStates.Working or QueryStates.Waiting
                             ? r.Close(QueryStates.Replaced, "A new query replaced this query.")
                             : null,
                     cancellationToken
                 );
                 if (replaced is not null)
                     metrics.QueryClosed(QueryStates.Replaced);
-                Cancel(client.Key, record.Reference);
+                EndWork(client.Key, record.Reference);
             }
 
             var now = time.GetUtcNow();
-            // The budget ends before the token, because the tools use it.
-            var end = Min(now + options.Value.PartBudget, tokenExpiry - TimeSpan.FromSeconds(5));
+            var end = PartEnd(now, tokenExpiry);
             var query = new QueryRecord(
                 request.Reference,
                 client.Key,
@@ -108,7 +141,7 @@ internal sealed partial class QueryService(
                 request.NewConversation,
                 QueryStates.Working,
                 null,
-                end + QueryHarness.LastStep + TimeSpan.FromSeconds(5),
+                end + QueryHarness.LastStep + Margin,
                 null,
                 _owner,
                 now
@@ -124,7 +157,13 @@ internal sealed partial class QueryService(
             }
             Count(client.User);
             await store.PublishAsync(query, cancellationToken);
-            Start(client, query, new ToolUser(accessToken, client.Guild, client.User), end);
+            StartPart(
+                client,
+                query,
+                new ToolUser(accessToken, client.Guild, client.User),
+                end,
+                null
+            );
             return new QueryOutcome(StatusCodes.Status202Accepted, query);
         }
         finally
@@ -133,11 +172,14 @@ internal sealed partial class QueryService(
         }
     }
 
-    /// <summary>Applies an action of spec/06-query.md to the query of the client.</summary>
+    /// <summary>Applies an action of spec/06-query.md to the query of the client. The token of
+    /// <c>accept</c> applies the change.</summary>
     public async Task<QueryOutcome> ActAsync(
         QueryClient client,
         string reference,
         string action,
+        string accessToken,
+        DateTimeOffset tokenExpiry,
         CancellationToken cancellationToken
     )
     {
@@ -148,34 +190,78 @@ internal sealed partial class QueryService(
                 Problem: "This client has no query with this reference."
             );
         // A second equal action gets the same response.
-        if (record.Cause == CauseOf(action))
+        if (record.Decision == action)
             return new QueryOutcome(StatusCodes.Status200OK, record);
 
-        if (action == "stop" && record.State is QueryStates.Working or QueryStates.Waiting)
+        var now = time.GetUtcNow();
+        QueryRecord? before = null;
+        var changed = await store.ChangeAsync(
+            client.Key,
+            reference,
+            r =>
+            {
+                before = r;
+                return (action, r.State) switch
+                {
+                    ("stop", QueryStates.Working or QueryStates.Waiting) => r.Close(
+                        QueryStates.Stopped,
+                        "You stopped the query."
+                    ) with
+                    {
+                        Decision = action,
+                    },
+                    ("refuse", QueryStates.Waiting) => r.Close(
+                        QueryStates.Refused,
+                        "You refused the change."
+                    ) with
+                    {
+                        Decision = action,
+                    },
+                    ("accept", QueryStates.Waiting) when r.Deadline > now && r.Pending is { } p =>
+                        r with
+                        {
+                            State = QueryStates.Applying,
+                            Text = p.Writes[0].Status,
+                            Deadline = PartEnd(now, tokenExpiry) + QueryHarness.LastStep + Margin,
+                            Decision = action,
+                            Owner = _owner,
+                        },
+                    _ => null,
+                };
+            },
+            cancellationToken
+        );
+        if (changed is null)
         {
-            var stopped = await store.ChangeAsync(
-                client.Key,
-                reference,
-                r =>
-                    r.State is QueryStates.Working or QueryStates.Waiting
-                        ? r.Close(QueryStates.Stopped, "You stopped the query.")
-                        : null,
+            (record, _) = await store.GetAsync(client.Key, cancellationToken);
+            return new QueryOutcome(
+                StatusCodes.Status409Conflict,
+                record,
+                $"The query is {record?.State ?? "gone"}. It does not permit this action."
+            );
+        }
+
+        CancelTimer(client.Key);
+        if (changed.State == QueryStates.Applying)
+        {
+            var user = new ToolUser(accessToken, client.Guild, client.User);
+            StartApply(client, changed, before!.Pending!, user, PartEnd(now, tokenExpiry));
+            return new QueryOutcome(StatusCodes.Status200OK, changed);
+        }
+
+        EndWork(client.Key, reference);
+        metrics.QueryClosed(changed.Cause!);
+        await store.ReleaseUserAsync(client, cancellationToken);
+        if (changed.Cause == QueryStates.Refused && before?.Pending is { } step)
+        {
+            await SaveNotDoneAsync(
+                changed,
+                step,
+                "The user refused the change. No call of this step ran.",
                 cancellationToken
             );
-            if (stopped is not null)
-            {
-                metrics.QueryClosed(QueryStates.Stopped);
-                Cancel(client.Key, reference);
-                await store.ReleaseUserAsync(client, cancellationToken);
-                return new QueryOutcome(StatusCodes.Status200OK, stopped);
-            }
-            (record, _) = await store.GetAsync(client.Key, cancellationToken);
         }
-        return new QueryOutcome(
-            StatusCodes.Status409Conflict,
-            record,
-            $"The query is {record?.State ?? "gone"}. It does not permit this action."
-        );
+        return new QueryOutcome(StatusCodes.Status200OK, changed);
     }
 
     /// <summary>The message of the open query of the client, for a stream that opens. Null when
@@ -188,8 +274,9 @@ internal sealed partial class QueryService(
             ? record.Message()
             : null;
 
-    /// <summary>Closes the queries that an instance of Optio left open. The broker can be
-    /// unavailable at the start, so this tries again after a wait.</summary>
+    /// <summary>Closes the running queries that an instance of Optio left open, and starts the
+    /// timer of each question again. The broker can be unavailable at the start, so this tries
+    /// again after a wait.</summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         // Real time: the waits do not depend on the clock of the queries.
@@ -202,7 +289,9 @@ internal sealed partial class QueryService(
             {
                 await foreach (var record in store.RecordsAsync(stoppingToken))
                 {
-                    if (record.IsOpen && record.Owner != _owner)
+                    if (record.State == QueryStates.Waiting)
+                        ArmTimer(record);
+                    else if (record.IsOpen && record.Owner != _owner)
                         await InterruptAsync(record, stoppingToken);
                 }
                 return;
@@ -216,9 +305,13 @@ internal sealed partial class QueryService(
         }
     }
 
-    /// <summary>Closes the running queries with the cause <c>interrupted</c>.</summary>
+    /// <summary>Closes the running queries with the cause <c>interrupted</c>, or
+    /// <c>result_unknown</c> during a change. A question stays: the next start continues
+    /// it.</summary>
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
+        foreach (var timer in _timers.Values)
+            await timer.CancelAsync();
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         limit.CancelAfter(StopTime);
         foreach (var run in _runs.Values)
@@ -229,6 +322,7 @@ internal sealed partial class QueryService(
                 if (
                     (await store.GetAsync(run.Client.Key, limit.Token)).Record is { } record
                     && record.Reference == run.Reference
+                    && record.State != QueryStates.Waiting
                 )
                 {
                     await InterruptAsync(record, limit.Token);
@@ -253,30 +347,185 @@ internal sealed partial class QueryService(
             r =>
                 r.State switch
                 {
-                    QueryStates.Closed => null,
+                    QueryStates.Working => r.Close(
+                        QueryStates.Interrupted,
+                        "The service stopped during the query. Ask again."
+                    ),
                     QueryStates.Applying => r.Close(
                         QueryStates.ResultUnknown,
                         "The service stopped during the change. Its result is not known."
                     ),
-                    _ => r.Close(
-                        QueryStates.Interrupted,
-                        "The service stopped during the query. Ask again."
-                    ),
+                    _ => null,
                 },
             cancellationToken
         );
         if (closed is null)
             return;
         metrics.QueryClosed(closed.Cause!);
-        await store.ReleaseUserAsync(
-            new QueryClient(record.Client, record.Guild, record.User),
-            cancellationToken
-        );
+        await store.ReleaseUserAsync(Client(record), cancellationToken);
     }
 
-    /// <summary>Runs a query in the background until its end, its stop, or the stop of
-    /// Optio.</summary>
-    private void Start(QueryClient client, QueryRecord query, ToolUser user, DateTimeOffset end)
+    /// <summary>Runs a part of a query in the background until its answer, its question, its
+    /// stop, or the stop of Optio.</summary>
+    private void StartPart(
+        QueryClient client,
+        QueryRecord query,
+        ToolUser user,
+        DateTimeOffset end,
+        QueryResume? resume
+    ) => Track(client, query, token => PartAsync(client, query, user, end, resume, token));
+
+    /// <summary>Runs the step that the user accepted, then the next part.</summary>
+    private void StartApply(
+        QueryClient client,
+        QueryRecord query,
+        PendingStep step,
+        ToolUser user,
+        DateTimeOffset end
+    ) => Track(client, query, async token =>
+        {
+            var messages = _live.TryRemove(query.Reference, out var live)
+                ? live
+                : [.. step.Messages.Select(m => m.ToModel())];
+            List<ToolResult> results;
+            try
+            {
+                results = await harness.ApplyAsync(
+                    step,
+                    user,
+                    text =>
+                        store.ChangeAsync(
+                            client.Key,
+                            query.Reference,
+                            r => r.State == QueryStates.Applying ? r with { Text = text } : null,
+                            token
+                        ),
+                    token
+                );
+            }
+            catch (Exception e) when (!token.IsCancellationRequested)
+            {
+                LogApplyFailed(logger, e, query.Reference);
+                await CloseAsync(
+                    client,
+                    query,
+                    QueryStates.Applying,
+                    QueryStates.ResultUnknown,
+                    "The change failed. Its result is not known. Look at the records.",
+                    token
+                );
+                return;
+            }
+
+            var working = await store.ChangeAsync(
+                client.Key,
+                query.Reference,
+                r =>
+                    r.State == QueryStates.Applying
+                        ? r with
+                        {
+                            State = QueryStates.Working,
+                            Text = null,
+                            Pending = null,
+                        }
+                        : null,
+                token
+            );
+            if (working is null)
+                return;
+            await PartAsync(
+                client,
+                working,
+                user,
+                end,
+                new QueryResume(
+                    [.. messages, new ToolResultsMessage(results)],
+                    [.. step.Results, .. results.Where(r => !r.IsError).Select(r => r.Content)]
+                ),
+                token
+            );
+        });
+
+    /// <summary>One part: the loop of the model, then the answer or the question.</summary>
+    private async Task PartAsync(
+        QueryClient client,
+        QueryRecord query,
+        ToolUser user,
+        DateTimeOffset end,
+        QueryResume? resume,
+        CancellationToken token
+    )
+    {
+        var history = query.NewConversation
+            ? []
+            : (await store.GetConversationAsync(client.Key, token))?.Messages().ToList() ?? [];
+        var result = await harness.RunAsync(
+            query,
+            user,
+            history,
+            await GuildPromptAsync(client.Guild, token),
+            end,
+            text =>
+                store.ChangeAsync(
+                    client.Key,
+                    query.Reference,
+                    r => r.State == QueryStates.Working ? r with { Text = text } : null,
+                    token
+                ),
+            token,
+            resume
+        );
+
+        if (result is PartQuestion question)
+        {
+            var deadline = time.GetUtcNow() + TimeSpan.FromSeconds(options.Value.QuestionSeconds);
+            var waiting = await store.ChangeAsync(
+                client.Key,
+                query.Reference,
+                r =>
+                    r.State == QueryStates.Working
+                        ? r with
+                        {
+                            State = QueryStates.Waiting,
+                            Text = question.Question,
+                            Deadline = deadline,
+                            Pending = question.Step,
+                            Decision = null,
+                        }
+                        : null,
+                token
+            );
+            if (waiting is not null)
+            {
+                _live[query.Reference] = question.Messages;
+                ArmTimer(waiting);
+            }
+            return;
+        }
+
+        var answer = (PartAnswer)result;
+        if (
+            await CloseAsync(
+                client,
+                query,
+                QueryStates.Working,
+                QueryStates.Answer,
+                answer.Answer,
+                token
+            )
+        )
+        {
+            await store.AddExchangeAsync(
+                client.Key,
+                query.NewConversation,
+                Exchange.Of(answer.Messages),
+                token
+            );
+        }
+    }
+
+    /// <summary>Runs the work of a query in the background, and closes it on a failure.</summary>
+    private void Track(QueryClient client, QueryRecord query, Func<CancellationToken, Task> work)
     {
         var run = new Run(client, query.Reference, new CancellationTokenSource());
         _runs[client.Key] = run;
@@ -286,32 +535,7 @@ internal sealed partial class QueryService(
                 var token = run.Cancellation.Token;
                 try
                 {
-                    var history = query.NewConversation
-                        ? []
-                        : (await store.GetConversationAsync(client.Key, token))?.Messages().ToList()
-                            ?? [];
-                    var result = await harness.RunAsync(
-                        query,
-                        user,
-                        history,
-                        await GuildPromptAsync(client.Guild, token),
-                        end,
-                        text =>
-                            store.ChangeAsync(
-                                client.Key,
-                                query.Reference,
-                                r => r.State == QueryStates.Working ? r with { Text = text } : null,
-                                token
-                            ),
-                        token
-                    );
-                    if (await CloseAsync(client, query, QueryStates.Answer, result.Answer, token))
-                        await store.AddExchangeAsync(
-                            client.Key,
-                            query.NewConversation,
-                            Exchange.Of(result.Messages),
-                            token
-                        );
+                    await work(token);
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested)
                 {
@@ -319,7 +543,14 @@ internal sealed partial class QueryService(
                 }
                 catch (QueryFailedException e)
                 {
-                    await CloseAsync(client, query, QueryStates.Failed, e.Message, token);
+                    await CloseAsync(
+                        client,
+                        query,
+                        QueryStates.Working,
+                        QueryStates.Failed,
+                        e.Message,
+                        token
+                    );
                 }
                 catch (Exception e)
                 {
@@ -329,6 +560,7 @@ internal sealed partial class QueryService(
                         await CloseAsync(
                             client,
                             query,
+                            QueryStates.Working,
                             QueryStates.Failed,
                             "The query failed. Try again later.",
                             token
@@ -349,6 +581,88 @@ internal sealed partial class QueryService(
             CancellationToken.None
         );
     }
+
+    /// <summary>Starts the timer of a question. At its end, the query closes as
+    /// expired.</summary>
+    private void ArmTimer(QueryRecord record)
+    {
+        var timer = new CancellationTokenSource();
+        if (_timers.TryRemove(record.Client, out var old))
+            old.Cancel();
+        _timers[record.Client] = timer;
+        var wait = record.Deadline!.Value - time.GetUtcNow();
+        _ = Task.Run(
+            async () =>
+            {
+                try
+                {
+                    if (wait > TimeSpan.Zero)
+                        await Task.Delay(wait, time, timer.Token);
+                    await ExpireAsync(record, timer.Token);
+                }
+                catch (OperationCanceledException) when (timer.IsCancellationRequested) { }
+                catch (Exception e)
+                {
+                    LogQueryFailed(logger, e, record.Reference);
+                }
+                finally
+                {
+                    _timers.TryRemove(new(record.Client, timer));
+                }
+            },
+            CancellationToken.None
+        );
+    }
+
+    private async Task ExpireAsync(QueryRecord record, CancellationToken cancellationToken)
+    {
+        QueryRecord? before = null;
+        var closed = await store.ChangeAsync(
+            record.Client,
+            record.Reference,
+            r =>
+            {
+                before = r;
+                return r.State == QueryStates.Waiting
+                    ? r.Close(QueryStates.Expired, "The question expired. Nothing changed.")
+                    : null;
+            },
+            cancellationToken
+        );
+        if (closed is null)
+            return;
+        _live.TryRemove(record.Reference, out _);
+        metrics.QueryClosed(QueryStates.Expired);
+        await store.ReleaseUserAsync(Client(record), cancellationToken);
+        if (before?.Pending is { } step)
+        {
+            await SaveNotDoneAsync(
+                closed,
+                step,
+                "The question expired with no decision. No call of this step ran.",
+                cancellationToken
+            );
+        }
+    }
+
+    /// <summary>Adds a query that ended at a question to the conversation of its client, with
+    /// the <paramref name="reason"/> as the result of each call. Thus the model of a follow-up
+    /// knows that the change did not happen.</summary>
+    private Task SaveNotDoneAsync(
+        QueryRecord query,
+        PendingStep step,
+        string reason,
+        CancellationToken cancellationToken
+    ) =>
+        store.AddExchangeAsync(
+            query.Client,
+            query.NewConversation,
+            new Exchange([
+                .. step.Messages,
+                StoredMessage.Of(QueryHarness.NotDone(step.Calls, reason)),
+            ]),
+            cancellationToken
+        );
 
     /// <summary>The prompt of the guild, or null for a guild without one, or for Optio without a
     /// database.</summary>
@@ -371,10 +685,12 @@ internal sealed partial class QueryService(
         }
     }
 
-    /// <summary>Closes a working query. False when another change closed it first.</summary>
+    /// <summary>Closes a query in the state <paramref name="from"/>. False when another change
+    /// was first.</summary>
     private async Task<bool> CloseAsync(
         QueryClient client,
         QueryRecord query,
+        string from,
         string cause,
         string text,
         CancellationToken cancellationToken
@@ -383,7 +699,7 @@ internal sealed partial class QueryService(
         var closed = await store.ChangeAsync(
             client.Key,
             query.Reference,
-            r => r.State == QueryStates.Working ? r.Close(cause, text) : null,
+            r => r.State == from ? r.Close(cause, text) : null,
             cancellationToken
         );
         if (closed is null)
@@ -393,11 +709,33 @@ internal sealed partial class QueryService(
         return true;
     }
 
-    private void Cancel(string client, string reference)
+    /// <summary>Stops the run, the timer, and the messages of a query that another change
+    /// closed.</summary>
+    private void EndWork(string client, string reference)
     {
         if (_runs.TryGetValue(client, out var run) && run.Reference == reference)
             run.Cancellation.Cancel();
+        CancelTimer(client);
+        _live.TryRemove(reference, out _);
     }
+
+    private void CancelTimer(string client)
+    {
+        if (_timers.TryRemove(client, out var timer))
+            timer.Cancel();
+    }
+
+    /// <summary>The end of the budget of a part: the budget of time, but 5 seconds before the
+    /// token expires at the latest, because the tools use the token.</summary>
+    private DateTimeOffset PartEnd(DateTimeOffset now, DateTimeOffset tokenExpiry)
+    {
+        var budget = now + options.Value.PartBudget;
+        var token = tokenExpiry - Margin;
+        return budget < token ? budget : token;
+    }
+
+    private static QueryClient Client(QueryRecord record) =>
+        new(record.Client, record.Guild, record.User);
 
     /// <summary>The wait until the user can start a query, or null.</summary>
     private TimeSpan? Wait(ulong user)
@@ -425,16 +763,6 @@ internal sealed partial class QueryService(
         }
     }
 
-    private static string? CauseOf(string action) =>
-        action switch
-        {
-            "stop" => QueryStates.Stopped,
-            "refuse" => QueryStates.Refused,
-            _ => null,
-        };
-
-    private static DateTimeOffset Min(DateTimeOffset a, DateTimeOffset b) => a < b ? a : b;
-
     private sealed record Run(
         QueryClient Client,
         string Reference,
@@ -453,6 +781,16 @@ internal sealed partial class QueryService(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The query {Reference} failed")]
     private static partial void LogQueryFailed(
+        ILogger logger,
+        Exception exception,
+        string reference
+    );
+
+    [LoggerMessage(
+        Level = LogLevel.Error,
+        Message = "The change of the query {Reference} failed. Its result is not known"
+    )]
+    private static partial void LogApplyFailed(
         ILogger logger,
         Exception exception,
         string reference

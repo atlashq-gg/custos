@@ -56,21 +56,47 @@ internal sealed class FakeModel : IModelClient
 }
 
 /// <summary>
-/// One service <c>custos</c> with the read tool <c>custos_find_items</c>. A call gives
-/// <see cref="Result"/>. With <see cref="Available"/> false, the service has no tools.
+/// One service <c>custos</c> with the read tool <c>custos_find_items</c> and the write tool
+/// <c>custos_set_structure_label</c>. A read call gives <see cref="Result"/>. A write call waits
+/// for <see cref="WriteGate"/>, then gives <see cref="WriteResult"/>, or throws with
+/// <see cref="WriteFails"/>. With <see cref="Available"/> false, the service has no tools.
 /// </summary>
 internal sealed class FakeTools : IToolSource
 {
     public const string FindItems = "custos_find_items";
+    public const string SetLabel = "custos_set_structure_label";
 
-    public string Result { get; set; } = """{"items":[{"name":"Rifle","quantity":40}]}""";
+    public string Result { get; set; } =
+        """{"items":[{"name":"Rifle","quantity":40,"structure_id":"s-1","label":"Seaport"}]}""";
+
+    public string WriteResult { get; set; } = """{"new_label":"Main Depot"}""";
+
+    public bool WriteFails { get; set; }
+
+    public TaskCompletionSource? WriteGate { get; set; }
 
     public bool Available { get; set; } = true;
 
     public ConcurrentQueue<ToolCall> Calls { get; } = new();
 
+    public ConcurrentQueue<(ToolUser User, WriteCall Call)> Writes { get; } = new();
+
     public Task<IToolSession> OpenAsync(ToolUser user, CancellationToken cancellationToken) =>
         Task.FromResult<IToolSession>(new Session(this));
+
+    public async Task<ToolResult> CallWriteAsync(
+        ToolUser user,
+        WriteCall call,
+        CancellationToken cancellationToken
+    )
+    {
+        if (WriteGate is { } gate)
+            await gate.Task.WaitAsync(cancellationToken);
+        if (WriteFails)
+            throw new HttpRequestException("The service did not answer.");
+        Writes.Enqueue((user, call));
+        return new ToolResult(call.Call.Id, WriteResult, false);
+    }
 
     private sealed class Session(FakeTools tools) : IToolSession
     {
@@ -87,6 +113,13 @@ internal sealed class FakeTools : IToolSource
                         "Finds items.",
                         JsonDocument.Parse("""{"type":"object"}""").RootElement
                     ),
+                    new ModelTool(
+                        SetLabel,
+                        "Custos: Set the label of a structure",
+                        "Sets a label.",
+                        JsonDocument.Parse("""{"type":"object"}""").RootElement,
+                        Write: true
+                    ),
                 ]
                 : [];
 
@@ -94,6 +127,30 @@ internal sealed class FakeTools : IToolSource
         {
             tools.Calls.Enqueue(call);
             return Task.FromResult(new ToolResult(call.Id, tools.Result, false));
+        }
+
+        public WriteCall? AsWrite(ToolCall call)
+        {
+            if (call.Name != SetLabel)
+                return null;
+            var arguments = call.Arguments.ToDictionary();
+            arguments.Remove(Questions.TextArgument);
+            return new WriteCall(
+                "custos",
+                "Set the label of a structure",
+                "Custos: Set the label of a structure",
+                call with
+                {
+                    Name = "set_structure_label",
+                    Arguments = arguments,
+                },
+                [arguments.TryGetValue("label", out var label) ? label.GetString() : null],
+                [
+                    .. arguments.TryGetValue("structure_id", out var id)
+                        ? [id.GetString()!]
+                        : Array.Empty<string>(),
+                ]
+            );
         }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
