@@ -32,7 +32,7 @@ public sealed class QueryHarnessTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result.Answer, Is.EqualTo("40 rifles."));
+            Assert.That(((PartAnswer)result).Answer, Is.EqualTo("40 rifles."));
             Assert.That(_status, Is.EqualTo(new[] { "Custos: Find items" }));
             Assert.That(result.Messages, Has.Count.EqualTo(4));
             Assert.That(_model.Requests.All(r => !r.Answer), Is.True);
@@ -55,7 +55,7 @@ public sealed class QueryHarnessTests
             Assert.That(requests[^1].Answer, Is.True);
             Assert.That(requests[^1].Tools, Is.Not.Empty);
             // The last step gave a call and no text.
-            Assert.That(result.Answer, Is.EqualTo("The model gave no answer."));
+            Assert.That(((PartAnswer)result).Answer, Is.EqualTo("The model gave no answer."));
         }
     }
 
@@ -86,6 +86,85 @@ public sealed class QueryHarnessTests
             async () => await run,
             Throws.InstanceOf<QueryFailedException>().With.Message.Contains("took too long")
         );
+    }
+
+    [Test]
+    public async Task Write_call_ends_the_part_with_the_question_and_runs_no_call_of_its_step()
+    {
+        _model.Turns.Enqueue(FakeModel.Call(FakeTools.FindItems));
+        _model.Turns.Enqueue(
+            FakeModel.Call(
+                FakeTools.SetLabel,
+                """{"structure_id":"s-1","label":"Main Depot","""
+                    + "\"confirm_text\":\"Set label? \\\"main depot\\\"\"}"
+            )
+        );
+
+        var result = await RunAsync();
+
+        var question = (PartQuestion)result;
+        using (Assert.EnterMultipleScope())
+        {
+            // Code puts the case of the value in the question.
+            Assert.That(question.Question, Is.EqualTo("Set label? \"Main Depot\""));
+            Assert.That(question.Step.Writes.Single().Call.Name, Is.EqualTo("set_structure_label"));
+            Assert.That(
+                question.Step.Writes.Single().Call.Arguments.ContainsKey(Questions.TextArgument),
+                Is.False
+            );
+            Assert.That(question.Step.Messages, Has.Count.EqualTo(4));
+            Assert.That(_tools.Calls, Has.Count.EqualTo(1));
+            Assert.That(_tools.Writes, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task Write_call_with_an_id_from_no_tool_result_goes_back_to_the_model()
+    {
+        _model.Turns.Enqueue(
+            FakeModel.Call(FakeTools.SetLabel, """{"structure_id":"s-9","label":"Main Depot"}""")
+        );
+        _model.Turns.Enqueue(FakeModel.Answer("I need to find the structure first."));
+
+        var result = await RunAsync();
+        var results = (ToolResultsMessage)_model.Requests.Last().Messages[^1];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.TypeOf<PartAnswer>());
+            Assert.That(results.Results.Single().IsError, Is.True);
+            Assert.That(results.Results.Single().Content, Does.Contain("s-9"));
+        }
+    }
+
+    [Test]
+    public async Task Apply_runs_the_write_call_with_the_status_of_the_tool()
+    {
+        _model.Turns.Enqueue(FakeModel.Call(FakeTools.FindItems));
+        _model.Turns.Enqueue(
+            FakeModel.Call(FakeTools.SetLabel, """{"structure_id":"s-1","label":"Main Depot"}""")
+        );
+        var question = (PartQuestion)await RunAsync();
+        _status.Clear();
+
+        var results = await Harness()
+            .ApplyAsync(
+                question.Step,
+                new ToolUser("decision", FakeMembers.Guild, FakeMembers.Reader),
+                text =>
+                {
+                    _status.Add(text);
+                    return Task.CompletedTask;
+                },
+                CancellationToken.None
+            );
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(results.Single().Content, Is.EqualTo(_tools.WriteResult));
+            Assert.That(_tools.Writes.Single().User.AccessToken, Is.EqualTo("decision"));
+            Assert.That(_status, Is.EqualTo(new[] { "Custos: Set the label of a structure" }));
+        }
     }
 
     [Test]
@@ -132,25 +211,24 @@ public sealed class QueryHarnessTests
         Assert.That(text, Has.Length.EqualTo(QueryHarness.MaxText));
     }
 
+    private QueryHarness Harness() =>
+        new(_model, _tools, Microsoft.Extensions.Options.Options.Create(Options), _time);
+
     private Task<PartResult> RunAsync() =>
-        new QueryHarness(
-            _model,
-            _tools,
-            Microsoft.Extensions.Options.Options.Create(Options),
-            _time
-        ).RunAsync(
-            Record(),
-            new ToolUser("token", FakeMembers.Guild, FakeMembers.Reader),
-            [],
-            null,
-            _time.GetUtcNow() + TimeSpan.FromSeconds(60),
-            text =>
-            {
-                _status.Add(text);
-                return Task.CompletedTask;
-            },
-            CancellationToken.None
-        );
+        Harness()
+            .RunAsync(
+                Record(),
+                new ToolUser("token", FakeMembers.Guild, FakeMembers.Reader),
+                [],
+                null,
+                _time.GetUtcNow() + TimeSpan.FromSeconds(60),
+                text =>
+                {
+                    _status.Add(text);
+                    return Task.CompletedTask;
+                },
+                CancellationToken.None
+            );
 
     private QueryRecord Record() =>
         new(

@@ -63,12 +63,21 @@ internal static partial class QueryEndpoint
             );
         }
 
+        // The token of the request: an accepted change runs with the token of its decision.
+        var token = await http.GetTokenAsync("access_token") ?? "";
         var outcome = body.Action is { } action
-            ? await queries.ActAsync(client, body.Reference, action, cancellationToken)
+            ? await queries.ActAsync(
+                client,
+                body.Reference,
+                action,
+                token,
+                Expiry(user),
+                cancellationToken
+            )
             : await queries.SubmitAsync(
                 client,
                 new QueryRequest(body.Reference, body.Text!, body.NewConversation),
-                await http.GetTokenAsync("access_token") ?? "",
+                token,
                 Expiry(user),
                 cancellationToken
             );
