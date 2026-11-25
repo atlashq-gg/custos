@@ -1,3 +1,5 @@
+using Optio.Endpoints;
+
 namespace Optio.Storage;
 
 internal static class StorageSetup
@@ -9,14 +11,15 @@ internal static class StorageSetup
 
     /// <summary>
     /// Registers the database when the configuration has its connection string. Without it,
-    /// optio keeps no guild settings, and has no commands and no query.
+    /// Optio keeps no guild settings, and has no commands and no query.
     /// </summary>
     public static IHostApplicationBuilder AddOptioStorage(this IHostApplicationBuilder builder)
     {
         if (!IsEnabled(builder.Configuration))
             return builder;
 
-        // No retries: Discord and Custos answer a failure, and the user tries again.
+        // No retries: Discord and Custos answer a failure, and the user tries again. The check of
+        // readiness is below, with the tag of the readiness endpoint.
         builder.AddNpgsqlDbContext<OptioDbContext>(
             OptioDbContext.ConnectionName,
             settings =>
@@ -27,6 +30,9 @@ internal static class StorageSetup
             OptioDbContext.Configure
         );
         builder.Services.AddScoped<GuildSettingsStore>();
+        builder
+            .Services.AddHealthChecks()
+            .AddDbContextCheck<OptioDbContext>("database", tags: [Health.ReadyTag]);
 
         // The migrator must start first: hosted services start in the order of registration.
         builder.Services.AddHostedService<DatabaseMigrator>();

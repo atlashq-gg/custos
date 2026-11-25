@@ -28,10 +28,10 @@ using Optio.Tokens;
 namespace Optio.Tests.Infrastructure;
 
 /// <summary>
-/// optio in the test host, with a fake authorization server for the token exchange and a fake
+/// Optio in the test host, with a fake authorization server for the token exchange and a fake
 /// upload API of the server. The tokens of Custos are signed with a test key. With
 /// <paramref name="stream"/>, the stream is on, with <see cref="Members"/> as Discord and
-/// <see cref="Time"/> as the clock. With <paramref name="broker"/>, optio reads the events from
+/// <see cref="Time"/> as the clock. With <paramref name="broker"/>, Optio reads the events from
 /// that broker. Without it, a test gives the events to the hub itself.
 /// </summary>
 /// With <paramref name="query"/>, the stream, a database, and the query are on, with

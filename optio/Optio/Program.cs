@@ -65,6 +65,6 @@ return 0;
 /// <summary>The entry point. Public for the tests.</summary>
 public partial class Program
 {
-    [LoggerMessage(Level = LogLevel.Information, Message = "optio {Version}")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Optio {Version}")]
     private static partial void LogStarting(ILogger logger, string version);
 }

@@ -1,9 +1,13 @@
 using System.Diagnostics.Metrics;
 using Custos.Server.Telemetry;
 using Custos.Server.Tests.Infrastructure;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.Metrics.Testing;
+using OpenTelemetry;
+using OpenTelemetry.Trace;
 using static Custos.Server.Tests.Infrastructure.UploadRequests;
 
 namespace Custos.Server.Tests;
@@ -30,6 +34,28 @@ public sealed class TelemetryTests
             Assert.That(ServerMeter.Version, Is.EqualTo(ServerVersion.Value));
         }
     }
+
+    [Test]
+    public void Service_name_is_Custos_without_the_variable() =>
+        Assert.That(ServiceName(_factory), Is.EqualTo(CustosTelemetry.ServiceName));
+
+    [Test]
+    public void Variable_replaces_the_service_name()
+    {
+        using var named = _factory.WithWebHostBuilder(builder =>
+            builder.UseSetting(CustosTelemetry.ServiceNameVariable, "custos-test")
+        );
+
+        Assert.That(ServiceName(named), Is.EqualTo("custos-test"));
+    }
+
+    private static object? ServiceName<T>(WebApplicationFactory<T> factory)
+        where T : class =>
+        factory
+            .Services.GetRequiredService<TracerProvider>()
+            .GetResource()
+            .Attributes.Single(a => a.Key == "service.name")
+            .Value;
 
     [Test]
     public async Task Upload_is_counted_by_outcome()

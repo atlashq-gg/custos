@@ -7,14 +7,14 @@ public sealed class OptioOptions : IValidatableObject
 {
     public const string SectionName = "Optio";
 
-    /// <summary>The origin of optio as Custos sees it. The discovery document builds its URLs from
+    /// <summary>The origin of Optio as Custos sees it. The discovery document builds its URLs from
     /// it.</summary>
     [Required, Url]
     public string PublicBaseUrl { get; set; } = "";
 
     /// <summary>The name that Custos shows to the user.</summary>
     [Required]
-    public string ServiceName { get; set; } = "optio";
+    public string ServiceName { get; set; } = "Optio";
 
     /// <summary>A page for humans about the service, for the discovery document.</summary>
     [Url]
@@ -45,12 +45,12 @@ public sealed class OptioOptions : IValidatableObject
     public string? OpenIdConfiguration { get; set; }
 
     /// <summary>
-    /// The client ID of Custos. Empty means the URL of the client metadata document of optio. Set
-    /// it when the authorization server reaches optio under a different host than Custos.
+    /// The client ID of Custos. Empty means the URL of the client metadata document of Optio. Set
+    /// it when the authorization server reaches Optio under a different host than Custos.
     /// </summary>
     public string? CustosClientId { get; set; }
 
-    /// <summary>The client ID of optio. A token of Custos for optio has it in <c>aud</c>.</summary>
+    /// <summary>The client ID of Optio. A token of Custos for Optio has it in <c>aud</c>.</summary>
     [Required]
     public string OptioClientId { get; set; } = "optio";
 
@@ -69,13 +69,13 @@ public sealed class OptioOptions : IValidatableObject
     public string UploadScope { get; set; } = "custos:write";
 
     /// <summary>
-    /// The sources of events (optio/docs/producers.md). optio reads the stream
+    /// The sources of events (optio/docs/producers.md). Optio reads the stream
     /// <c>events.&lt;source&gt;.stream</c> of each source from the broker in the connection string
     /// <see cref="BrokerConnectionName"/>.
     /// </summary>
     public string[] Sources { get; set; } = [];
 
-    /// <summary>How long optio keeps the events for a replay.</summary>
+    /// <summary>How long Optio keeps the events for a replay.</summary>
     [Range(1, 1440)]
     public int ReplayWindowMinutes { get; set; } = 15;
 
@@ -83,8 +83,8 @@ public sealed class OptioOptions : IValidatableObject
     [Range(1, 100)]
     public int MaxStreamsPerUser { get; set; } = 5;
 
-    /// <summary>The token of the Discord bot of optio. Keep it in
-    /// <c>/run/secrets/Optio__DiscordToken</c>. Without it, optio has no stream.</summary>
+    /// <summary>The token of the Discord bot of Optio. Keep it in
+    /// <c>/run/secrets/Optio__DiscordToken</c>. Without it, Optio has no stream.</summary>
     public string? DiscordToken { get; set; }
 
     /// <summary>The guild of a stream whose token has no claim <c>active_guild</c>. Only in the
@@ -96,7 +96,7 @@ public sealed class OptioOptions : IValidatableObject
     public long? DevelopmentDiscordUserId { get; set; }
 
     /// <summary>The key of the model provider. Keep it in <c>/run/secrets/Optio__ModelApiKey</c>.
-    /// Without it, optio answers no query.</summary>
+    /// Without it, Optio answers no query.</summary>
     public string? ModelApiKey { get; set; }
 
     /// <summary>The model of the query harness.</summary>
@@ -109,7 +109,7 @@ public sealed class OptioOptions : IValidatableObject
     public string ModelEffort { get; set; } = "medium";
 
     /// <summary>The system prompt of the query harness. The repository holds an example in
-    /// <c>optio/docs/system-prompt.example.txt</c>. Without it, optio answers no query.</summary>
+    /// <c>optio/docs/system-prompt.example.txt</c>. Without it, Optio answers no query.</summary>
     public string? SystemPrompt { get; set; }
 
     /// <summary>The queries of one user in one hour.</summary>

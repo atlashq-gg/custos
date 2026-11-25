@@ -12,7 +12,7 @@ namespace Optio.Endpoints;
 public sealed record QueryAccepted(string Reference);
 
 /// <summary>
-/// The query of spec/05-stream.md. optio accepts the query, and the harness answers on the open
+/// The query of spec/05-stream.md. Optio accepts the query, and the harness answers on the open
 /// streams of the client that sent it. The same endpoint takes the answer of that client to a
 /// confirmation.
 /// </summary>

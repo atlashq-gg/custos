@@ -7,7 +7,7 @@ using Custos.Server.Tests.Infrastructure;
 namespace Custos.Server.Tests;
 
 /// <summary>
-/// The feasibility test M25 of issue #48: <c>optio</c> exchanges the token of Custos (RFC 8693)
+/// The feasibility test M25 of issue #48: Optio exchanges the token of Custos (RFC 8693)
 /// for a token of the MCP endpoint of the server. Needs Docker.
 /// </summary>
 [Category("Integration")]
@@ -35,7 +35,7 @@ public sealed class TokenExchangeTests
     }
 
     /// <summary>
-    /// The feasibility test T3 of M37: optio reads the Discord user from the token of Custos.
+    /// The feasibility test T3 of M37: Optio reads the Discord user from the token of Custos.
     /// The realm has no mapper for <c>active_guild</c> yet.
     /// </summary>
     [Test]

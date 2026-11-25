@@ -5,10 +5,10 @@ using Optio.Streams;
 namespace Optio.Discord;
 
 /// <summary>
-/// The members of the guilds, from the Discord gateway of optio. The guilds, their owners,
+/// The members of the guilds, from the Discord gateway of Optio. The guilds, their owners,
 /// and the permissions of their roles come from the cache of NetCord, which <c>GUILD_CREATE</c>
-/// fills. A separate dictionary holds only the users with an open stream: optio requests a user
-/// when a stream opens, and the member events keep the roles current. optio ignores the other
+/// fills. A separate dictionary holds only the users with an open stream: Optio requests a user
+/// when a stream opens, and the member events keep the roles current. Optio ignores the other
 /// members that NetCord caches.
 /// </summary>
 internal sealed partial class DiscordMembers : IMemberDirectory
@@ -130,7 +130,7 @@ internal sealed partial class DiscordMembers : IMemberDirectory
         return AccessPolicy.CanRead(policy, facts, new MemberFacts(user, roles));
     }
 
-    /// <summary>A new session replaces the cache of NetCord, so optio requests the followed users
+    /// <summary>A new session replaces the cache of NetCord, so Optio requests the followed users
     /// again.</summary>
     private async ValueTask OnReadyAsync(ReadyEventArgs args)
     {

@@ -110,7 +110,7 @@ internal sealed class CustosFactory(
     }
 
     /// <summary>
-    /// A client with the token that optio gets for the upload API: the user <paramref
+    /// A client with the token that Optio gets for the upload API: the user <paramref
     /// name="subject"/>, the audience of the server, and the scope <paramref name="scopes"/>. The
     /// claim <c>active_guild</c> is <paramref name="guild"/>, and the claim <c>discord_id</c> is
     /// <paramref name="discordId"/>. A claim is absent when its value is <c>null</c>.

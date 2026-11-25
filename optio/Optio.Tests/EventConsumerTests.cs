@@ -8,7 +8,7 @@ using static Optio.Tests.Infrastructure.FakeMembers;
 
 namespace Optio.Tests;
 
-/// <summary>optio reads the events of the stream of a source from the broker. Needs Docker.
+/// <summary>Optio reads the events of the stream of a source from the broker. Needs Docker.
 /// </summary>
 public sealed class EventConsumerTests
 {

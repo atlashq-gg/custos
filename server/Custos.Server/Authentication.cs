@@ -6,7 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace Custos.Server;
 
 /// <summary>
-/// Validates the access tokens of the upload API. optio exchanges the token of Custos for a token
+/// Validates the access tokens of the upload API. Optio exchanges the token of Custos for a token
 /// of this server (RFC 8693), so the token has the audience <see cref="CustosOptions.Resource"/>.
 /// The upload needs the write scope. The Discord roles of the member decide the rest.
 /// </summary>

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Design;
 namespace Optio.Storage;
 
 /// <summary>
-/// The database of optio, PostgreSQL. It holds the settings of optio for each guild, and no
+/// The database of Optio, PostgreSQL. It holds the settings of Optio for each guild, and no
 /// records of a domain service. The names of tables and columns are in snake_case.
 /// </summary>
 public sealed class OptioDbContext(DbContextOptions<OptioDbContext> options) : DbContext(options)
@@ -14,7 +14,7 @@ public sealed class OptioDbContext(DbContextOptions<OptioDbContext> options) : D
 
     public DbSet<GuildSettingsRow> GuildSettings => Set<GuildSettingsRow>();
 
-    /// <summary>Adds the options that optio and the design-time factory share.</summary>
+    /// <summary>Adds the options that Optio and the design-time factory share.</summary>
     public static void Configure(DbContextOptionsBuilder options) =>
         options.UseSnakeCaseNamingConvention();
 
@@ -28,7 +28,7 @@ public sealed class OptioDbContext(DbContextOptions<OptioDbContext> options) : D
         });
 }
 
-/// <summary>The settings of optio for one guild.</summary>
+/// <summary>The settings of Optio for one guild.</summary>
 public sealed class GuildSettingsRow
 {
     public required long GuildId { get; init; }

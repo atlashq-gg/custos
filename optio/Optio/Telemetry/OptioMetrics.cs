@@ -2,7 +2,7 @@ using System.Diagnostics.Metrics;
 
 namespace Optio.Telemetry;
 
-/// <summary>The metrics of optio, on the meter <see cref="TelemetrySetup.Name"/>.</summary>
+/// <summary>The metrics of Optio, on the meter <see cref="TelemetrySetup.Name"/>.</summary>
 internal sealed class OptioMetrics
 {
     public const string Events = "optio.events";
@@ -35,8 +35,8 @@ internal sealed class OptioMetrics
         _eventAge = Meter.CreateHistogram<double>(
             EventAge,
             "s",
-            "The age of each event when optio reads it from the broker. A high age shows that "
-                + "optio is behind the end of the stream."
+            "The age of each event when Optio reads it from the broker. A high age shows that "
+                + "Optio is behind the end of the stream."
         );
         _streams = Meter.CreateUpDownCounter<long>(Streams, "{stream}", "The open streams.");
         _streamDropped = Meter.CreateCounter<long>(
@@ -60,13 +60,13 @@ internal sealed class OptioMetrics
     public void EventAgeOf(string source, TimeSpan age) =>
         _eventAge.Record(age.TotalSeconds, new KeyValuePair<string, object?>(SourceTag, source));
 
-    /// <summary>The last offset that optio read from the stream of each source.</summary>
+    /// <summary>The last offset that Optio read from the stream of each source.</summary>
     public void ObserveOffsets(Func<IEnumerable<Measurement<long>>> observe) =>
         Meter.CreateObservableGauge(
             EventOffset,
             observe,
             "{offset}",
-            "The last offset that optio read from the stream of each source."
+            "The last offset that Optio read from the stream of each source."
         );
 
     public void StreamOpened() => _streams.Add(1);

@@ -11,7 +11,7 @@ internal enum MemberState
     /// <summary>The user is not a member of the guild.</summary>
     NotMember,
 
-    /// <summary>The bot of optio is not in the guild.</summary>
+    /// <summary>The bot of Optio is not in the guild.</summary>
     NoBot,
 
     /// <summary>Discord did not answer in time.</summary>

@@ -8,7 +8,7 @@ internal static class StreamSetup
 {
     /// <summary>
     /// Registers the stream when the configuration has the broker, one source or more, and the
-    /// Discord token. Without them, optio has no stream, and the discovery document has no
+    /// Discord token. Without them, Optio has no stream, and the discovery document has no
     /// <c>stream_endpoint</c>.
     /// </summary>
     public static bool IsEnabled(IConfiguration configuration)

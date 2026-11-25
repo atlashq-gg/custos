@@ -23,7 +23,7 @@ internal sealed class Confirmations(TimeProvider time)
 {
     public static readonly TimeSpan Lifetime = TimeSpan.FromSeconds(60);
 
-    /// <summary>The argument that optio adds to each write tool for the question of the model.
+    /// <summary>The argument that Optio adds to each write tool for the question of the model.
     /// </summary>
     public const string TextArgument = "confirm_text";
 
