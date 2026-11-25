@@ -19,4 +19,4 @@ The contract version is one number. The current version is `v0`. In the discover
 A document can mark a part as unstable, as a warning that it changes soon. In `v0`, these parts are unstable:
 
 - The upload result document ([03-upload.md](03-upload.md#result-document)).
-- The stream and the query ([05-stream.md](05-stream.md)).
+- The stream ([05-stream.md](05-stream.md)).
