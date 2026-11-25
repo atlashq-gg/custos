@@ -36,7 +36,7 @@ The roles need no other privilege. Make sure that the containers can reach Postg
 ## 2. Prepare Keycloak
 
 1. Start Keycloak with the features `cimd` and `resource-indicators`: the option `--features=cimd,resource-indicators`, or the environment variable `KC_FEATURES`. Keep other features that you already enable in the same list.
-2. Select a realm for Custos, or create one. The issuer of the realm is the value of `Optio__Authority` and `Custos__Authority`.
+2. Select a realm for Custos, or create one. The issuer of the realm is the value of `Authority` in the settings of each service (step 5).
 3. Set the session lifetime of the realm. Custos does not request `offline_access`, so the SSO session sets how long a login of Custos lasts. The development realm uses 7 days idle (`ssoSessionIdleTimeout` 604800) and 30 days at most (`ssoSessionMaxLifespan` 2592000).
 4. Add the client profile and the client policy of Custos.
 5. Add the claims `discord_id` and `active_guild`.
@@ -150,7 +150,7 @@ Create each scope in **Client scopes** with the protocol `OpenID Connect`. Set *
 
 1. In **Clients**, create the client `optio` with the protocol `OpenID Connect`.
 2. Set **Client authentication** to on. Set **Standard flow** and **Direct access grants** to off. Set **Standard Token Exchange** to on.
-3. Copy the secret from the tab **Credentials**. It is the value of `Optio__OptioClientSecret`.
+3. Copy the secret from the tab **Credentials**. It is the value of `OPTIO_CLIENT_SECRET` in the file `.env` (step 5).
 4. On the tab **Client scopes**, set `custos-discord` and `custos-guild` as **Default**, and `custos:read` and `custos:write` as **Optional**.
 
 An exchanged token gets only the claims of the scopes of the client `optio`. Thus `optio` needs `custos-guild` too, or the token of the server has no `active_guild`.
@@ -198,7 +198,7 @@ The broker carries the events of the server to `optio`. The operator makes each 
 2. Make a password hash for each user, and put it in `password_hash` of the user in the copy. The hashes in the repository are for development only.
 
    ```sh
-   docker run --rm rabbitmq:4.3-alpine rabbitmqctl hash_password 'change-me'
+   docker run --rm rabbitmq:4.3-alpine rabbitmqctl hash_password '<password of the user>'
    ```
 
    The last line of the output is the hash.
@@ -227,14 +227,14 @@ services:
     image: ghcr.io/atlashq-gg/custos-server:0.3.0
     restart: unless-stopped
     environment:
-      Custos__Authority: https://id.example.com/realms/custos
-      Custos__Resource: https://records.example.com/mcp
       ConnectionStrings__custos: >-
         Host=postgres;Port=5432;Database=custos;Username=custos;Password=${CUSTOS_DB_PASSWORD}
       ConnectionStrings__events: amqp://custos:${CUSTOS_BROKER_PASSWORD}@broker:5672
-      Mcp__Enabled: "true"
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       OTEL_SERVICE_NAME: custos-server
+    configs:
+      - source: server-settings
+        target: /app/appsettings.Production.json
     secrets:
       - Discord__Token
     ports:
@@ -255,11 +255,12 @@ services:
     configs:
       - source: optio-settings
         target: /app/appsettings.Production.json
+      - source: optio-system-prompt
+        target: /run/secrets/Optio__SystemPrompt
     secrets:
       - Optio__OptioClientSecret
       - Optio__DiscordToken
       - Optio__ModelApiKey
-      - Optio__SystemPrompt
     ports:
       - "127.0.0.1:8080:8080"
     networks:
@@ -267,6 +268,19 @@ services:
       - postgres
 
 configs:
+  server-settings:
+    content: |
+      {
+        "Custos": {
+          "Authority": "https://id.example.com/realms/custos",
+          "Resource": "https://records.example.com/mcp"
+        },
+        "Mcp": {
+          "Enabled": true
+        }
+      }
+  optio-system-prompt:
+    file: ./system-prompt.txt
   optio-settings:
     content: |
       {
@@ -287,15 +301,13 @@ configs:
 
 secrets:
   Discord__Token:
-    file: ./server-discord-token.txt
+    environment: SERVER_DISCORD_TOKEN
   Optio__OptioClientSecret:
-    file: ./optio-client-secret.txt
+    environment: OPTIO_CLIENT_SECRET
   Optio__DiscordToken:
-    file: ./optio-discord-token.txt
+    environment: OPTIO_DISCORD_TOKEN
   Optio__ModelApiKey:
-    file: ./model-key.txt
-  Optio__SystemPrompt:
-    file: ./system-prompt.txt
+    environment: OPTIO_MODEL_KEY
 
 volumes:
   broker-data:
@@ -306,15 +318,28 @@ networks:
     name: postgres_default
 ```
 
+Write the file `.env` next to the Compose file. Do not commit it. Compose reads it for the passwords and the secrets:
+
+```ini
+CUSTOS_DB_PASSWORD=change-me
+CUSTOS_BROKER_PASSWORD=change-me
+OPTIO_DB_PASSWORD=change-me-too
+OPTIO_BROKER_PASSWORD=change-me-too
+SERVER_DISCORD_TOKEN=<bot token of the server>
+OPTIO_DISCORD_TOKEN=<bot token of optio>
+OPTIO_CLIENT_SECRET=<secret of the client optio>
+OPTIO_MODEL_KEY=<key of the model provider>
+```
+
 - `image`: a release tag (`X.Y.Z`) of each service. The tags above are examples. `unstable` changes with each push to `main` ([optio/README.md](../optio/README.md#container), [server/README.md](../server/README.md#container)).
-- `optio-settings`: the settings of `optio` as JSON, in the section `Optio` ([optio/README.md](../optio/README.md#configuration)). Compose mounts the file as `/app/appsettings.Production.json`, and `optio` reads it when it starts. Compose replaces `${...}` in the content, so do not put a `$` in a value.
+- `server-settings` and `optio-settings`: the settings of each service as JSON, in the sections `Custos` and `Mcp` of the server ([server/README.md](../server/README.md#configuration)) and `Optio` of `optio` ([optio/README.md](../optio/README.md#configuration)). Compose mounts each content as `/app/appsettings.Production.json` of its service, and the service reads it when it starts. Compose replaces `${...}` in the content, so do not put a `$` in a value.
 - `PublicBaseUrl`: the origin that Custos and Keycloak use to reach `optio`. The client ID of Custos is `{PublicBaseUrl}/.well-known/custos-client`.
-- `Authority` of `optio` and `Custos__Authority` of the server: the issuer of the realm, exactly as the `iss` claim of a token has it. Each service gets the metadata and the signing keys of Keycloak from this URL, so each container must reach it.
-- `Custos__Resource`: the public URL of the MCP endpoint. It is the audience of each token of the server, also of a token that `optio` gets by exchange. Thus it is the public URL even when `optio` calls the server on the internal network.
+- `Authority`: the issuer of the realm, exactly as the `iss` claim of a token has it. Each service gets the metadata and the signing keys of Keycloak from this URL, so each container must reach it.
+- `Resource` of the server: the public URL of the MCP endpoint. It is the audience of each token of the server, also of a token that `optio` gets by exchange. Thus it is the public URL even when `optio` calls the server on the internal network.
 - `UploadApiUrl` and the `Url` of the MCP service: the internal URLs of the server. The upload API needs no public route. Add an entry to `McpServices` for each other domain service ([optio/README.md](../optio/README.md#add-a-service)).
-- `Optio__SystemPrompt`: the system prompt of the query, in the file `system-prompt.txt`. It is not a secret, but a file is the easier way to give a value with many lines. The repository holds an example: [optio/docs/system-prompt.example.txt](../optio/docs/system-prompt.example.txt).
-- `ConnectionStrings__*`: put the passwords in a `.env` file next to the Compose file (`CUSTOS_DB_PASSWORD=...`). Do not commit that file.
-- `secrets`: Compose mounts each file as `/run/secrets/<name>`. Each service reads each file of `/run/secrets` as a configuration key, and `__` in a file name is `:`. Do not commit these files. Without `Discord__Token`, the server has no Discord connection. Without `Optio__DiscordToken`, `optio` has no stream. Without `Optio__ModelApiKey` or `Optio__SystemPrompt`, `optio` serves no query.
+- `secrets`: Compose gets each secret from a variable of the file `.env` next to the Compose file, and mounts it as `/run/secrets/<name>`. Each service reads each file of `/run/secrets` as a configuration key, and `__` in a file name is `:`. Without `Discord__Token`, the server has no Discord connection. Without `Optio__DiscordToken`, `optio` has no stream. Without `Optio__ModelApiKey`, `optio` serves no query.
+- `optio-system-prompt`: the system prompt of the query, in the file `system-prompt.txt`. It is not a secret, but a file is the easier way to give a value with many lines. Compose mounts it as `/run/secrets/Optio__SystemPrompt`, so that `optio` reads it as the key `Optio:SystemPrompt`. Without it, `optio` serves no query. The repository holds an example: [optio/docs/system-prompt.example.txt](../optio/docs/system-prompt.example.txt).
+- `ConnectionStrings__*`: the passwords come from the file `.env` too.
 - `ASPNETCORE_FORWARDEDHEADERS_ENABLED`: each service applies `X-Forwarded-Proto` and `X-Forwarded-For` of the proxy. A service then trusts these headers from each client that reaches its port, so only the proxy must reach it.
 - `OTEL_*`: the telemetry. Add `OTEL_EXPORTER_OTLP_ENDPOINT` to export it. Without it, a service exports nothing.
 - `networks`: an existing network that PostgreSQL is on. `docker network ls` shows its name. If PostgreSQL runs on another host, remove that network, and use the host name in `Host=`.
