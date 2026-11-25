@@ -1,6 +1,6 @@
 # Custos reference server
 
-Version 0.2.0. Contract version `v0`. License: AGPL-3.0-or-later ([LICENSE](LICENSE)), except the catalog of the game, which is under CC BY-NC-SA 4.0 ([catalog/LICENSE.md](catalog/LICENSE.md)).
+Contract version `v0`. License: AGPL-3.0-or-later ([LICENSE](LICENSE)), except the catalog of the game, which is under CC BY-NC-SA 4.0 ([catalog/LICENSE.md](catalog/LICENSE.md)).
 
 The domain service of the guild records, behind [optio](../optio/README.md) ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). Custos calls `optio`, and `optio` relays the upload to the upload API of this server with a token of the user. The server parses the map data file and keeps the parsed data in PostgreSQL, for each Discord guild. It does not keep the file.
 
@@ -61,11 +61,11 @@ The section `Custos` in `appsettings.json` or environment variables (`Custos__Au
 
 The server is multi-tenant. A tenant is a Discord guild. The access token names the guild of the user in the claim `active_guild`, as the guild ID in a string. A custom authenticator in Keycloak lets the user choose the guild and sets the claim. That authenticator is not part of this repository.
 
-An upload without a valid `active_guild` gets `403`. In the environment `Development`, `DevelopmentGuildId` supplies the guild when the claim is absent. For production, see [The claim `active_guild`](#the-claim-active_guild).
+An upload without a valid `active_guild` gets `403`. In the environment `Development`, `DevelopmentGuildId` supplies the guild when the claim is absent. For production, see [The claim `active_guild`](../docs/deploy.md#the-claim-active_guild).
 
 ### Access for uploads
 
-With the [Discord connection](#discord) on, an upload needs a member of the guild with the access `report` ([Guild settings](#guild-settings)). The access token names the Discord user in the claim `discord_id` ([The claim `discord_id`](#the-claim-discord_id)).
+With the [Discord connection](#discord) on, an upload needs a member of the guild with the access `report` ([Guild settings](#guild-settings)). The access token names the Discord user in the claim `discord_id` ([The claim `discord_id`](../docs/deploy.md#the-claim-discord_id)).
 
 | Case | Answer |
 |---|---|
@@ -76,7 +76,7 @@ With the [Discord connection](#discord) on, an upload needs a member of the guil
 
 In the environment `Development`, `DevelopmentDiscordUserId` supplies the user when the claim is absent. In the AppHost, set it with `dotnet user-secrets set Parameters:discord-user-id <id> --project ../optio/Optio.AppHost`.
 
-The table `uploads` keeps the Discord user ID of each upload. It is null for the rows of 0.1.0. Without the Discord connection, the server examines no role, as in 0.1.0, and keeps the claim when the token has it.
+The table `uploads` keeps the Discord user ID of each upload. It is null for an upload that came before the server had the Discord connection. Without the Discord connection, the server examines no role, and keeps the claim when the token has it.
 
 ## Discord
 
@@ -90,7 +90,7 @@ The server connects to Discord as a bot when the configuration has `Discord:Toke
 
 1. In the [Discord Developer Portal](https://discord.com/developers/applications), create an application.
 2. On the page **Bot**, reset the token, and copy it. Keep the three privileged intents off.
-3. Give the token to the server as `Discord:Token` ([Deploy](#3-write-the-compose-file)).
+3. Give the token to the server as `Discord:Token` ([Deploy](../docs/deploy.md#5-write-the-compose-file)).
 4. Invite the bot to each guild with this link. Replace `<application ID>` with the ID on the page **General Information**:
 
    ```text
@@ -99,7 +99,7 @@ The server connects to Discord as a bot when the configuration has `Discord:Toke
 
 The bot sends no message to a channel, so the link asks for no permission. The server registers the commands `/custosadmin` and `/custos` when it starts.
 
-NOTE: Version 0.2.0 was tested on 2026-11-20 in one guild where the bot has a role with the Administrator permission: the commands, the access rule for uploads, and the MCP tools. A guild where the bot has no permission was not tested.
+NOTE: The Discord connection was tested on 2026-11-20 in one guild where the bot has a role with the Administrator permission: the commands, the access rule for uploads, and the MCP tools. A guild where the bot has no permission was not tested.
 
 ### Guild settings
 
@@ -150,7 +150,7 @@ The map data holds no name for a structure. The server generates a label for eac
 - The type is the display name of the [catalog](catalog/README.md), without the tier. Without a catalog entry, the type is the code name.
 - The label that shows is the label of a user, or else the generated label. It is unique in one guild and one war, without regard to case. If a generated label exists, the server adds the code, or more characters of the code.
 - The server never changes a generated label. The structure ID includes the war, so the labels start again at each war.
-- The server generates the labels of the structures of 0.1.0 when it starts.
+- When it starts, the server generates a label for each structure that has none.
 
 `/custos label` changes a label. The option `structure` has autocomplete on the labels of the current war. Without the option `label`, the generated label shows again. The command needs the access `label` ([Guild settings](#guild-settings)).
 
@@ -333,235 +333,4 @@ docker run -p 8080:8080 -e Custos__PublicBaseUrl=https://custos.example.com -e C
 
 ## Deploy
 
-> **Note:** This guide still describes server 0.2.0, which served the contract itself. M36 of [#48](https://github.com/atlashq-gg/custos/issues/48) rewrites it for `optio`. Until then, the key `Custos__PublicBaseUrl` is gone, and `Mcp__Resource` is now `Custos__Resource`.
-
-This section deploys the container with Docker Compose against an existing PostgreSQL and an existing Keycloak. The examples use these values. Replace them with your own.
-
-| Value | Example |
-|---|---|
-| Public URL of the server | `https://custos.example.com` |
-| Issuer of the Keycloak realm | `https://id.example.com/realms/custos` |
-| Database, role | `custos`, `custos` |
-
-The server needs:
-
-- PostgreSQL 18. The tests and the AppHost use 18 only. The server uses list partitions and advisory locks.
-- Keycloak 26.8 or later, with the feature `cimd`, and `resource-indicators` for the MCP endpoint.
-- A reverse proxy that terminates TLS. The container serves HTTP on port 8080.
-- A Discord application with a bot, for the Discord connection and the MCP endpoint ([The Discord application](#the-discord-application)).
-
-### 1. Prepare PostgreSQL
-
-Create a role and a database that the role owns. The server applies its migrations when it starts, so the role must be able to create tables in the database.
-
-```sql
-CREATE ROLE custos LOGIN PASSWORD 'change-me';
-CREATE DATABASE custos OWNER custos;
-```
-
-The role needs no other privilege. Make sure that the container can reach PostgreSQL, for example through a shared Docker network (step 3).
-
-### 2. Prepare Keycloak
-
-1. Start Keycloak with the feature `cimd`: the option `--features=cimd`, or the environment variable `KC_FEATURES=cimd`. For the MCP endpoint, add the feature `resource-indicators`: `--features=cimd,resource-indicators`. Keep other features that you already enable in the same list.
-2. Select a realm for Custos, or create one. The issuer of the realm is the value of `Custos__Authority`.
-3. Add the client profile and the client policy of Custos to the realm (see below).
-4. Set the session lifetime of the realm. Custos does not request `offline_access`, so the SSO session sets how long a login of Custos lasts. The development realm uses 7 days idle (`ssoSessionIdleTimeout` 604800) and 30 days at most (`ssoSessionMaxLifespan` 2592000).
-5. Add the claim `active_guild` (see below).
-6. Add the claim `discord_id` (see below).
-7. For the MCP endpoint, add the MCP scopes and the registration policies (see below).
-
-#### Client profile and client policy
-
-The profile lets Keycloak get the registration of Custos from the Client ID Metadata Document of the server. The policy applies the profile to a client ID on the host of the server. Put the host of the public URL in both files. The domain `oauth2callback` permits the redirect URI `custos://oauth2callback`.
-
-`profiles.json`:
-
-```json
-{
-  "profiles": [
-    {
-      "name": "custos-cimd",
-      "description": "Accepts the metadata document of Custos.",
-      "executors": [
-        {
-          "executor": "client-id-metadata-document",
-          "configuration": {
-            "cimd-allow-http-scheme": "false",
-            "cimd-allow-permitted-domains": ["custos.example.com", "oauth2callback"]
-          }
-        }
-      ]
-    }
-  ]
-}
-```
-
-`policies.json`:
-
-```json
-{
-  "policies": [
-    {
-      "name": "custos-cimd",
-      "description": "Clients whose ID is the URL of the metadata document on the Custos server.",
-      "enabled": true,
-      "conditions": [
-        {
-          "condition": "client-id-uri",
-          "configuration": {
-            "client-id-uri-scheme": ["https"],
-            "client-id-uri-allow-permitted-domains": ["custos.example.com"]
-          }
-        }
-      ],
-      "profiles": ["custos-cimd"]
-    }
-  ]
-}
-```
-
-CAUTION: Each command replaces all client profiles or all client policies of the realm. If the realm already has profiles or policies, get them first and add the entries of Custos to the lists.
-
-```sh
-kcadm.sh config credentials --server https://id.example.com --realm master --user admin
-kcadm.sh get realms/custos/client-policies/profiles
-kcadm.sh get realms/custos/client-policies/policies
-kcadm.sh update realms/custos/client-policies/profiles -f profiles.json
-kcadm.sh update realms/custos/client-policies/policies -f policies.json
-```
-
-The admin console has the same settings in **Realm settings**, on the tab **Client policies**.
-
-#### The claim `active_guild`
-
-Outside the environment `Development`, the server ignores `DevelopmentGuildId`. An upload whose token has no claim `active_guild` gets `403`. The authenticator that lets a user choose a guild is not built yet ([#1](https://github.com/atlashq-gg/custos/issues/1)).
-
-For one guild, a hardcoded claim gives each token of the realm the same guild:
-
-1. In **Client scopes**, create the scope `custos-guild` with the protocol `OpenID Connect`. Set **Include in token scope** to off.
-2. In the tab **Mappers** of the scope, configure a new mapper of the type **Hardcoded claim** with these values:
-   - **Token Claim Name**: `active_guild`
-   - **Claim value**: the guild ID
-   - **Claim JSON Type**: `String`
-   - **Add to access token**: on
-3. In the list **Client scopes**, set the assigned type of `custos-guild` to **Default**. Keycloak then adds the scope to each new client, also to the client that it registers through CIMD.
-
-If Keycloak registered the client of Custos before step 3, add the scope to that client in **Clients**, on the tab **Client scopes**.
-
-This method works with Keycloak 26.8 and a client that Keycloak registered through CIMD (tested on 2026-11-18). Remove the scope when the authenticator sets the claim.
-
-#### The claim `discord_id`
-
-With the Discord connection on, an upload needs the Discord user ID in the claim `discord_id` of the access token. The development realm shows one method: a user attribute and a default client scope.
-
-1. In **Realm settings**, on the tab **User profile**, create the attribute `discord_id`. Let only an administrator edit it. Keycloak 24 and later remove a user attribute that the user profile does not declare.
-2. In **Client scopes**, create the scope `custos-discord` with the protocol `OpenID Connect`. Set **Include in token scope** to off.
-3. In the tab **Mappers** of the scope, configure a new mapper of the type **User Attribute**: **User Attribute** `discord_id`, **Token Claim Name** `discord_id`, **Claim JSON Type** `String`, **Add to access token** on.
-4. In the list **Client scopes**, set the assigned type of `custos-discord` to **Default**.
-5. Set the attribute `discord_id` of each user to the Discord user ID.
-
-The authenticator that sets `active_guild` can also set this claim. That work is outside this repository.
-
-#### The MCP scopes and the registration of a harness
-
-An LLM harness reads the metadata document of `/mcp`, gets its own client in the realm, and asks the user to log in. A harness gets a client in one of two ways. It sends a registration request, or it uses the URL of its Client ID Metadata Document as the client ID. Keycloak with the feature `cimd` states that it supports the second way, so a harness such as Claude Code uses it and sends no registration request. The token needs the audience of the endpoint, the claim `discord_id`, and a scope. The [development realm](keycloak/custos-realm.json) holds each of these settings.
-
-1. In **Client scopes**, create the scopes `custos:read` and `custos:write`, each with the protocol `OpenID Connect` and **Include in token scope** on.
-2. In the tab **Mappers** of each scope, add two mappers:
-   - **Audience**: **Included Custom Audience** `https://custos.example.com/mcp`, **Add to access token** on.
-   - **User Attribute**: as in [The claim `discord_id`](#the-claim-discord_id).
-3. In the list **Client scopes**, set the assigned type of the two scopes to **Optional**. A default scope also goes to the client of Custos, and its tokens then get the audience of `/mcp`.
-4. In **Clients**, on the tab **Client registration**, open the anonymous policy **Trusted Hosts**. Add the hosts of the redirect URIs of the harnesses that you permit, for example `localhost` and `127.0.0.1` for a harness on a computer. Set **Host Sending Client Registration Request Must Match** to off, and keep **Client URIs Must Match** on.
-5. In **Realm settings**, on the tab **Client policies**, add a profile with the executor `pkce-enforcer` (**Auto-configure** on), and a policy with the condition `any-client` for that profile. Each client then uses PKCE with S256.
-6. For a harness that uses a Client ID Metadata Document, such as Claude Code, extend the profile and the policy `custos-cimd` ([Client profile and client policy](#client-profile-and-client-policy)). Without this step, Keycloak shows `Client not found`, because the policy accepts only the host of the server. In the profile, add to the executor `client-id-metadata-document`:
-
-   ```json
-   "cimd-allow-permitted-domains": ["custos.example.com", "oauth2callback", "claude.ai", "localhost", "127.0.0.1"],
-   "cimd-resource-indicator-allow-list": ["https://custos.example.com/mcp"]
-   ```
-
-   `claude.ai` is the host of the client ID. `localhost` and `127.0.0.1` are the hosts of the redirect URIs. Without the allow list of resources, Keycloak refuses the parameter `resource` with `invalid_target`. In the policy, add `claude.ai` to `client-id-uri-allow-permitted-domains` of the condition. For another harness, add the host of its metadata document, and the hosts of its redirect URIs.
-7. Claude Code requests the scope `offline_access`. A user needs the realm role `offline_access`. Without it, Keycloak answers the token request with `Offline tokens not allowed for the user or client`. A new realm gives this role to each user in its default roles, so this step is for a realm that removed it.
-
-To add the endpoint to a harness, give it the URL of the endpoint as a remote MCP server with the HTTP transport. For example, in Claude Code:
-
-```sh
-claude mcp add --transport http custos https://custos.example.com/mcp
-```
-
-The harness opens the login of Keycloak. The consent page shows the two scopes. A token with `custos:read` only does not list the label tool.
-
-### 3. Write the Compose file
-
-```yaml
-services:
-  custos-server:
-    image: ghcr.io/atlashq-gg/custos-server:0.2.0
-    restart: unless-stopped
-    environment:
-      Custos__PublicBaseUrl: https://custos.example.com
-      Custos__Authority: https://id.example.com/realms/custos
-      ConnectionStrings__custos: >-
-        Host=postgres;Port=5432;Database=custos;Username=custos;Password=${CUSTOS_DB_PASSWORD}
-      Mcp__Enabled: "true"
-      Mcp__Resource: https://custos.example.com/mcp
-      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
-      OTEL_SERVICE_NAME: custos-server
-      # OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4317
-    secrets:
-      - Discord__Token
-    ports:
-      - "127.0.0.1:8080:8080"
-    networks:
-      - postgres
-
-secrets:
-  Discord__Token:
-    file: ./discord-token.txt
-
-networks:
-  postgres:
-    external: true
-    name: postgres_default
-```
-
-- `image`: a release tag (`X.Y.Z`). `unstable` changes with each push to `main` ([Container](#container)).
-- `Custos__PublicBaseUrl`: the origin that Custos and Keycloak use to reach the server. The client ID of Custos is `{PublicBaseUrl}/.well-known/custos-client`. The server makes the URLs of Custos from this value, not from the request.
-- `Custos__Authority`: the issuer of the realm, exactly as the `iss` claim of a token has it. The server gets the metadata and the signing keys of Keycloak from this URL, so the container must reach it.
-- `ConnectionStrings__custos`: an Npgsql connection string. Put the password in a `.env` file next to the Compose file (`CUSTOS_DB_PASSWORD=...`). Do not commit that file.
-- `secrets`: the bot token, in the file `discord-token.txt` next to the Compose file. Compose mounts it as `/run/secrets/Discord__Token`, and the server reads each file of `/run/secrets` as a configuration key. `__` in a file name is `:`. Do not commit that file. Without the secret, the Discord connection is off.
-- `Mcp__Enabled` and `Mcp__Resource`: the MCP endpoint ([MCP endpoint](#mcp-endpoint)). Leave them out for a server without MCP.
-- `ASPNETCORE_FORWARDEDHEADERS_ENABLED`: the server applies `X-Forwarded-Proto` and `X-Forwarded-For` of the proxy. The metadata document of the MCP endpoint needs the public scheme. The server then trusts these headers from each client that reaches port 8080, so only the proxy must reach it.
-- `OTEL_*`: the telemetry ([Telemetry and health](#telemetry-and-health)). Without `OTEL_EXPORTER_OTLP_ENDPOINT`, the server exports nothing.
-- `networks`: an existing network that PostgreSQL is on. `docker network ls` shows its name. If PostgreSQL runs on another host, remove `networks` and use that host name in `Host=`.
-- `ports`: the reverse proxy on the host connects to `127.0.0.1:8080`. If the proxy runs in Docker, put the server on the network of the proxy instead.
-
-The other settings are in [Configuration](#configuration). Set them as `Custos__<Key>`.
-
-### 4. Configure the reverse proxy
-
-Send all paths of `https://custos.example.com` to port 8080 of the container. Keycloak gets `/.well-known/custos-client` through this proxy, so the certificate must be valid for Keycloak. Keep the `Host` header of the request, and send `X-Forwarded-Proto` and `X-Forwarded-For`.
-
-### 5. Start and check the server
-
-```sh
-docker compose up -d
-docker compose logs -f custos-server
-curl https://custos.example.com/health/ready
-curl https://custos.example.com/.well-known/custos-configuration
-```
-
-1. `/health/ready` must give `Healthy`. It checks the database.
-2. The discovery document must show the public URL in `upload_endpoint` and `client_id`.
-3. Set the URL of the server in Custos, and log in. Keycloak shows a consent page on the first login.
-4. After an upload, the table `wars` has the current war, and the table `uploads` has one row.
-5. With the bot token, the log has no warning about `Discord:Token`. In a guild, `/custosadmin settings view` shows the settings.
-6. With MCP, `curl https://custos.example.com/.well-known/oauth-protected-resource` gives the metadata document with `"resource": "https://custos.example.com/mcp"`.
-
-### Operation
-
-- Run one instance. The rate limits, the cache of the war API, and the Discord gateway are in the process.
-- The image has a `HEALTHCHECK`. It runs `dotnet Custos.Server.dll --healthcheck`, because the image has no shell and no `curl` ([Telemetry and health](#telemetry-and-health)). The check uses `/health/alive`. Check `/health/ready` from the proxy or from a monitor.
-- Back up the database before you update the image. The server applies new migrations when it starts ([Migrations](#migrations)).
-- The archive and the purge of a war are manual ([Wars](#wars)).
+[docs/deploy.md](../docs/deploy.md) deploys the full system: Keycloak, PostgreSQL, the broker, this server, and `optio`. Only `/mcp` and its metadata document need a public route.

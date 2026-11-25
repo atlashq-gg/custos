@@ -2,7 +2,7 @@
 
 `optio` is the service that Custos calls ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). It implements the contract of [spec/](../spec/README.md): the discovery document, the upload, the stream, and the query. It calls the domain services, for example the [server](../server/README.md), with a token of the user for each service.
 
-The work is in progress. The roadmap is [#48](https://github.com/atlashq-gg/custos/issues/48). This version serves the discovery document and the Client ID Metadata Document of Custos, relays the upload, sends the events of the domain services on the stream, and answers a query with a model and the tools of the MCP services. A write tool waits for the confirmation of the user.
+`optio` serves the discovery document and the Client ID Metadata Document of Custos, relays the upload, sends the events of the domain services on the stream, and answers a query with a model and the tools of the MCP services. A write tool waits for the confirmation of the user.
 
 ## Run
 
@@ -23,7 +23,7 @@ The AppHost starts the full system:
 | Keycloak | `http://localhost:8180` | The realm `custos` from [server/keycloak/custos-realm.json](../server/keycloak/custos-realm.json), with the user `dev`, password `dev`. |
 | Dashboard | `http://localhost:15180` | The Aspire dashboard. The login URL is in the console output. |
 
-The server needs a Discord bot token in the user secrets of the AppHost ([server/README.md](../server/README.md#run)). `optio` needs a Discord bot token for the stream, in the parameter `optio-discord-token`. In development, it can be the token of the bot of the server. The query needs a key of the model provider in the parameter `optio-model-key`, and uses the example system prompt [docs/system-prompt.example.txt](docs/system-prompt.example.txt). The AppHost makes a new secret for the client `optio` on each start.
+The server needs a Discord bot token in the user secrets of the AppHost ([server/README.md](../server/README.md#run)). `optio` needs a Discord bot token for the stream, in the parameter `optio-discord-token`. Use a second Discord application, not the application of the server: each service registers its commands when it starts, and a registration replaces all the commands of the application. The query needs a key of the model provider in the parameter `optio-model-key`, and uses the example system prompt [docs/system-prompt.example.txt](docs/system-prompt.example.txt). The AppHost makes a new secret for the client `optio` on each start.
 
 ## Endpoints
 
@@ -223,7 +223,7 @@ The tests need Docker. Three categories need more, and CI does not run them. Wit
 | Category | Needs | Content |
 |---|---|---|
 | `Discord` | `Discord__Token`, `Discord__TestUserId` | The member directory against the real Discord gateway. |
-| `Feasibility` | (none) | The tests of M37 against the broker. They take about 2 minutes. |
+| `Feasibility` | (none) | The feasibility tests against the broker. They take about 2 minutes. |
 | `Model` | `Optio__ClaudeApiKey` | The query with the real model, the example system prompt, and a small MCP server. Each run costs a few cents. |
 
 ```sh
@@ -245,6 +245,10 @@ The image is `ghcr.io/atlashq-gg/custos-optio`. The container serves HTTP on por
 docker build -t custos-optio .
 docker run --rm -p 8080:8080 custos-optio
 ```
+
+## Deploy
+
+[docs/deploy.md](../docs/deploy.md) deploys the full system: Keycloak, PostgreSQL, the broker, the server, and `optio`.
 
 ## License
 

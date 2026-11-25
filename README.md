@@ -23,7 +23,7 @@ Each project folder has a `README.md`, an `AGENTS.md`, a `CHANGELOG.md`, and a `
 - [GOVERNANCE.md](GOVERNANCE.md): roles, decisions, discussions, and the change process.
 - [AGENTS.md](AGENTS.md): the minimum an agent reads before work.
 - [SECURITY.md](SECURITY.md): how to report a vulnerability.
-- [docs/](docs/README.md): cross-project documents and the ADR index.
+- [docs/](docs/README.md): cross-project documents, the ADR index, and the deployment guide.
 
 ## License
 

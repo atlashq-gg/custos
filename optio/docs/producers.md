@@ -1,6 +1,6 @@
 # Producers
 
-**Unstable.** This document changes until `optio` 0.1.0.
+**Unstable.** This contract can change. The [changelog of `optio`](../CHANGELOG.md) records each change.
 
 A producer is a domain service that sends events to `optio`, for example the [server](../../server/README.md). This document is the contract between a producer and `optio`. The contract between Custos and `optio` is [spec/](../../spec/README.md). The decision is [ADR 0007](../../docs/adr/0007-a-broker-carries-domain-events.md).
 
