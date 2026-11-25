@@ -204,7 +204,7 @@
     },
     {
       "name": "custos:client",
-      "description": "Adds the audience optio to the token of Custos, so that optio can exchange it.",
+      "description": "Adds the audience optio to the token of Custos, so that Optio can exchange it.",
       "protocol": "openid-connect",
       "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
       "protocolMappers": [
@@ -228,7 +228,7 @@
   "clients": [
     {
       "clientId": "optio",
-      "name": "optio",
+      "name": "Optio",
       "description": "Exchanges the token of Custos for a token of a domain service.",
       "enabled": true,
       "publicClient": false,

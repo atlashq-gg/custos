@@ -31,8 +31,8 @@ internal sealed partial class KeycloakRealm
     public const string OptioSecret = "optio-test-secret";
 
     /// <summary>
-    /// A public client that stands in for Custos. optio serves the Client ID Metadata Document of
-    /// Custos, and the tests of optio log in through it.
+    /// A public client that stands in for Custos. Optio serves the Client ID Metadata Document of
+    /// Custos, and the tests of Optio log in through it.
     /// </summary>
     public const string CustosClient = "custos-test";
 

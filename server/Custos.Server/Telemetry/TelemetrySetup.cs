@@ -29,11 +29,21 @@ internal static class TelemetrySetup
         // The PostgreSQL integration of Aspire adds the traces and the metrics of Npgsql.
         var telemetry = builder
             .Services.AddOpenTelemetry()
-            // Only the version: OTEL_SERVICE_NAME sets service.name. A second name from AddService
-            // would compete with it.
+            // The name of the service is Custos. OTEL_SERVICE_NAME replaces it, for example with
+            // the name of a resource of the AppHost. A name from AddService would replace the
+            // variable, so the server adds it only without the variable.
             .ConfigureResource(resource =>
-                resource.AddAttributes([new("service.version", ServerVersion.Value)])
-            )
+            {
+                if (
+                    string.IsNullOrEmpty(builder.Configuration[CustosTelemetry.ServiceNameVariable])
+                )
+                    resource.AddService(
+                        CustosTelemetry.ServiceName,
+                        serviceVersion: ServerVersion.Value
+                    );
+                else
+                    resource.AddAttributes([new("service.version", ServerVersion.Value)]);
+            })
             .WithMetrics(metrics =>
                 metrics
                     .AddAspNetCoreInstrumentation()

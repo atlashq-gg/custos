@@ -8,7 +8,7 @@ namespace Custos.Server.Tests;
 
 /// <summary>
 /// The login of an MCP harness against Keycloak with the development realm. The login of Custos
-/// is in the tests of optio, which serves its Client ID Metadata Document. Needs Docker.
+/// is in the tests of Optio, which serves its Client ID Metadata Document. Needs Docker.
 /// </summary>
 [Category("Integration")]
 public sealed class KeycloakLoginTests

@@ -7,14 +7,26 @@ name: server
 #   push of server-X.Y.Z  -> push the tags X.Y.Z and X.Y, version "X.Y.Z"
 #
 # GitHub does not apply the paths filter to a tag push, so each server-* tag runs this workflow.
+# The tests read the producer schemas and the NATS configuration of optio/, so a change in them
+# runs this workflow too.
 on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
-    paths: ["server/**", "spec/**", ".github/workflows/server.yml"]
+    paths:
+      - "server/**"
+      - "spec/**"
+      - "optio/schemas/**"
+      - "optio/nats/**"
+      - ".github/workflows/server.yml"
   push:
     branches: [main]
     tags: ["server-[0-9]+.[0-9]+.[0-9]+"]
-    paths: ["server/**", "spec/**", ".github/workflows/server.yml"]
+    paths:
+      - "server/**"
+      - "spec/**"
+      - "optio/schemas/**"
+      - "optio/nats/**"
+      - ".github/workflows/server.yml"
 
 # One run for each ref at a time, so two pushes to main cannot race on the tag unstable. A new
 # push to a pull request cancels the run in progress for it. Closing or merging the pull request
