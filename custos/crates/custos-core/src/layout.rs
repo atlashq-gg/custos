@@ -68,9 +68,9 @@ mod tests {
 
     fn settings(anchor: Anchor) -> Overlay {
         Overlay {
-            enabled: true,
             anchor,
             offset: 30,
+            ..Overlay::default()
         }
     }
 

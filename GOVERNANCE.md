@@ -35,7 +35,7 @@ Discussions happen in GitHub issues and pull requests. A decision that does not 
 - Each application has one workflow in `.github/workflows/`. It runs on a pull request and on a push to `main` that changes the project or `spec/`.
 - Each project has its own version and its own `CHANGELOG.md`.
 - `spec/` has the version `v0` until the Maintainer decides otherwise. It has no minor or patch versions and no release tags ([spec/04-versioning.md](spec/04-versioning.md)).
-- A release of an application is a tag `<project>-X.Y.Z`, for example `server-0.2.0`. The Maintainer creates the tags. The releases before this format keep their tags `<project>/vX.Y.Z`: `custos/v0.1.0`, `custos/v0.2.0`, and `server/v0.1.0`.
+- A release of an application is a tag `<project>-X.Y.Z`, for example `server-0.2.0`. A pre-release adds a pre-release part, for example `custos-0.3.0-alpha.1`. The Maintainer creates the tags. The releases before this format keep their tags `<project>/vX.Y.Z`: `custos/v0.1.0`, `custos/v0.2.0`, and `server/v0.1.0`.
 - The tag `custos-X.Y.Z` builds the AppImage, the installer script, and the Windows installer. It attests the three files and attaches them to a GitHub release.
 - The tag `server-X.Y.Z` publishes the container image `ghcr.io/atlashq-gg/custos-server`. Each push to `main` that changes the server publishes the tag `unstable`.
 - The tag `optio-X.Y.Z` publishes the container image `ghcr.io/atlashq-gg/custos-optio`. Each push to `main` that changes Optio publishes the tag `unstable`.

@@ -28,10 +28,20 @@ pub enum AuthError {
     Denied(String),
     #[error("the login link has no code")]
     NoCode,
-    #[error("the token endpoint refused the request: {0}")]
-    TokenRefused(String),
+    #[error("the token endpoint refused the request: {detail}")]
+    TokenRefused { status: u16, detail: String },
     #[error("cannot reach the token endpoint: {0}")]
     Http(#[from] reqwest::Error),
+}
+
+impl AuthError {
+    /// True when the token endpoint refused the grant, for example an expired refresh token
+    /// (`invalid_grant`). Then only a new login helps. A network error or an error of the service is
+    /// not a refusal: the same request can work later.
+    #[must_use]
+    pub fn is_refusal(&self) -> bool {
+        matches!(self, AuthError::TokenRefused { status: 400 | 401, .. })
+    }
 }
 
 /// The tokens of one service. Custos does not read the content of a token.
@@ -47,8 +57,15 @@ impl Tokens {
     /// True when the access token expires in less than the margin.
     #[must_use]
     pub fn is_expiring(&self, now: u64) -> bool {
-        self.expires_at.is_some_and(|at| at <= now + EXPIRY_MARGIN_SECONDS)
+        self.expires_at.is_some_and(|at| expires_soon(at, now))
     }
+}
+
+/// True when a token that expires at `expires_at` expires in less than the margin. Both are seconds
+/// since the Unix epoch.
+#[must_use]
+pub fn expires_soon(expires_at: u64, now: u64) -> bool {
+    expires_at <= now + EXPIRY_MARGIN_SECONDS
 }
 
 /// A login that waits for the browser to open the redirect URI.
@@ -185,7 +202,10 @@ async fn request_tokens(
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        return Err(AuthError::TokenRefused(format!("{status} {body}").trim().to_owned()));
+        return Err(AuthError::TokenRefused {
+            status: status.as_u16(),
+            detail: format!("{status} {body}").trim().to_owned(),
+        });
     }
 
     let token: TokenResponse = response.json().await?;
@@ -451,6 +471,21 @@ mod tests {
 
         let result = refresh(&reqwest::Client::new(), &discovery(&server.uri()), "r1").await;
 
-        assert!(matches!(result, Err(AuthError::TokenRefused(e)) if e.contains("invalid_grant")));
+        let Err(e) = result else { panic!() };
+        assert!(e.is_refusal());
+        assert!(e.to_string().contains("invalid_grant"), "{e}");
+    }
+
+    #[tokio::test]
+    async fn error_of_the_token_endpoint_is_not_a_refusal() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(503))
+            .mount(&server)
+            .await;
+
+        let result = refresh(&reqwest::Client::new(), &discovery(&server.uri()), "r1").await;
+
+        assert!(!result.unwrap_err().is_refusal());
     }
 }
