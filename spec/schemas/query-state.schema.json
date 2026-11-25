@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/atlashq-gg/custos/spec/schemas/query-state.schema.json",
+  "title": "Custos query state (unstable)",
+  "type": "object",
+  "required": ["reference", "state"],
+  "properties": {
+    "reference": { "$ref": "query.schema.json#/$defs/reference" },
+    "state": { "$ref": "#/$defs/state" },
+    "deadline": { "type": "string", "format": "date-time" },
+    "cause": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "state": { "enum": ["working", "waiting", "applying", "closed"] }
+  }
+}

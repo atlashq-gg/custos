@@ -99,7 +99,7 @@ The schema is [schemas/message.schema.json](schemas/message.schema.json).
 | Member | Type | Required | Content |
 |---|---|---|---|
 | `kind` | string | yes | The [kind](#kinds) of the message. |
-| `text` | string | no | Plain text for the user, 500 characters at most. Custos shows it as it is. |
+| `text` | string | no | Plain text for the user, 500 characters at most. A message of the kind `query` has its own limit ([06-query.md](06-query.md#messages)). Custos shows the text as it is. |
 | `reference` | string | no | A message with the reference of a shown message replaces it. A message with a reference and no `text` removes it. |
 | `source` | string | no | A short name of the part of the service that made the message. |
 
@@ -113,6 +113,7 @@ The set of kinds is open. Custos MUST show a message of a kind that it does not 
 |---|---|
 | `event` | Something changed in the service, for example a stockpile. |
 | `error` | A part of the service failed, or the service cannot send the events of the user. |
+| `query` | A message of a query of the client ([06-query.md](06-query.md#messages)). It has more members. |
 
 ### Example
 
