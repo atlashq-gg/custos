@@ -315,6 +315,7 @@ CI publishes the image `ghcr.io/atlashq-gg/custos-server`:
 | Tag | Content |
 |---|---|
 | `X.Y.Z`, `X.Y` | The release from the Git tag `server-X.Y.Z`. |
+| `X.Y.Z-<pre>` | The pre-release from the Git tag `server-X.Y.Z-<pre>`, for example `server-0.3.0-alpha.1`. A pre-release does not change `X.Y`. |
 | `unstable` | The latest build of `main`. |
 | `sha-<commit>` | The build of one commit on `main`. |
 

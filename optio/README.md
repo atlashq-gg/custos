@@ -141,6 +141,7 @@ The image is `ghcr.io/atlashq-gg/custos-optio`. The container serves HTTP on por
 | Tag | Source |
 |---|---|
 | `X.Y.Z`, `X.Y` | The Git tag `optio-X.Y.Z`. |
+| `X.Y.Z-<pre>` | The Git tag `optio-X.Y.Z-<pre>` of a pre-release, for example `optio-0.1.0-alpha.1`. A pre-release does not change `X.Y`. |
 | `unstable` | Each push to `main` that changes `optio/`. |
 | `sha-<commit>` | Each push to `main` that changes `optio/`. |
 

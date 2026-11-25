@@ -293,7 +293,7 @@ OPTIO_DISCORD_TOKEN=<bot token of Optio>
 OPTIO_CLIENT_SECRET=<secret of the client optio>
 ```
 
-- `image`: a release tag (`X.Y.Z`) of each service. The tags above are examples. `unstable` changes with each push to `main` ([optio/README.md](../optio/README.md#container), [server/README.md](../server/README.md#container)).
+- `image`: a release tag (`X.Y.Z`) or a pre-release tag (`X.Y.Z-<pre>`) of each service. The tags above are examples. `unstable` changes with each push to `main` ([optio/README.md](../optio/README.md#container), [server/README.md](../server/README.md#container)).
 - `events`: the NATS server. Its service name is the host in the connection strings. The volume `events-data` keeps the events of the replay window over a restart of the broker. The broker needs no public route.
 - `server-settings` and `optio-settings`: the settings of each service as JSON, in the sections `Custos` and `Mcp` of the server ([server/README.md](../server/README.md#configuration)) and `Optio` of Optio ([optio/README.md](../optio/README.md#configuration)). Compose mounts each content as `/app/appsettings.Production.json` of its service, and the service reads it when it starts. Compose replaces `${...}` in the content, so do not put a `$` in a value.
 - `PublicBaseUrl`: the origin that Custos and Keycloak use to reach Optio. The client ID of Custos is `{PublicBaseUrl}/.well-known/custos-client`.

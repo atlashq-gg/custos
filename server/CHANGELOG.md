@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.0-alpha.1
+
+A pre-release.
 
 The server is a domain service behind Optio ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). It publishes its stockpile changes to the event broker ([ADR 0007](../docs/adr/0007-a-broker-carries-domain-events.md)).
 
