@@ -38,9 +38,6 @@ internal static class StreamSetup
         builder.Services.AddSingleton<EventStream>();
         builder.Services.AddHostedService(services => services.GetRequiredService<EventStream>());
         builder.Services.AddSingleton<IMemberDirectory, DiscordMembers>();
-        builder.Services.AddHostedService(services =>
-            services.GetRequiredService<IMemberDirectory>()
-        );
         builder.Services.AddSingleton<OpenStreams>();
         return builder;
     }
