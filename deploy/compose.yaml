@@ -41,6 +41,7 @@ services:
     secrets:
       - Optio__OptioClientSecret
       - Optio__DiscordToken
+      - Optio__ClaudeApiKey
     ports:
       - "127.0.0.1:8080:8080"
 
@@ -62,7 +63,11 @@ configs:
         "Optio": {
           "PublicBaseUrl": "https://custos.example.com",
           "Authority": "https://id.example.com/realms/custos",
-          "UploadApiUrl": "http://server:8080/api/v1/uploads"
+          "UploadApiUrl": "http://server:8080/api/v1/uploads",
+          "SystemPrompt": "You are Optio, the assistant of the logistics of a Foxhole guild.",
+          "McpServices": [
+            { "Name": "custos", "Url": "http://server:8080/mcp", "ReadScope": "custos:read" }
+          ]
         }
       }
 
@@ -73,6 +78,8 @@ secrets:
     environment: OPTIO_CLIENT_SECRET
   Optio__DiscordToken:
     environment: OPTIO_DISCORD_TOKEN
+  Optio__ClaudeApiKey:
+    environment: OPTIO_CLAUDE_API_KEY
 
 volumes:
   events-data:
