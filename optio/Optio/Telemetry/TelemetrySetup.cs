@@ -13,6 +13,7 @@ namespace Optio.Telemetry;
 internal static class TelemetrySetup
 {
     public const string Name = "Optio";
+    public const string ServiceNameVariable = "OTEL_SERVICE_NAME";
 
     public static IHostApplicationBuilder AddOptioTelemetry(this IHostApplicationBuilder builder)
     {
@@ -24,11 +25,16 @@ internal static class TelemetrySetup
 
         var telemetry = builder
             .Services.AddOpenTelemetry()
-            // Only the version: OTEL_SERVICE_NAME sets service.name. A second name from AddService
-            // would compete with it.
+            // The name of the service is Optio. OTEL_SERVICE_NAME replaces it, for example with the
+            // name of a resource of the AppHost. A name from AddService would replace the variable,
+            // so Optio adds it only without the variable.
             .ConfigureResource(resource =>
-                resource.AddAttributes([new("service.version", OptioVersion.Value)])
-            )
+            {
+                if (string.IsNullOrEmpty(builder.Configuration[ServiceNameVariable]))
+                    resource.AddService(Name, serviceVersion: OptioVersion.Value);
+                else
+                    resource.AddAttributes([new("service.version", OptioVersion.Value)]);
+            })
             .WithMetrics(metrics =>
                 metrics
                     .AddAspNetCoreInstrumentation()

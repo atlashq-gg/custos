@@ -231,7 +231,6 @@ services:
         Host=postgres;Port=5432;Database=custos;Username=custos;Password=${CUSTOS_DB_PASSWORD}
       ConnectionStrings__events: amqp://custos:${CUSTOS_BROKER_PASSWORD}@broker:5672
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
-      OTEL_SERVICE_NAME: custos-server
     configs:
       - source: server-settings
         target: /app/appsettings.Production.json
@@ -251,7 +250,6 @@ services:
         Host=postgres;Port=5432;Database=optio;Username=optio;Password=${OPTIO_DB_PASSWORD}
       ConnectionStrings__events: amqp://optio:${OPTIO_BROKER_PASSWORD}@broker:5672
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
-      OTEL_SERVICE_NAME: custos-optio
     configs:
       - source: optio-settings
         target: /app/appsettings.Production.json
@@ -342,7 +340,7 @@ OPTIO_MODEL_KEY=<key of the model provider>
 - `optio-system-prompt`: the system prompt of the query. Replace the content with your prompt, and keep its indent. The repository holds an example: [optio/docs/system-prompt.example.txt](../optio/docs/system-prompt.example.txt). Compose mounts the content as `/run/secrets/Optio__SystemPrompt`, so that Optio reads it as the key `Optio:SystemPrompt`. Without it, Optio serves no query. Compose replaces `${...}` in the content here too.
 - `ConnectionStrings__*`: the passwords come from the file `.env` too.
 - `ASPNETCORE_FORWARDEDHEADERS_ENABLED`: each service applies `X-Forwarded-Proto` and `X-Forwarded-For` of the proxy. A service then trusts these headers from each client that reaches its port, so only the proxy must reach it.
-- `OTEL_*`: the telemetry. Add `OTEL_EXPORTER_OTLP_ENDPOINT` to export it. Without it, a service exports nothing.
+- Telemetry: add `OTEL_EXPORTER_OTLP_ENDPOINT` to the environment of a service to export its traces, metrics, and logs. Without it, a service exports nothing. The service names are `Custos` for the server and `Optio`. `OTEL_SERVICE_NAME` replaces a name.
 - `networks`: an existing network that PostgreSQL is on. `docker network ls` shows its name. If PostgreSQL runs on another host, remove that network, and use the host name in `Host=`.
 - `ports`: the reverse proxy on the host connects to `127.0.0.1:8080` for Optio and `127.0.0.1:8081` for the server. If the proxy runs in Docker, put the services on the network of the proxy instead.
 

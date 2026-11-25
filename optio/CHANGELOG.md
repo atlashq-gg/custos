@@ -15,4 +15,5 @@ No release yet. The first release is 0.1.0 ([#48](https://github.com/atlashq-gg/
 - More than one MCP service. When two services have a tool with the same name, the model sees both with the name of their service.
 - One audit line in the log and the counter `optio.tool.calls` for each tool call.
 - `/health/ready` checks the database.
+- The OpenTelemetry service name is `Optio` when `OTEL_SERVICE_NAME` does not set one.
 - The producer contract in `docs/producers.md`, and the broker definitions of development in `rabbitmq/definitions.json`.

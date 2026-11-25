@@ -266,7 +266,7 @@ Custos logs in through Optio: Keycloak gets the Client ID Metadata Document (CIM
 
 ## Telemetry and health
 
-The server sends traces, metrics, and logs through OpenTelemetry. It exports them with OTLP only when the environment has `OTEL_EXPORTER_OTLP_ENDPOINT`. The standard variables `OTEL_EXPORTER_OTLP_*` configure the exporter. Set the name of the service with `OTEL_SERVICE_NAME`. The server adds only `service.version`. In development, the Aspire dashboard shows the three signals.
+The server sends traces, metrics, and logs through OpenTelemetry. It exports them with OTLP only when the environment has `OTEL_EXPORTER_OTLP_ENDPOINT`. The standard variables `OTEL_EXPORTER_OTLP_*` configure the exporter. The service name is `Custos`, and `OTEL_SERVICE_NAME` replaces it. The server also adds `service.version`. In development, the Aspire dashboard shows the three signals.
 
 - Instrumentation: ASP.NET Core, `HttpClient`, the .NET runtime, Npgsql, and the metrics of EF Core. The traces leave out the health endpoints.
 - The server has one activity source and one meter, each with the name `Custos.Server` and the version of the build.

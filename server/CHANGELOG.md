@@ -7,6 +7,7 @@ The server is a domain service behind Optio ([ADR 0006](../docs/adr/0006-optio-i
 - Removed: the discovery document, the Client ID Metadata Document of Custos, and the options `PublicBaseUrl`, `ServiceName`, `Scopes`, `OpenIdConfiguration`, and `ClientId`. Optio serves them now.
 - `Custos:Resource` replaces `Mcp:Resource`. The upload API and `/mcp` accept a token only with this audience. The upload API needs the scope `custos:write`, with no check of `azp`.
 - Events: after the commit of an upload, the server publishes one event `stockpile.changed` for each changed stockpile and each guild that can read it. It publishes to the exchange `events.custos`, with `ConnectionStrings:events`. The event holds the text for a person and the access policy of the guild. The counter `custos.events`.
+- The OpenTelemetry service name is `Custos` when `OTEL_SERVICE_NAME` does not set one.
 - The text of an event: the place, then at most 5 changes as the signed difference and the new total, for example `Rifle crates +20 (40)`, then `+N more`.
 - The realm file moves to `server/keycloak/custos-realm.json`. It has the client `optio` with the standard token exchange, and the optional scope `custos:client`. This change removes the AppHost of the server. The AppHost of Optio starts the full system.
 

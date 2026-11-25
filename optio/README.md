@@ -192,7 +192,7 @@ The connection string of the broker is `ConnectionStrings:events` (`ConnectionSt
 
 - `optio --version` prints the version.
 - `optio --healthcheck` asks `/health/alive` on this machine. The exit code is 0 for a healthy service. The `HEALTHCHECK` of the image uses it.
-- Optio exports traces, metrics, and logs with OTLP when the environment has `OTEL_EXPORTER_OTLP_ENDPOINT`. Its activity source and its meter have the name `Optio`.
+- Optio exports traces, metrics, and logs with OTLP when the environment has `OTEL_EXPORTER_OTLP_ENDPOINT`. Its activity source and its meter have the name `Optio`. The service name is `Optio`, and `OTEL_SERVICE_NAME` replaces it.
 
 | Metric | Content |
 |---|---|
