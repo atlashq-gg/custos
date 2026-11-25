@@ -111,9 +111,9 @@ mod tests {
     #[test]
     fn line_end_and_text_can_split_across_chunks() {
         let mut parser = Parser::default();
-        assert!(parser.feed(b"id: 1\r").is_empty());
-        assert!(parser.feed(b"\nda").is_empty());
-        assert!(parser.feed(b"ta: a\r").is_empty());
+        assert_eq!(parser.feed(b"id: 1\r"), []);
+        assert_eq!(parser.feed(b"\nda"), []);
+        assert_eq!(parser.feed(b"ta: a\r"), []);
         assert_eq!(parser.feed(b"\n\r\n"), [event(Some("1"), Some("a"))]);
     }
 
