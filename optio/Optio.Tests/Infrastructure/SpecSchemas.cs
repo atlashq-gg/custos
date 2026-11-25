@@ -8,12 +8,29 @@ internal static class SpecSchemas
 {
     private static readonly Lazy<JsonSchema> Discovery = new(() => Load("discovery.schema.json"));
 
-    private static readonly Lazy<JsonSchema> Message = new(() => Load("message.schema.json"));
+    // A schema registers itself by its $id when it loads, and a $ref resolves only to a schema
+    // that loaded before. Thus each schema loads once, after the schemas that it refers to.
+    private static readonly Lazy<JsonSchema> Query = new(() => Load("query.schema.json"));
+
+    private static readonly Lazy<JsonSchema> QueryState = new(() =>
+    {
+        _ = Query.Value;
+        return Load("query-state.schema.json");
+    });
+
+    private static readonly Lazy<JsonSchema> Message = new(() =>
+    {
+        _ = QueryState.Value;
+        return Load("message.schema.json");
+    });
 
     public static void AssertDiscoveryDocument(JsonElement document) =>
         AssertValid(Discovery.Value, document);
 
     public static void AssertMessage(JsonElement document) => AssertValid(Message.Value, document);
+
+    public static void AssertQueryState(JsonElement document) =>
+        AssertValid(QueryState.Value, document);
 
     private static JsonSchema Load(string name) =>
         JsonSchema.FromFile(Path.Combine(AppContext.BaseDirectory, "spec", name));

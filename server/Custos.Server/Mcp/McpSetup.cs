@@ -22,6 +22,19 @@ internal static partial class McpSetup
     public const string Policy = "mcp";
     public const string RatePolicy = "mcp";
 
+    /// <summary>
+    /// The card of the server in the MCP member <c>instructions</c>: the purpose, the records
+    /// that the server holds, and the records that it does not hold. A harness with more than one
+    /// service gives it to the model, so that the model selects the correct service.
+    /// </summary>
+    public const string Card =
+        "Custos holds the logistics records of Foxhole guilds. It knows the stockpiles, the "
+        + "items in each stockpile with their quantities, and the structures that hold the "
+        + "stockpiles, such as storage depots and seaports, with their labels. The records "
+        + "come from the map data files that players upload, and each record belongs to a war. "
+        + "Custos does not hold players, crews, tasks, orders, or plans. It does not know the "
+        + "war map, the front lines, or the production of items.";
+
     public static IHostApplicationBuilder AddCustosMcp(this IHostApplicationBuilder builder)
     {
         builder
@@ -101,12 +114,15 @@ internal static partial class McpSetup
 
         builder
             .Services.AddMcpServer(options =>
+            {
                 options.ServerInfo = new Implementation
                 {
                     Name = "custos",
+                    Title = "Custos",
                     Version = ServerVersion.Value,
-                }
-            )
+                };
+                options.ServerInstructions = Card;
+            })
             // Stateless: one HTTP request is one tool call, and a scoped service lives for one
             // call.
             .WithHttpTransport(http => http.Stateless = true)

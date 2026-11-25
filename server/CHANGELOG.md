@@ -16,6 +16,7 @@ The server is a domain service behind Optio ([ADR 0006](../docs/adr/0006-optio-i
 - Events: after the commit of an upload, the server publishes one event `stockpile.changed` for each changed stockpile and each guild that can read it. It publishes to NATS JetStream with `ConnectionStrings:events`, below the subject `events.custos.`, as `optio/docs/producers.md` describes. The event holds the text for a person and the access policy of the guild. An upload does not wait for the broker. The counter `custos.events` counts the events by outcome.
 - The text of an event: the place, then at most 5 changes as the signed difference and the new total, for example `Rifle crates +20 (40)`, then `+N more`.
 - The OpenTelemetry service name is `Custos` when `OTEL_SERVICE_NAME` does not set one.
+- The MCP endpoint gives the card of the server in `instructions`, and the title `Custos`. A harness with more than one service gives the card to its model.
 - The realm file moves to `server/keycloak/custos-realm.json`. It has the client `optio` with the standard token exchange, and the optional scope `custos:client`. This change removes the AppHost of the server. The AppHost of Optio starts the full system.
 
 For operators:
