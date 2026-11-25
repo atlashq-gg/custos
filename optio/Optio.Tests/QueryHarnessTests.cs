@@ -97,7 +97,7 @@ public sealed class QueryHarnessTests
     }
 
     [Test]
-    public void System_prompt_has_each_service_card_the_operator_text_and_the_guild()
+    public void System_prompt_has_the_cards_the_operator_text_the_guild_and_the_guild_prompt_last()
     {
         var prompt = QueryHarness.SystemPrompt(
             Options,
@@ -105,7 +105,8 @@ public sealed class QueryHarnessTests
                 new ServiceCard("custos", "Custos", "Custos holds the stockpiles.", true),
                 new ServiceCard("second", "Second", null, false),
             ],
-            Record()
+            Record(),
+            "  Be brief.  "
         );
 
         Assert.That(
@@ -117,7 +118,8 @@ public sealed class QueryHarnessTests
                     + "not available now. Its tools are not in the list.\n</service>\n</services>"
                     + "\n\nA label in Custos names a structure.\n\nThe guild of the user has the "
                     + "ID 300000000000000001. Each tool reads this guild.\n\nWrite the answer as "
-                    + "plain text with no markup."
+                    + "plain text with no markup.\n\nThe administrators of the guild give these "
+                    + "instructions:\n<guild_instructions>\nBe brief.\n</guild_instructions>"
             )
         );
     }
@@ -140,6 +142,7 @@ public sealed class QueryHarnessTests
             Record(),
             new ToolUser("token", FakeMembers.Guild, FakeMembers.Reader),
             [],
+            null,
             _time.GetUtcNow() + TimeSpan.FromSeconds(60),
             text =>
             {

@@ -5,8 +5,9 @@ namespace Optio.Endpoints;
 
 /// <summary>
 /// The health endpoints. A tag selects the checks of each endpoint: <see cref="LiveTag"/> for
-/// <see cref="AlivePath"/>, and <see cref="ReadyTag"/> for <see cref="ReadyPath"/>. Optio holds no
-/// database, so readiness has no check yet.
+/// <see cref="AlivePath"/>, and <see cref="ReadyTag"/> for <see cref="ReadyPath"/>. With its
+/// database, readiness checks the database (<see cref="Storage.StorageSetup"/>). The broker and
+/// Discord are not a part of readiness: without them, the upload still works.
 /// </summary>
 internal static class Health
 {

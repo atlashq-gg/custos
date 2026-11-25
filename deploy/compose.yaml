@@ -34,6 +34,8 @@ services:
     restart: unless-stopped
     environment:
       ConnectionStrings__events: nats://optio:${OPTIO_BROKER_PASSWORD}@events:4222
+      ConnectionStrings__optio: >-
+        Host=postgres;Port=5432;Database=optio;Username=optio;Password=${OPTIO_DB_PASSWORD}
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
     configs:
       - source: optio-settings
@@ -44,6 +46,9 @@ services:
       - Optio__ClaudeApiKey
     ports:
       - "127.0.0.1:8080:8080"
+    networks:
+      - default
+      - postgres
 
 configs:
   server-settings:
