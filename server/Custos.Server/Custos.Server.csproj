@@ -29,7 +29,7 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.21.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.21.0" />
     <PackageReference Include="NATS.Client.JetStream" Version="3.4.1" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.21.0" />
+    <PackageReference Include="Scalar.AspNetCore" Version="3.2.1" />
   </ItemGroup>
 
   <!-- The catalog of the game is a separate file with its own license (catalog/LICENSE.md). The
