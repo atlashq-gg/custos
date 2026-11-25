@@ -7,7 +7,7 @@ public sealed class OptioOptions
 {
     public const string SectionName = "Optio";
 
-    /// <summary>The origin of optio as Custos sees it. The discovery document builds its URLs from
+    /// <summary>The origin of Optio as Custos sees it. The discovery document builds its URLs from
     /// it.</summary>
     [Required, Url]
     public string PublicBaseUrl { get; set; } = "";
@@ -45,12 +45,12 @@ public sealed class OptioOptions
     public string? OpenIdConfiguration { get; set; }
 
     /// <summary>
-    /// The client ID of Custos. Empty means the URL of the client metadata document of optio. Set
-    /// it when the authorization server reaches optio under a different host than Custos.
+    /// The client ID of Custos. Empty means the URL of the client metadata document of Optio. Set
+    /// it when the authorization server reaches Optio under a different host than Custos.
     /// </summary>
     public string? CustosClientId { get; set; }
 
-    /// <summary>The client ID of optio. A token of Custos for optio has it in <c>aud</c>.</summary>
+    /// <summary>The client ID of optio. A token of Custos for Optio has it in <c>aud</c>.</summary>
     [Required]
     public string OptioClientId { get; set; } = "optio";
 

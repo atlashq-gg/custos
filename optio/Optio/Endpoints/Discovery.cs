@@ -23,7 +23,7 @@ internal static class Discovery
 {
     public const string Path = "/.well-known/custos-configuration";
 
-    /// <summary>The contract versions of spec/ that optio implements.</summary>
+    /// <summary>The contract versions of spec/ that Optio implements.</summary>
     public static readonly string[] SupportedVersions = ["0"];
 
     public static IEndpointRouteBuilder MapDiscovery(this IEndpointRouteBuilder app)

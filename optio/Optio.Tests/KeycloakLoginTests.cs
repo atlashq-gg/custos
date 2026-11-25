@@ -20,7 +20,7 @@ namespace Optio.Tests;
 
 /// <summary>
 /// The login of spec/02-authentication.md against Keycloak with the development realm of the
-/// server: Keycloak gets the Client ID Metadata Document of Custos from optio. optio then
+/// server: Keycloak gets the Client ID Metadata Document of Custos from Optio. Optio then
 /// exchanges the token of Custos for a token of the upload API. The browser part is done with
 /// plain HTTP requests. Needs Docker.
 /// </summary>
@@ -300,7 +300,7 @@ public sealed partial class KeycloakLoginTests
         }
     }
 
-    /// <summary>optio on Kestrel with the real realm, and a fake upload API.</summary>
+    /// <summary>Optio on Kestrel with the real realm, and a fake upload API.</summary>
     private sealed class KestrelFactory(int port, string authority) : WebApplicationFactory<Program>
     {
         public FakeUploadApi UploadApi { get; } = new();

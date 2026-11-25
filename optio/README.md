@@ -1,8 +1,8 @@
-# optio
+# Optio
 
-`optio` is the service that Custos calls ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). It implements the contract of [spec/](../spec/README.md): the discovery document, the upload, the stream, and the query. It calls the domain services, for example the [server](../server/README.md), with a token of the user for each service.
+Optio is the service that Custos calls ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). It implements the contract of [spec/](../spec/README.md): the discovery document, the upload, and the stream. It calls the domain services, for example the [server](../server/README.md), with a token of the user for each service.
 
-The work is in progress. The roadmap is [#48](https://github.com/atlashq-gg/custos/issues/48). This version serves the discovery document and the Client ID Metadata Document of Custos, relays the upload, and sends the events of the domain services on the stream. The query comes later.
+Optio serves the discovery document and the Client ID Metadata Document of Custos, relays the upload, and sends the events of the domain services on the stream. The query of the user comes later. The roadmap is [#48](https://github.com/atlashq-gg/custos/issues/48).
 
 ## Run
 
@@ -16,7 +16,7 @@ The AppHost starts the full system:
 
 | Resource | URL | Content |
 |---|---|---|
-| optio | `http://localhost:5090` | The service URL for Custos. |
+| Optio | `http://localhost:5090` | The service URL for Custos. |
 | server | `http://localhost:5080` | The domain service of the guild records ([server/README.md](../server/README.md)). |
 | PostgreSQL 18 | (dashboard) | The database of the server. The data lasts for one run. |
 | NATS | (dashboard) | The event broker with JetStream, with the users of [nats/nats.conf](nats/nats.conf). The server publishes its events to it, and Optio makes the stream. The events last for one run. |
@@ -38,10 +38,10 @@ The server needs a Discord bot token in the user secrets of the AppHost ([server
 ## Upload
 
 1. Custos logs in with the scopes of the discovery document. The scope `custos:client` gives its token the audience `optio`.
-2. `optio` accepts a token with the audience `optio` and the client of Custos in `azp`.
-3. `optio` examines the content type (`415`) and the size (`413`).
-4. `optio` exchanges the token for a token of the server with the scope `custos:write` (RFC 8693). It keeps the exchanged token in memory until 30 seconds before it expires.
-5. `optio` sends the body as a stream to the upload API of the server. It gives back the status, the body, and `Retry-After` of the server with no change.
+2. Optio accepts a token with the audience `optio` and the client of Custos in `azp`.
+3. Optio examines the content type (`415`) and the size (`413`).
+4. Optio exchanges the token for a token of the server with the scope `custos:write` (RFC 8693). It keeps the exchanged token in memory until 30 seconds before it expires.
+5. Optio sends the body as a stream to the upload API of the server. It gives back the status, the body, and `Retry-After` of the server with no change.
 
 When the authorization server refuses the exchange, or the server does not answer, the upload gets `503`. The server applies the upload interval and the Discord roles.
 
@@ -80,11 +80,11 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 
 | Key | Default | Content |
 |---|---|---|
-| `PublicBaseUrl` | (required) | The origin of `optio` as Custos sees it. |
+| `PublicBaseUrl` | (required) | The origin of Optio as Custos sees it. |
 | `Authority` | (required) | The issuer URL of the authorization server. |
 | `OpenIdConfiguration` | `{Authority}/.well-known/openid-configuration` | The metadata document of the authorization server. |
 | `CustosClientId` | `{PublicBaseUrl}/.well-known/custos-client` | The client ID of Custos. |
-| `OptioClientId` | `optio` | The client ID of `optio`, and the audience of a token of Custos. |
+| `OptioClientId` | `optio` | The client ID of Optio, and the audience of a token of Custos. |
 | `OptioClientSecret` | (required) | The secret of the client `optio`. |
 | `UploadApiUrl` | (required) | The upload API of the server, for example `http://server:8080/api/v1/uploads`. |
 | `UploadScope` | `custos:write` | The scope of the token for the upload API. |
@@ -107,11 +107,11 @@ The connection string of the broker is `ConnectionStrings:events` (`ConnectionSt
 | Endpoint | Content |
 |---|---|
 | `GET /health/alive` | `Healthy` while the process runs. |
-| `GET /health/ready` | `Healthy` when `optio` can serve requests. |
+| `GET /health/ready` | `Healthy` when Optio can serve requests. |
 
 - `optio --version` prints the version.
 - `optio --healthcheck` asks `/health/alive` on this machine. The exit code is 0 for a healthy service. The `HEALTHCHECK` of the image uses it.
-- `optio` exports traces, metrics, and logs with OTLP when the environment has `OTEL_EXPORTER_OTLP_ENDPOINT`. Its activity source and its meter have the name `Optio`. The service name is `Optio`, unless `OTEL_SERVICE_NAME` sets another.
+- Optio exports traces, metrics, and logs with OTLP when the environment has `OTEL_EXPORTER_OTLP_ENDPOINT`. Its activity source and its meter have the name `Optio`. The service name is `Optio`, unless `OTEL_SERVICE_NAME` sets another.
 
 | Metric | Content |
 |---|---|
@@ -148,6 +148,10 @@ The image is `ghcr.io/atlashq-gg/custos-optio`. The container serves HTTP on por
 docker build -t custos-optio .
 docker run --rm -p 8080:8080 custos-optio
 ```
+
+## Deploy
+
+[docs/deploy.md](../docs/deploy.md) deploys the full system: Keycloak, PostgreSQL, the broker, the server, and Optio.
 
 ## License
 

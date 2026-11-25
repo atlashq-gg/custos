@@ -12,7 +12,7 @@ const int keycloakPort = 8180;
 
 // Keycloak gets the Client ID Metadata Document of Custos from optio. Keycloak runs in a
 // container, so it uses the Aspire container tunnel (ASPIRE_ENABLE_CONTAINER_TUNNEL in
-// launchSettings.json) and its host name. The client ID is the URL that Keycloak gets, so optio
+// launchSettings.json) and its host name. The client ID is the URL that Keycloak gets, so Optio
 // announces the same URL.
 const string tunnelHost = "aspire.dev.internal";
 var custosClientId = $"http://{tunnelHost}:{optioPort}/.well-known/custos-client";
@@ -123,8 +123,8 @@ var optio = builder
     .WithHttpHealthCheck("/health/ready");
 
 // The tunnel serves only an endpoint that a container references. This reference also gives the
-// realm the host name of optio as Keycloak sees it (aspire.dev.internal). optio does not wait for
-// Keycloak: Keycloak needs the address of optio first, and optio gets the metadata of Keycloak
+// realm the host name of Optio as Keycloak sees it (aspire.dev.internal). Optio does not wait for
+// Keycloak: Keycloak needs the address of Optio first, and Optio gets the metadata of Keycloak
 // only on the first request that needs it.
 keycloak.WithEnvironment(
     "CUSTOS_CIMD_HOST",

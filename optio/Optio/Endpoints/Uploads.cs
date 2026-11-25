@@ -7,7 +7,7 @@ using Optio.Tokens;
 namespace Optio.Endpoints;
 
 /// <summary>
-/// The upload of spec/03-upload.md. optio examines the token, the content type, and the size.
+/// The upload of spec/03-upload.md. Optio examines the token, the content type, and the size.
 /// Then it sends the body as a stream to the upload API of the server, with a token of the user
 /// for the server, and gives back the answer of the server with no change.
 /// </summary>
