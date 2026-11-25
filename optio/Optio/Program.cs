@@ -1,7 +1,9 @@
 using System.Text.Json;
 using Optio;
+using Optio.Discord;
 using Optio.Endpoints;
 using Optio.Queries;
+using Optio.Storage;
 using Optio.Streams;
 using Optio.Telemetry;
 using Optio.Tokens;
@@ -33,7 +35,15 @@ builder.Services.AddSingleton<OptioMetrics>();
 builder.Services.AddOptioHealthChecks();
 builder.Services.AddHttpClient<TokenExchange>().AddStandardResilienceHandler();
 builder.Services.AddHttpClient<UploadRelay>(http => http.Timeout = TimeSpan.FromSeconds(60));
-builder.AddOptioTelemetry().AddOptioAuthentication().AddOptioStream().AddOptioQuery();
+
+// The storage first: its migrator is the first hosted service.
+builder
+    .AddOptioTelemetry()
+    .AddOptioAuthentication()
+    .AddOptioStorage()
+    .AddOptioDiscord()
+    .AddOptioStream()
+    .AddOptioQuery();
 
 var app = builder.Build();
 

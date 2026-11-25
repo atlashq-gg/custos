@@ -39,6 +39,7 @@ internal sealed class QueryHarness(
         QueryRecord query,
         ToolUser user,
         IReadOnlyList<ModelMessage> history,
+        string? guildPrompt,
         DateTimeOffset end,
         Func<string, Task> status,
         CancellationToken cancellationToken
@@ -56,7 +57,7 @@ internal sealed class QueryHarness(
         try
         {
             await using var session = await tools.OpenAsync(user, limit.Token);
-            var system = SystemPrompt(o, session.Services, query);
+            var system = SystemPrompt(o, session.Services, query, guildPrompt);
             List<ModelMessage> messages = [.. history, new UserMessage(query.Question)];
             var first = history.Count;
             var calls = 0;
@@ -124,12 +125,15 @@ internal sealed class QueryHarness(
 
     /// <summary>
     /// The system prompt: the prompt of the configuration, one section for each service with its
-    /// card, the text of the operator, the guild, and the form of the answer.
+    /// card, the text of the operator, the guild, and the form of the answer. The prompt of the
+    /// guild comes last and in its own block, so that the system prompt can state that its rules
+    /// come first.
     /// </summary>
     internal static string SystemPrompt(
         OptioOptions options,
         IReadOnlyList<ServiceCard> services,
-        QueryRecord query
+        QueryRecord query,
+        string? guildPrompt
     )
     {
         var text = new StringBuilder(options.SystemPrompt?.Trim());
@@ -155,6 +159,13 @@ internal sealed class QueryHarness(
             $"\n\nThe guild of the user has the ID {query.Guild}. Each tool reads this guild."
         );
         text.Append("\n\nWrite the answer as plain text with no markup.");
+        if (!string.IsNullOrWhiteSpace(guildPrompt))
+        {
+            text.Append("\n\nThe administrators of the guild give these instructions:\n")
+                .Append("<guild_instructions>\n")
+                .Append(guildPrompt.Trim())
+                .Append("\n</guild_instructions>");
+        }
         return text.ToString();
     }
 
