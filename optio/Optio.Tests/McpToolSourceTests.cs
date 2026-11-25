@@ -132,4 +132,94 @@ public sealed class McpToolSourceTests
             Assert.That(exchange["subject_token"], Is.EqualTo("answer-token"));
         }
     }
+
+    [Test]
+    public async Task Tool_name_of_two_services_gets_the_name_of_each_service()
+    {
+        await using var second = await TestMcpServer.StartAsync();
+        using var factory = new OptioFactory(query: true)
+        {
+            McpServer = _server.Handler,
+            SecondMcpServer = second.Handler,
+        };
+        TestMcpServer.CanWrite = token =>
+            factory.AuthorizationServer.ScopeOf(token)?.Contains("custos:write") == true;
+        await using var scope = factory.Services.CreateAsyncScope();
+        var source = ActivatorUtilities.CreateInstance<McpToolSource>(scope.ServiceProvider);
+        await using var session = await source.OpenAsync(
+            new ToolUser("custos-token", Guild, Reader),
+            default
+        );
+
+        var result = await session.CallAsync(
+            new ToolCall("call-1", "second_list_guilds", new Dictionary<string, JsonElement>()),
+            default
+        );
+
+        var token = second.Authorizations.Last()!["Bearer ".Length..];
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(
+                session.Tools.Select(t => t.Name),
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        "server_find_items",
+                        "server_find_structures",
+                        "server_list_guilds",
+                        "second_find_items",
+                        "second_find_structures",
+                        "second_list_guilds",
+                        TestMcpServer.LabelTool,
+                        TestMcpServer.StatusTool,
+                        TestMcpServer.LogTool,
+                    }
+                )
+            );
+            Assert.That(result.Content, Is.EqualTo("no guilds"));
+            Assert.That(factory.AuthorizationServer.ScopeOf(token), Is.EqualTo("second:read"));
+        }
+    }
+
+    [Test]
+    public async Task Write_tool_with_a_confirm_argument_gets_true_from_code()
+    {
+        TestMcpServer.CanWrite = token =>
+            _factory.AuthorizationServer.ScopeOf(token)?.Contains("custos:write") == true;
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var source = ActivatorUtilities.CreateInstance<McpToolSource>(scope.ServiceProvider);
+        await using var session = await source.OpenAsync(
+            new ToolUser("custos-token", Guild, Reader),
+            default
+        );
+        var write = session.AsWrite(
+            new ToolCall(
+                "call-1",
+                TestMcpServer.StatusTool,
+                new Dictionary<string, JsonElement>
+                {
+                    ["task_id"] = JsonSerializer.SerializeToElement("t-1"),
+                    ["status"] = JsonSerializer.SerializeToElement("done"),
+                }
+            )
+        )!;
+
+        var result = await source.CallAsync(
+            new ToolUser("answer-token", Guild, Reader),
+            write,
+            default
+        );
+
+        var tool = session.Tools.Single(t => t.Name == TestMcpServer.StatusTool);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(
+                tool.Schema.GetProperty("properties").TryGetProperty("confirm", out _),
+                Is.False
+            );
+            Assert.That(write.Shown, Is.EqualTo(new[] { "status" }));
+            Assert.That(result.Content, Is.EqualTo("The task is done."));
+            Assert.That(TestMcpServer.StatusCalls, Is.EqualTo(new[] { ("t-1", "done", true) }));
+        }
+    }
 }

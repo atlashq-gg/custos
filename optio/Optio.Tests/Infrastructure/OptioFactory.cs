@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using System.Web;
@@ -72,6 +73,12 @@ internal sealed class OptioFactory(
 
     /// <summary>The handler of the MCP services, for a test of the real tool source. Set it
     /// before the first use of the factory.</summary>
+    /// <summary>A second MCP service with the name <see cref="SecondService"/>, with
+    /// <see cref="McpServer"/>.</summary>
+    public HttpMessageHandler? SecondMcpServer { get; set; }
+
+    public const string SecondService = "second";
+
     public HttpMessageHandler? McpServer { get; set; }
 
     public FakeTimeProvider Time { get; } = new(DateTimeOffset.UtcNow);
@@ -98,6 +105,13 @@ internal sealed class OptioFactory(
             builder.UseSetting("Optio:McpServices:0:Url", "http://server.test/mcp");
             builder.UseSetting("Optio:McpServices:0:ReadScope", "custos:read");
             builder.UseSetting("Optio:McpServices:0:WriteScope", "custos:write");
+            if (SecondMcpServer is not null)
+            {
+                builder.UseSetting("Optio:McpServices:1:Name", SecondService);
+                builder.UseSetting("Optio:McpServices:1:Url", $"http://{SecondService}.test/mcp");
+                builder.UseSetting("Optio:McpServices:1:ReadScope", "second:read");
+                builder.UseSetting("Optio:McpServices:1:WriteScope", "second:write");
+            }
         }
         if (stream)
         {
@@ -139,7 +153,15 @@ internal sealed class OptioFactory(
                 {
                     services
                         .AddHttpClient(McpToolSource.HttpClientName)
-                        .ConfigurePrimaryHttpMessageHandler(() => McpServer);
+                        .ConfigurePrimaryHttpMessageHandler(() =>
+                            SecondMcpServer is null
+                                ? McpServer
+                                : new HostRouter(
+                                    McpServer,
+                                    $"{SecondService}.test",
+                                    SecondMcpServer
+                                )
+                        );
                 }
             }
             services.PostConfigureAll<JwtBearerOptions>(jwt =>
@@ -193,6 +215,28 @@ internal sealed class OptioFactory(
         );
 
     public const string DefaultSession = "session-1";
+
+    /// <summary>Answers a confirmation as the client of <see cref="CreateMemberClient"/>. The
+    /// query frees its slot just after the confirm message, so the answer tries again after a
+    /// <c>429</c>.</summary>
+    public async Task<HttpResponseMessage> AnswerAsync(string reference, bool accept)
+    {
+        using var client = CreateMemberClient();
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/query",
+            new { confirm = reference, accept }
+        );
+        for (var i = 0; i < 100 && response.StatusCode == HttpStatusCode.TooManyRequests; i++)
+        {
+            response.Dispose();
+            await Task.Delay(50);
+            response = await client.PostAsJsonAsync(
+                "/api/v1/query",
+                new { confirm = reference, accept }
+            );
+        }
+        return response;
+    }
 
     public static string CustosToken(
         string subject,
@@ -306,4 +350,19 @@ internal sealed class FakeUploadApi : HttpMessageHandler
         );
         return Respond();
     }
+}
+
+/// <summary>Sends the requests for one host to a second handler, and the others to the first.
+/// </summary>
+internal sealed class HostRouter(HttpMessageHandler first, string host, HttpMessageHandler second)
+    : HttpMessageHandler
+{
+    private readonly HttpMessageInvoker _first = new(first);
+    private readonly HttpMessageInvoker _second = new(second);
+
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken
+    ) =>
+        (request.RequestUri!.Host == host ? _second : _first).SendAsync(request, cancellationToken);
 }

@@ -9,9 +9,10 @@ using ModelContextProtocol.Server;
 namespace Optio.Tests.Infrastructure;
 
 /// <summary>
-/// A small MCP server in the test host, with three read tools and one write tool in the shape of
-/// the tools of the server. It lists the write tool only for a token with the write scope, as the
-/// server does. It keeps the <c>Authorization</c> header and the arguments of each call.
+/// A small MCP server in the test host, with three read tools and three write tools in the shape
+/// of the tools of the domain services. It lists the write tools only for a token with the write
+/// scope, as the server does. It keeps the <c>Authorization</c> header and the arguments of each
+/// call.
 /// </summary>
 internal sealed class TestMcpServer : IAsyncDisposable
 {
@@ -58,7 +59,14 @@ internal sealed class TestMcpServer : IAsyncDisposable
                     {
                         var result = await next(request, cancellationToken);
                         if (!CanWrite(BearerToken(request.Services!) ?? ""))
-                            result.Tools = [.. result.Tools.Where(t => t.Name != LabelTool)];
+                        {
+                            result.Tools =
+                            [
+                                .. result.Tools.Where(t =>
+                                    t.Name is not (LabelTool or StatusTool or LogTool)
+                                ),
+                            ];
+                        }
                         return result;
                     }
                 )
@@ -79,11 +87,18 @@ internal sealed class TestMcpServer : IAsyncDisposable
             FindItemsCalls.Clear();
         lock (LabelCalls)
             LabelCalls.Clear();
+        lock (StatusCalls)
+            StatusCalls.Clear();
         CanWrite = _ => false;
         return server;
     }
 
     public const string LabelTool = "set_structure_label";
+    public const string StatusTool = "set_task_status";
+    public const string LogTool = "post_note";
+
+    /// <summary>The arguments of each call of <c>set_task_status</c>.</summary>
+    public static List<(string TaskId, string Status, bool Confirm)> StatusCalls { get; } = [];
 
     /// <summary>The structures of <c>find_structures</c>: the ID and the current label.</summary>
     public static readonly Dictionary<string, string> Structures = new()
@@ -180,6 +195,41 @@ internal sealed class TestMcpServer : IAsyncDisposable
                 );
             return JsonSerializer.Serialize(new { structure_id, new_label = label });
         }
+
+        [McpServerTool(Name = StatusTool, Title = "Set the status of a task", ReadOnly = false)]
+        [System.ComponentModel.Description(
+            "Change the status of a task. Without confirm, it gives a preview."
+        )]
+        public static string SetTaskStatus(
+            string guild_id,
+            string task_id,
+            string status,
+            bool confirm = false
+        )
+        {
+            lock (StatusCalls)
+                StatusCalls.Add((task_id, status, confirm));
+            return confirm ? $"The task is {status}." : "Preview: nothing changed.";
+        }
+
+        [McpServerTool(Name = LogTool, Title = "Post a note", ReadOnly = false)]
+        [System.ComponentModel.Description("Post a note to a team.")]
+        public static string PostNote(
+            string guild_id,
+            string team_id,
+            [System.ComponentModel.Description("The note type: progress, status or description.")]
+                string type,
+            [System.ComponentModel.Description("The text of the note, up to 1024 characters.")]
+                string text
+        ) =>
+            JsonSerializer.Serialize(
+                new
+                {
+                    note_id = "n-1",
+                    team = "Logi Team",
+                    type,
+                }
+            );
 
         [McpServerTool(Name = "list_guilds", Title = "List guilds", ReadOnly = true)]
         [System.ComponentModel.Description("The guilds of the user.")]

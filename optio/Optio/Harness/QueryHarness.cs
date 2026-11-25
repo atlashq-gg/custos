@@ -14,14 +14,24 @@ internal sealed record Query(
     string Text
 );
 
+/// <summary>The state of a query that waits for a confirmation: the messages to the model with
+/// the last turn of the model, the tool results of the query, and the number of tool calls.
+/// </summary>
+internal sealed record Conversation(
+    IReadOnlyList<ModelMessage> Messages,
+    ModelTurn Turn,
+    IReadOnlyList<string> Results,
+    int Calls
+);
+
 /// <summary>
 /// The loop of one query: the model, the tool calls, the model. One query has at most
 /// <see cref="MaxToolCalls"/> tool calls and <see cref="MaxDuration"/>. The harness sends one
 /// <c>progress</c> message for each tool call, then one <c>answer</c> or one <c>error</c>, to each
 /// open stream of the client. Each query starts with no earlier conversation.
 /// When the model calls a write tool, the loop stops with a <c>confirm</c> message. After the user
-/// accepts, <see cref="ConfirmAsync"/> calls the write tools and sends the result as the
-/// <c>answer</c>, with no other turn of the model (decisions on #48 of 2026-11-24).
+/// accepts, <see cref="ConfirmAsync"/> calls the tools of that turn, and the loop continues: the
+/// model reads the results and writes the answer (decisions on #48 of 2026-11-24).
 /// </summary>
 internal sealed partial class QueryHarness(
     IModelClient model,
@@ -42,10 +52,14 @@ internal sealed partial class QueryHarness(
     public const int MaxTextLength = 500;
 
     public Task RunAsync(Query query, CancellationToken stoppingToken) =>
-        RunAsync(query, cancellationToken => AnswerAsync(query, cancellationToken), stoppingToken);
+        RunAsync(
+            query,
+            cancellationToken => AnswerAsync(query, null, cancellationToken),
+            stoppingToken
+        );
 
-    /// <summary>Calls the write tools of a confirmation that the user accepted, with the access
-    /// token of the answer.</summary>
+    /// <summary>Continues a query after the user accepted its confirmation, with the access token
+    /// of the answer.</summary>
     public Task ConfirmAsync(
         Confirmation confirmation,
         string accessToken,
@@ -55,7 +69,7 @@ internal sealed partial class QueryHarness(
         var query = new Query(confirmation.Client, accessToken, confirmation.Reference, "");
         return RunAsync(
             query,
-            cancellationToken => WriteAsync(query, confirmation.Calls, cancellationToken),
+            cancellationToken => AnswerAsync(query, confirmation, cancellationToken),
             stoppingToken
         );
     }
@@ -93,19 +107,21 @@ internal sealed partial class QueryHarness(
         }
     }
 
-    /// <summary>The answer, or null when the query waits for a confirmation.</summary>
+    /// <summary>
+    /// The answer, or null when the query waits for a confirmation. After the user accepted a
+    /// confirmation, the loop first calls the tools of the turn that waited, then continues.
+    /// </summary>
     private async Task<(string Kind, string Text)?> AnswerAsync(
         Query query,
+        Confirmation? confirmation,
         CancellationToken cancellationToken
     )
     {
         var guild = query.Client.Guild;
         var guildSettings = await settings.GetAsync(guild, cancellationToken);
         var system = SystemPrompt(options.Value.SystemPrompt!, guild, guildSettings.Prompt);
-        await using var session = await tools.OpenAsync(
-            new ToolUser(query.AccessToken, guild, query.Client.User),
-            cancellationToken
-        );
+        var user = new ToolUser(query.AccessToken, guild, query.Client.User);
+        await using var session = await tools.OpenAsync(user, cancellationToken);
         List<ModelTool> modelTools =
         [
             .. session.Tools.Select(t =>
@@ -113,9 +129,26 @@ internal sealed partial class QueryHarness(
             ),
         ];
 
-        List<ModelMessage> messages = [new UserMessage(query.Text)];
-        List<string> seen = [];
-        var calls = 0;
+        var conversation = confirmation?.Conversation;
+        List<ModelMessage> messages = conversation is null
+            ? [new UserMessage(query.Text)]
+            : [.. conversation.Messages];
+        List<string> results = [.. conversation?.Results ?? []];
+        var calls = conversation?.Calls ?? 0;
+        if (confirmation is not null)
+        {
+            await CallToolsAsync(
+                query,
+                user,
+                session,
+                confirmation.Conversation.Turn,
+                confirmation.Calls,
+                messages,
+                results,
+                cancellationToken
+            );
+        }
+
         while (true)
         {
             var turn = await model.NextAsync(
@@ -135,37 +168,60 @@ internal sealed partial class QueryHarness(
             calls += turn.ToolCalls.Count;
             if (calls > MaxToolCalls)
                 throw new QueryException("The query needs too many steps. Ask a smaller question.");
-            if (Confirm(query, session, turn.ToolCalls, seen))
-                return null;
-
             messages.Add(new AssistantMessage(turn));
-            List<ToolResult> results = [];
-            foreach (var call in turn.ToolCalls)
-            {
-                var title = session.Tools.FirstOrDefault(t => t.Name == call.Name)?.Title;
-                Send(query, "progress", $"{title ?? call.Name}…");
-                results.Add(await session.CallAsync(call, cancellationToken));
-            }
-            messages.Add(new ToolResultsMessage(results));
-            seen.AddRange(results.Select(r => r.Content));
+            if (Confirm(query, session, new Conversation(messages, turn, results, calls)))
+                return null;
+            await CallToolsAsync(
+                query,
+                user,
+                session,
+                turn,
+                [],
+                messages,
+                results,
+                cancellationToken
+            );
         }
     }
 
-    /// <summary>
-    /// Opens a confirmation for the write calls of a turn, and sends the <c>confirm</c> message.
-    /// The read calls of that turn do not run. <paramref name="results"/> holds the tool results
-    /// of the query. False when the turn has no write call.
-    /// </summary>
-    private bool Confirm(
+    /// <summary>Calls the tools of a turn, and adds the results to the conversation. A call in
+    /// <paramref name="writes"/> goes to its write tool.</summary>
+    private async Task CallToolsAsync(
         Query query,
+        ToolUser user,
         IToolSession session,
-        IReadOnlyList<ToolCall> calls,
-        IReadOnlyList<string> results
+        ModelTurn turn,
+        IReadOnlyList<WriteCall> writes,
+        List<ModelMessage> messages,
+        List<string> results,
+        CancellationToken cancellationToken
     )
+    {
+        List<ToolResult> turnResults = [];
+        foreach (var call in turn.ToolCalls)
+        {
+            var title = session.Tools.FirstOrDefault(t => t.Name == call.Name)?.Title;
+            Send(query, "progress", $"{title ?? call.Name}…");
+            turnResults.Add(
+                writes.FirstOrDefault(w => w.Call.Id == call.Id) is { } write
+                    ? await tools.CallAsync(user, write, cancellationToken)
+                    : await session.CallAsync(call, cancellationToken)
+            );
+        }
+        messages.Add(new ToolResultsMessage(turnResults));
+        results.AddRange(turnResults.Select(r => r.Content));
+    }
+
+    /// <summary>
+    /// Opens a confirmation for the write calls of the last turn, and sends the <c>confirm</c>
+    /// message. No tool of that turn runs before the user accepts. False when the turn has no
+    /// write call.
+    /// </summary>
+    private bool Confirm(Query query, IToolSession session, Conversation conversation)
     {
         string? modelText = null;
         List<WriteCall> writes = [];
-        foreach (var call in calls)
+        foreach (var call in conversation.Turn.ToolCalls)
         {
             var arguments = call.Arguments.ToDictionary();
             arguments.Remove(Confirmations.TextArgument, out var text);
@@ -178,33 +234,12 @@ internal sealed partial class QueryHarness(
         if (writes.Count == 0)
             return false;
 
-        var question = Confirmations.Text(modelText, writes, results);
+        var question = Confirmations.Text(modelText, writes, conversation.Results);
         if (question.Length > MaxTextLength)
             throw new QueryException("The query asks for too many changes at one time.");
-        confirmations.Open(query.Client, query.Reference, writes);
+        confirmations.Open(query.Client, query.Reference, writes, conversation);
         Send(query, "confirm", question);
         return true;
-    }
-
-    /// <summary>Calls the write tools. The answer gives the outcome of each call.</summary>
-    private async Task<(string Kind, string Text)?> WriteAsync(
-        Query query,
-        IReadOnlyList<WriteCall> calls,
-        CancellationToken cancellationToken
-    )
-    {
-        var user = new ToolUser(query.AccessToken, query.Client.Guild, query.Client.User);
-        List<string> outcomes = [];
-        var failed = false;
-        foreach (var call in calls)
-        {
-            var result = await tools.CallAsync(user, call, cancellationToken);
-            failed |= result.IsError;
-            outcomes.Add(
-                result.IsError ? $"{call.Title}: {result.Content.Trim()}" : $"{call.Title}: done."
-            );
-        }
-        return (failed ? "error" : "answer", string.Join(" ", outcomes));
     }
 
     /// <summary>
@@ -248,6 +283,9 @@ internal sealed class QueryLimiter(IOptions<OptioOptions> options, TimeProvider 
 {
     private static readonly TimeSpan Window = TimeSpan.FromHours(1);
 
+    /// <summary>The wait for a user with a running query.</summary>
+    public static readonly TimeSpan RunningWait = TimeSpan.FromSeconds(5);
+
     private readonly object _lock = new();
     private readonly Dictionary<ulong, Queue<DateTimeOffset>> _starts = [];
     private readonly HashSet<ulong> _running = [];
@@ -259,7 +297,7 @@ internal sealed class QueryLimiter(IOptions<OptioOptions> options, TimeProvider 
         lock (_lock)
         {
             if (_running.Contains(user))
-                return TimeSpan.FromSeconds(5);
+                return RunningWait;
 
             var starts = _starts.TryGetValue(user, out var queue) ? queue : _starts[user] = new();
             while (starts.TryPeek(out var first) && first <= now - Window)
@@ -271,6 +309,14 @@ internal sealed class QueryLimiter(IOptions<OptioOptions> options, TimeProvider 
             _running.Add(user);
             return null;
         }
+    }
+
+    /// <summary>Starts the continuation of a query after a confirmation. It does not count in the
+    /// hour. False when a query of the user runs.</summary>
+    public bool TryContinue(ulong user)
+    {
+        lock (_lock)
+            return _running.Add(user);
     }
 
     public void Finish(ulong user)

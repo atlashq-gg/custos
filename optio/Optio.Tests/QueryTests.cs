@@ -169,21 +169,23 @@ public sealed class QueryTests
         Assert.That(await PostAsync(new { text = "Hello?" }), Is.EqualTo(HttpStatusCode.Conflict));
 
     [Test]
-    public async Task Write_call_waits_for_the_confirmation_and_the_accept_makes_the_call()
+    public async Task Write_call_waits_for_the_confirmation_and_the_model_answers_after_the_call()
     {
-        const string question = "Set label? \"Main Depot\"";
+        const string question = "Set Label? \"Main Depot\"";
         _factory.Model.Turns.Enqueue(LabelCall("Main Depot", question));
+        _factory.Model.Turns.Enqueue(FakeModel.Answer("The seaport is now Main Depot."));
         using var stream = await OpenAsync();
         var reference = await QueryAsync("Call the seaport Main Depot.");
 
         var confirm = await stream.NextAsync();
+        Assert.That(_factory.Model.Requests, Has.Count.EqualTo(1));
         var accepted = await AnswerAsync(reference, accept: true);
+        var progress = await stream.NextAsync();
         var answer = await stream.NextAsync();
 
         var (token, write) = await _factory.Tools.Writes.Reader.ReadAsync();
-        var tool = _factory
-            .Model.Requests.Single()
-            .Tools.Single(t => t.Name == FakeTools.WriteTool);
+        var tool = _factory.Model.Requests[0].Tools.Single(t => t.Name == FakeTools.WriteTool);
+        var result = _factory.Model.Requests[1].Messages.OfType<ToolResultsMessage>().Single();
         using (Assert.EnterMultipleScope())
         {
             SpecSchemas.AssertMessage(confirm!.Data!.Value);
@@ -191,8 +193,9 @@ public sealed class QueryTests
             Assert.That(Text(confirm), Is.EqualTo(question));
             Assert.That(Reference(confirm), Is.EqualTo(reference));
             Assert.That(accepted, Is.EqualTo(reference));
+            Assert.That(Text(progress), Is.EqualTo($"{FakeTools.WriteTitle}…"));
             Assert.That(Kind(answer), Is.EqualTo("answer"));
-            Assert.That(Text(answer), Is.EqualTo($"{FakeTools.WriteTitle}: done."));
+            Assert.That(Text(answer), Is.EqualTo("The seaport is now Main Depot."));
             Assert.That(Reference(answer), Is.EqualTo(reference));
             Assert.That(
                 write.Call.Arguments.Keys,
@@ -203,12 +206,12 @@ public sealed class QueryTests
                 tool.Schema.GetProperty("properties").TryGetProperty("confirm_text", out _),
                 Is.True
             );
-            Assert.That(_factory.Model.Requests, Has.Count.EqualTo(1));
+            Assert.That(result.Results.Single().CallId, Is.EqualTo(write.Call.Id));
         }
     }
 
     [Test]
-    public async Task Read_calls_of_a_turn_with_a_write_call_do_not_run()
+    public async Task Calls_of_a_write_turn_run_only_after_the_accept()
     {
         _factory.Model.Turns.Enqueue(
             FakeModel.Call(
@@ -216,16 +219,74 @@ public sealed class QueryTests
                 (FakeTools.WriteTool, new() { ["label"] = "Main Depot" })
             )
         );
+        _factory.Model.Turns.Enqueue(FakeModel.Answer("Done."));
         using var stream = await OpenAsync();
-        await QueryAsync("Find rifles and call the seaport Main Depot.");
+        var reference = await QueryAsync("Find rifles and call the seaport Main Depot.");
 
         var confirm = await stream.NextAsync();
+        var readBefore = _factory.Tools.Calls.Reader.TryRead(out _);
+        await AnswerAsync(reference, accept: true);
+        await stream.NextAsync();
+        await stream.NextAsync();
+        var answer = await stream.NextAsync();
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(Kind(confirm), Is.EqualTo("confirm"));
             Assert.That(Text(confirm), Is.EqualTo($"{FakeTools.WriteTitle}? \"Main Depot\""));
-            Assert.That(_factory.Tools.Calls.Reader.TryRead(out _), Is.False);
+            Assert.That(readBefore, Is.False);
+            Assert.That(Text(answer), Is.EqualTo("Done."));
+            Assert.That(_factory.Tools.Calls.Reader.TryRead(out _), Is.True);
+            Assert.That(_factory.Tools.Writes.Reader.TryRead(out _), Is.True);
+        }
+    }
+
+    [Test]
+    public async Task Write_call_after_the_accept_asks_again()
+    {
+        _factory.Model.Turns.Enqueue(LabelCall("Main Depot"));
+        _factory.Model.Turns.Enqueue(LabelCall("North Bunker"));
+        using var stream = await OpenAsync();
+        var reference = await QueryAsync("Call the seaport Main Depot, then North Bunker.");
+        await stream.NextAsync();
+
+        await AnswerAsync(reference, accept: true);
+        await stream.NextAsync();
+        var second = await stream.NextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(Kind(second), Is.EqualTo("confirm"));
+            Assert.That(Text(second), Is.EqualTo($"{FakeTools.WriteTitle}? \"North Bunker\""));
+            Assert.That(Reference(second), Is.EqualTo(reference));
+        }
+    }
+
+    [Test]
+    public async Task Accept_while_another_query_of_the_user_runs_gets_429()
+    {
+        _factory.Model.Turns.Enqueue(LabelCall("Main Depot"));
+        using var stream = await OpenAsync();
+        using var other = await OpenAsync("session-2");
+        var reference = await QueryAsync("Call the seaport Main Depot.");
+        await stream.NextAsync();
+        // No turn left: the query of the other client runs until it times out. The first query
+        // frees its slot just after the confirm message.
+        Assert.That(
+            () => PostAsync(new { text = "Slow?" }, "session-2"),
+            Is.EqualTo(HttpStatusCode.Accepted).After(5000, 50)
+        );
+
+        using var client = _factory.CreateMemberClient();
+        using var response = await client.PostAsJsonAsync(
+            Path,
+            new { confirm = reference, accept = true }
+        );
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
+            Assert.That(response.Headers.RetryAfter?.Delta, Is.Not.Null);
         }
     }
 
@@ -253,21 +314,29 @@ public sealed class QueryTests
     }
 
     [Test]
-    public async Task Failed_write_call_ends_with_an_error()
+    public async Task Failed_write_call_goes_to_the_model()
     {
         _factory.Tools.WriteError = "The label is in use.";
         _factory.Model.Turns.Enqueue(LabelCall("Main Depot"));
+        _factory.Model.Turns.Enqueue(FakeModel.Answer("Main Depot is in use."));
         using var stream = await OpenAsync();
         var reference = await QueryAsync("Call the seaport Main Depot.");
         await stream.NextAsync();
 
         await AnswerAsync(reference, accept: true);
-        var error = await stream.NextAsync();
+        await stream.NextAsync();
+        var answer = await stream.NextAsync();
 
+        var result = _factory
+            .Model.Requests[1]
+            .Messages.OfType<ToolResultsMessage>()
+            .Single()
+            .Results.Single();
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(Kind(error), Is.EqualTo("error"));
-            Assert.That(Text(error), Is.EqualTo($"{FakeTools.WriteTitle}: The label is in use."));
+            Assert.That(Text(answer), Is.EqualTo("Main Depot is in use."));
+            Assert.That(result.IsError, Is.True);
+            Assert.That(result.Content, Is.EqualTo("The label is in use."));
         }
     }
 
@@ -360,9 +429,9 @@ public sealed class QueryTests
         return new SseReader(response);
     }
 
-    private async Task<string> QueryAsync(string text)
+    private async Task<string> QueryAsync(string text, string session = OptioFactory.DefaultSession)
     {
-        using var client = _factory.CreateMemberClient();
+        using var client = _factory.CreateMemberClient(session: session);
         using var response = await client.PostAsJsonAsync(Path, new { text });
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -382,11 +451,7 @@ public sealed class QueryTests
 
     private async Task<string> AnswerAsync(string reference, bool accept)
     {
-        using var client = _factory.CreateMemberClient();
-        using var response = await client.PostAsJsonAsync(
-            Path,
-            new { confirm = reference, accept }
-        );
+        using var response = await _factory.AnswerAsync(reference, accept);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         SpecSchemas.AssertQueryAccepted(body);

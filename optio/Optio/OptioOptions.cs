@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace Optio;
 
 /// <summary>The configuration section <c>Optio</c>.</summary>
-public sealed class OptioOptions
+public sealed class OptioOptions : IValidatableObject
 {
     public const string SectionName = "Optio";
 
@@ -119,6 +119,21 @@ public sealed class OptioOptions
     /// <summary>The MCP services whose tools the query harness can call.</summary>
     public List<McpServiceOptions> McpServices { get; set; } = [];
 
+    /// <summary>The data annotations do not reach the items of a list: this examines each MCP
+    /// service, and that each has its own name.</summary>
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        foreach (var service in McpServices)
+        {
+            List<ValidationResult> results = [];
+            Validator.TryValidateObject(service, new(service), results, true);
+            foreach (var result in results)
+                yield return result;
+        }
+        if (McpServices.DistinctBy(s => s.Name).Count() != McpServices.Count)
+            yield return new ValidationResult("Each MCP service needs its own name.");
+    }
+
     /// <summary>The name of the connection string of the broker.</summary>
     public const string BrokerConnectionName = "events";
 
@@ -140,8 +155,9 @@ public sealed class OptioOptions
 /// <summary>An MCP service of the query harness.</summary>
 public sealed class McpServiceOptions
 {
-    /// <summary>A short name for the logs.</summary>
-    [Required]
+    /// <summary>A short name for the logs. It becomes a part of a tool name when two services
+    /// share a tool name.</summary>
+    [Required, RegularExpression("^[A-Za-z0-9_-]{1,32}$")]
     public string Name { get; set; } = "";
 
     /// <summary>The MCP endpoint, for example <c>http://server:8080/mcp</c>.</summary>

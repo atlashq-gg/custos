@@ -69,6 +69,66 @@ public sealed class ConfirmationTextTests
             Is.EqualTo($"{Title}? \"Main Depot\" and (none) and \"A B\"")
         );
 
+    [TestCase("Set Label? \"main depot\"", "Set Label? \"Main Depot\"")]
+    [TestCase("Remove Label? \"OLD DEPOT & CO\"", "Remove Label? \"Old Depot & Co\"")]
+    public void Quoted_text_in_another_case_gets_the_case_of_its_source(
+        string question,
+        string expected
+    ) =>
+        Assert.That(
+            Confirmations.Text(
+                question,
+                [question.StartsWith("Set") ? Label("Main Depot") : Label(null)],
+                Results
+            ),
+            Is.EqualTo(expected)
+        );
+
+    [Test]
+    public void Long_text_value_need_not_be_in_the_question_and_a_short_one_in_any_case() =>
+        Assert.That(
+            Confirmations.Text("Post Progress Note?", [Post("progress", LongText)], []),
+            Is.EqualTo("Post Progress Note?")
+        );
+
+    [Test]
+    public void Quoted_start_of_a_long_value_ends_in_an_ellipsis() =>
+        Assert.That(
+            Confirmations.Text(
+                "Post Progress Note? \"Fuel run done at…\"",
+                [Post("progress", LongText)],
+                []
+            ),
+            Is.EqualTo("Post Progress Note? \"Fuel run done at…\"")
+        );
+
+    [Test]
+    public void Code_text_cuts_a_long_value() =>
+        Assert.That(
+            Confirmations.Text("Post Note?", [Post("progress", LongText)], []),
+            Is.EqualTo($"Post a note? \"progress\" and \"{LongText[..39]}…\"")
+        );
+
+    private const string LongText =
+        "Fuel run done at the seaport, 40 crates of diesel moved to the front depot.";
+
+    private static WriteCall Post(string type, string text) =>
+        new(
+            "second",
+            "Post a note",
+            new ToolCall(
+                "call-1",
+                "post_note",
+                new Dictionary<string, JsonElement>
+                {
+                    ["team_id"] = JsonSerializer.SerializeToElement("c-1"),
+                    ["type"] = JsonSerializer.SerializeToElement(type),
+                    ["text"] = JsonSerializer.SerializeToElement(text),
+                }
+            ),
+            ["type", "text"]
+        );
+
     private static void AssertModelText(string question, List<WriteCall> calls) =>
         Assert.That(Confirmations.Text(question, calls, Results), Is.EqualTo(question));
 

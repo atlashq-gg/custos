@@ -4,11 +4,13 @@ using Optio.Streams;
 
 namespace Optio.Harness;
 
-/// <summary>The write calls of a query that wait for the answer of the client.</summary>
+/// <summary>The write calls of a query that wait for the answer of the client, and the
+/// conversation of the query.</summary>
 internal sealed record Confirmation(
     StreamClient Client,
     string Reference,
     IReadOnlyList<WriteCall> Calls,
+    Conversation Conversation,
     DateTimeOffset Expires
 );
 
@@ -28,13 +30,19 @@ internal sealed class Confirmations(TimeProvider time)
     /// <summary>The limit of the question of the model.</summary>
     public const int MaxModelText = 120;
 
+    /// <summary>A text value of this length or less must be in the question. The text of code
+    /// cuts a longer value to this length.</summary>
+    public const int MaxShownValue = 40;
+
     private const string TextDescription =
         "The question to the user before the change. It shows on a screen 50 characters wide: "
         + "leave out each word that is not necessary. Use the form '{Verb} {Object}? "
-        + "\"value\"', with 'and \"value\"' for each other value. For a new value, give the "
+        + "\"value\"', with 'and \"value\"' for each other value. Copy each value exactly, "
+        + "with its case. For a new value, give the "
         + "new value. For a removal, give the current value from a tool result. Do not show an "
-        + "ID. Examples: 'Set Label? \"Main Depot\"', "
-        + "'Set Labels? \"Main Depot\" and \"North Bunker\"', 'Remove Label? \"Old Depot\"'. "
+        + "ID. Do not show a long text: name the action only. Examples: "
+        + "'Set Label? \"Main Depot\"', 'Set Labels? \"Main Depot\" and \"North Bunker\"', "
+        + "'Remove Label? \"Old Depot\"', 'Post Progress Log?'. "
         + "When you call more than one write tool in one turn, give one question for all the "
         + "changes in the first call.";
 
@@ -42,14 +50,25 @@ internal sealed class Confirmations(TimeProvider time)
     private readonly Dictionary<StreamClient, Confirmation> _open = [];
 
     /// <summary>Opens a confirmation. It replaces the open confirmation of the client.</summary>
-    public void Open(StreamClient client, string reference, IReadOnlyList<WriteCall> calls)
+    public void Open(
+        StreamClient client,
+        string reference,
+        IReadOnlyList<WriteCall> calls,
+        Conversation conversation
+    )
     {
         var now = time.GetUtcNow();
         lock (_lock)
         {
             foreach (var expired in _open.Where(o => o.Value.Expires <= now).ToList())
                 _open.Remove(expired.Key);
-            _open[client] = new Confirmation(client, reference, calls, now + Lifetime);
+            _open[client] = new Confirmation(
+                client,
+                reference,
+                calls,
+                conversation,
+                now + Lifetime
+            );
         }
     }
 
@@ -59,6 +78,15 @@ internal sealed class Confirmations(TimeProvider time)
     {
         lock (_lock)
             return _open.Remove(client, out var confirmation) ? confirmation.Reference : null;
+    }
+
+    /// <summary>True when the client has an open confirmation with the reference.</summary>
+    public bool IsOpen(StreamClient client, string reference)
+    {
+        lock (_lock)
+            return _open.TryGetValue(client, out var confirmation)
+                && confirmation.Reference == reference
+                && confirmation.Expires > time.GetUtcNow();
     }
 
     /// <summary>Removes and gives the open confirmation of the client with the reference. Null
@@ -96,10 +124,12 @@ internal sealed class Confirmations(TimeProvider time)
 
     /// <summary>
     /// The text of the <c>confirm</c> message. It is the question of the model when it is one line
-    /// of <see cref="MaxModelText"/> characters at most, and holds each value of the calls. Each
-    /// quoted text in it must also be a value of the calls or a text in <paramref name="results"/>,
-    /// the tool results of the query: for example the current label of a removal. Else code makes
-    /// the text from the title of each tool and the values.
+    /// of <see cref="MaxModelText"/> characters at most, and holds each text value of the calls
+    /// of <see cref="MaxShownValue"/> characters or less, in any case. Each quoted text in it must
+    /// also be a value of the calls or a text in <paramref name="results"/>, the tool results of
+    /// the query: for example the current label of a removal. A quoted text that ends in … must
+    /// start such a text. Code puts the source of each quoted text in the question. Else code
+    /// makes the text from the title of each tool and the values.
     /// </summary>
     public static string Text(
         string? modelText,
@@ -109,14 +139,17 @@ internal sealed class Confirmations(TimeProvider time)
     {
         var values = calls.SelectMany(Values).OfType<string>().Where(v => v.Length > 0).ToList();
         var known = Strings(results);
+        known.UnionWith(values);
         if (
             modelText is { Length: > 0 and <= MaxModelText }
             && !modelText.Any(char.IsControl)
-            && values.All(v => modelText.Contains(v, StringComparison.Ordinal))
-            && Quoted(modelText).All(q => values.Contains(q) || known.Contains(q))
+            && values
+                .Where(v => v.Length <= MaxShownValue)
+                .All(v => modelText.Contains(v, StringComparison.OrdinalIgnoreCase))
+            && WithSources(modelText, known) is { } question
         )
         {
-            return modelText;
+            return question;
         }
 
         return string.Join(
@@ -126,7 +159,7 @@ internal sealed class Confirmations(TimeProvider time)
                 .Select(g =>
                 {
                     var shown = g.SelectMany(Values)
-                        .Select(v => string.IsNullOrEmpty(v) ? "(none)" : $"\"{OneLine(v)}\"")
+                        .Select(v => string.IsNullOrEmpty(v) ? "(none)" : $"\"{Cut(OneLine(v))}\"")
                         .ToList();
                     return shown.Count == 0
                         ? $"{OneLine(g.Key)}?"
@@ -135,9 +168,36 @@ internal sealed class Confirmations(TimeProvider time)
         );
     }
 
-    /// <summary>The texts between double quotes.</summary>
-    private static IEnumerable<string> Quoted(string text) =>
-        text.Split('"').Where((_, i) => i % 2 == 1);
+    /// <summary>
+    /// The question with the source of each quoted text, or null when a quoted text has no
+    /// source. The source is a known text with the same characters in any case, or for a quoted
+    /// text that ends in …, a known text that starts with it. The user then sees the case of the
+    /// source.
+    /// </summary>
+    private static string? WithSources(string question, HashSet<string> known)
+    {
+        var parts = question.Split('"');
+        for (var i = 1; i < parts.Length; i += 2)
+        {
+            var quoted = parts[i];
+            var cut = quoted.EndsWith('…') && quoted.Length > 1;
+            // A source with the same case comes first.
+            var source = new[] { StringComparison.Ordinal, StringComparison.OrdinalIgnoreCase }
+                .Select(comparison =>
+                    known.FirstOrDefault(k =>
+                        cut ? k.StartsWith(quoted[..^1], comparison) : k.Equals(quoted, comparison)
+                    )
+                )
+                .FirstOrDefault(k => k is not null);
+            if (source is null)
+                return null;
+            parts[i] = cut ? source[..(quoted.Length - 1)] + "…" : source;
+        }
+        return string.Join('"', parts);
+    }
+
+    private static string Cut(string value) =>
+        value.Length <= MaxShownValue ? value : value[..(MaxShownValue - 1)] + "…";
 
     /// <summary>The texts of the tool results: each string of a JSON result, else the result.
     /// </summary>
