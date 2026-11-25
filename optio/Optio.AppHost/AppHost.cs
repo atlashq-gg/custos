@@ -122,6 +122,30 @@ var optio = builder
     .WithEnvironment("Optio__DevelopmentDiscordUserId", discordUserId)
     .WithHttpHealthCheck("/health/ready");
 
+// The query, only with a key of the Claude API in the user secrets:
+//   dotnet user-secrets set Parameters:claude-api-key <key>
+// The MCP service is the server, with the example system prompt of the repository.
+if (!string.IsNullOrEmpty(builder.Configuration["Parameters:claude-api-key"]))
+{
+    optio
+        .WithEnvironment(
+            "Optio__ClaudeApiKey",
+            builder.AddParameter("claude-api-key", secret: true)
+        )
+        .WithEnvironment(
+            "Optio__SystemPrompt",
+            File.ReadAllText(
+                Path.Combine(builder.AppHostDirectory, "..", "docs", "system-prompt.example.txt")
+            )
+        )
+        .WithEnvironment("Optio__McpServices__0__Name", "custos")
+        .WithEnvironment(
+            "Optio__McpServices__0__Url",
+            ReferenceExpression.Create($"{server.GetEndpoint("http")}/mcp")
+        )
+        .WithEnvironment("Optio__McpServices__0__ReadScope", "custos:read");
+}
+
 // The tunnel serves only an endpoint that a container references. This reference also gives the
 // realm the host name of Optio as Keycloak sees it (aspire.dev.internal). Optio does not wait for
 // Keycloak: Keycloak needs the address of Optio first, and Optio gets the metadata of Keycloak

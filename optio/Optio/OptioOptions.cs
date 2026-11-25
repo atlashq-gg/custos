@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace Optio;
 
 /// <summary>The configuration section <c>Optio</c>.</summary>
-public sealed class OptioOptions
+public sealed class OptioOptions : IValidatableObject
 {
     public const string SectionName = "Optio";
 
@@ -94,6 +94,81 @@ public sealed class OptioOptions
     /// the environment Development, as in the server.</summary>
     public long? DevelopmentDiscordUserId { get; set; }
 
+    /// <summary>The key of the Claude API. Keep it in <c>/run/secrets/Optio__ClaudeApiKey</c>.
+    /// Without it, Optio answers no query.</summary>
+    public string? ClaudeApiKey { get; set; }
+
+    /// <summary>The model of the query.</summary>
+    [Required]
+    public string ModelId { get; set; } = "claude-haiku-5-5";
+
+    /// <summary>The effort of the model: <c>low</c>, <c>medium</c>, <c>high</c>, <c>xhigh</c>, or
+    /// <c>max</c>.</summary>
+    [RegularExpression("^(low|medium|high|xhigh|max)$")]
+    public string ModelEffort { get; set; } = "medium";
+
+    /// <summary>The system prompt of the query. The repository holds an example in
+    /// <c>optio/docs/system-prompt.example.txt</c>. Without it, Optio answers no query.</summary>
+    public string? SystemPrompt { get; set; }
+
+    /// <summary>The text of the operator about the services together: the words that they share,
+    /// and how their records relate. It follows the cards of the services in the prompt.</summary>
+    public string? OperatorText { get; set; }
+
+    /// <summary>The MCP services whose tools a query can use.</summary>
+    public List<McpServiceOptions> McpServices { get; set; } = [];
+
+    /// <summary>The tools that the model does not get, as <c>{service}_{tool}</c>, for example a
+    /// tool that only selects a guild.</summary>
+    public string[] HiddenTools { get; set; } = [];
+
+    /// <summary>The queries of one user in one hour.</summary>
+    [Range(1, 10_000)]
+    public int MaxQueriesPerHour { get; set; } = 20;
+
+    /// <summary>The follow-up window: a query in this time after the last answer of a client
+    /// continues its conversation.</summary>
+    [Range(1, 1440)]
+    public int FollowUpMinutes { get; set; } = 10;
+
+    /// <summary>The largest conversation of a client, as JSON. Optio removes the oldest queries
+    /// of a larger conversation.</summary>
+    [Range(1_000, 500_000)]
+    public int MaxConversationBytes { get; set; } = 100_000;
+
+    /// <summary>The budget of time of one part of a query. After it, the model gets one last step
+    /// with no tools.</summary>
+    [Range(5, 600)]
+    public int PartBudgetSeconds { get; set; } = 60;
+
+    /// <summary>The budget of tool calls of one part of a query.</summary>
+    [Range(1, 100)]
+    public int MaxToolCallsPerPart { get; set; } = 8;
+
+    /// <summary>How long Optio keeps the card and the tool list of a service before it gets them
+    /// again.</summary>
+    [Range(1, 1440)]
+    public int CatalogMinutes { get; set; } = 10;
+
+    /// <summary>The data annotations do not reach the items of a list: this examines each MCP
+    /// service, and that each has its own name.</summary>
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        foreach (var service in McpServices)
+        {
+            List<ValidationResult> results = [];
+            Validator.TryValidateObject(service, new(service), results, true);
+            foreach (var result in results)
+                yield return result;
+        }
+        if (McpServices.DistinctBy(s => s.Name).Count() != McpServices.Count)
+            yield return new ValidationResult("Each MCP service needs its own name.");
+    }
+
+    public TimeSpan FollowUpWindow => TimeSpan.FromMinutes(FollowUpMinutes);
+
+    public TimeSpan PartBudget => TimeSpan.FromSeconds(PartBudgetSeconds);
+
     /// <summary>The name of the connection string of the broker: a NATS URL with the broker user,
     /// for example <c>nats://optio:...@broker:4222</c>.</summary>
     public const string BrokerConnectionName = "events";
@@ -111,4 +186,30 @@ public sealed class OptioOptions
             : CustosClientId;
 
     public static string Combine(string baseUrl, string path) => baseUrl.TrimEnd('/') + path;
+}
+
+/// <summary>An MCP service of the query.</summary>
+public sealed class McpServiceOptions
+{
+    /// <summary>A short name. It is the first part of the name of each tool of the
+    /// service.</summary>
+    [Required, RegularExpression("^[a-z0-9]{1,16}$")]
+    public string Name { get; set; } = "";
+
+    /// <summary>The name of the service for the user, for example in a status line. Empty means
+    /// the title that the service gives, else <see cref="Name"/>.</summary>
+    public string? Title { get; set; }
+
+    /// <summary>The MCP endpoint, for example <c>http://server:8080/mcp</c>.</summary>
+    [Required, Url]
+    public string Url { get; set; } = "";
+
+    /// <summary>The scope of the token for the read tools, for example
+    /// <c>custos:read</c>.</summary>
+    [Required]
+    public string ReadScope { get; set; } = "";
+
+    /// <summary>The card of the service, for a service that gives none in its MCP
+    /// <c>instructions</c>. It replaces the card of the service.</summary>
+    public string? Card { get; set; }
 }

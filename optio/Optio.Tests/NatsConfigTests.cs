@@ -64,4 +64,16 @@ public sealed class NatsConfigTests
             Throws.InstanceOf<NatsJSPublishNoResponseException>()
         );
     }
+
+    [Test]
+    public async Task Producer_cannot_publish_a_query_message()
+    {
+        await using var custos = _broker.Connect("custos");
+
+        Assert.That(
+            async () =>
+                await new NatsJSContext(custos).PublishAsync("queries.1.2.abc", "a"u8.ToArray()),
+            Throws.InstanceOf<NatsJSPublishNoResponseException>()
+        );
+    }
 }
