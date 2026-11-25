@@ -5,6 +5,7 @@ name: optio
 #   pull request          -> build the image, no push
 #   push to main          -> push the tags unstable and sha-<sha>, version "unstable+<short sha>"
 #   push of optio-X.Y.Z   -> push the tags X.Y.Z and X.Y, version "X.Y.Z"
+#   push of optio-X.Y.Z-<pre> -> push the tag X.Y.Z-<pre> only, and make a GitHub pre-release
 #
 # GitHub does not apply the paths filter to a tag push, so each optio-* tag runs this workflow.
 # The AppHost builds the server, and the tests read the realm file of the server, so a change in
@@ -15,7 +16,7 @@ on:
     paths: ["optio/**", "spec/**", "server/**", ".github/workflows/optio.yml"]
   push:
     branches: [main]
-    tags: ["optio-[0-9]+.[0-9]+.[0-9]+"]
+    tags: ["optio-[0-9]+.[0-9]+.[0-9]+", "optio-[0-9]+.[0-9]+.[0-9]+-*"]
     paths: ["optio/**", "spec/**", "server/**", ".github/workflows/optio.yml"]
 
 # One run for each ref at a time, so two pushes to main cannot race on the tag unstable. A new
@@ -93,7 +94,8 @@ jobs:
               echo "optio/CHANGELOG.md has no section ## ${semver}."
               exit 1
             fi
-            printf 'semver=%s\nversion=%s\nassembly=%s\n' "$semver" "$semver" "$semver" \
+            # AssemblyVersion must be numeric, so it gets X.Y.Z without the pre-release part.
+            printf 'semver=%s\nversion=%s\nassembly=%s\n' "$semver" "$semver" "${semver%%-*}" \
               >> "$GITHUB_OUTPUT"
           else
             # AssemblyVersion must be numeric. Only the informational version can hold "unstable".
@@ -172,3 +174,4 @@ jobs:
           body_path: ${{ runner.temp }}/release-notes.md
           # The latest release stays the one of Custos, the application that users download.
           make_latest: false
+          prerelease: ${{ contains(steps.notes.outputs.version, '-') }}
