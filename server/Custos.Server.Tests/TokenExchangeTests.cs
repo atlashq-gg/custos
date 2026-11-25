@@ -34,6 +34,48 @@ public sealed class TokenExchangeTests
         }
     }
 
+    /// <summary>
+    /// The feasibility test T3 of M37: Optio reads the Discord user from the token of Custos.
+    /// The realm has no mapper for <c>active_guild</c> yet.
+    /// </summary>
+    [Test]
+    public async Task Token_of_custos_for_optio_has_discord_id_and_no_active_guild()
+    {
+        var token = await _realm.CustosTokenAsync("openid custos:client");
+
+        var claims = KeycloakRealm.Payload(token);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(
+                claims.GetProperty("discord_id").GetString(),
+                Is.EqualTo(KeycloakRealm.DevDiscordId),
+                claims.ToString()
+            );
+            Assert.That(claims.TryGetProperty("active_guild", out _), Is.False);
+        }
+    }
+
+    /// <summary>
+    /// The feasibility test 9 of M38: a query of Optio is bound to the client session through the
+    /// claim <c>sid</c>. The access token holds it, and a refresh keeps the same value.
+    /// </summary>
+    [Test]
+    public async Task Token_of_custos_has_a_sid_that_stays_after_a_refresh()
+    {
+        var login = await _realm.CustosLoginAsync("openid custos:client");
+        var refreshed = await _realm.RefreshAsync(login.GetProperty("refresh_token").GetString()!);
+
+        Assert.That(refreshed.TryGetProperty("access_token", out _), Is.True, refreshed.ToString());
+        var first = KeycloakRealm.Payload(login.GetProperty("access_token").GetString()!);
+        var second = KeycloakRealm.Payload(refreshed.GetProperty("access_token").GetString()!);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(first.TryGetProperty("sid", out var sid), Is.True, first.ToString());
+            Assert.That(sid.GetString(), Is.Not.Empty);
+            Assert.That(second.GetProperty("sid").GetString(), Is.EqualTo(sid.GetString()));
+        }
+    }
+
     [Test]
     public async Task Exchanged_token_is_only_for_the_mcp_endpoint_and_the_endpoint_accepts_it()
     {
