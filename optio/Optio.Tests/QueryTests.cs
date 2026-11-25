@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Optio.Harness;
 using Optio.Queries;
+using Optio.Storage;
 using Optio.Tests.Infrastructure;
 using static Optio.Tests.Infrastructure.FakeMembers;
 
@@ -294,6 +295,34 @@ public sealed class QueryTests
             );
             Assert.That(requests[3].Messages, Has.Count.EqualTo(1));
         }
+    }
+
+    [Test]
+    public async Task Model_gets_the_prompt_of_the_guild_from_the_database()
+    {
+        using var factory = new OptioFactory(
+            stream: true,
+            broker: _broker.Url("optio"),
+            query: true,
+            database: true
+        );
+        await factory.WaitForStreamAsync();
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            await scope
+                .ServiceProvider.GetRequiredService<GuildSettingsStore>()
+                .SaveAsync(Guild, new GuildSettings("Answer in French."), Owner, default);
+        }
+
+        await factory
+            .CreateMemberClient(Reader, "session-guild")
+            .PostAsJsonAsync(QueryPath, Query("query-0018"));
+        await factory.Model.Called.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.That(
+            factory.Model.Requests.Single().System,
+            Does.EndWith("<guild_instructions>\nAnswer in French.\n</guild_instructions>")
+        );
     }
 
     [Test]

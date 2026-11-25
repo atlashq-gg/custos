@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Options;
 using Optio.Events;
 using Optio.Harness;
+using Optio.Storage;
 using Optio.Telemetry;
 
 namespace Optio.Queries;
@@ -28,6 +29,7 @@ internal sealed partial class QueryService(
     QueryStore store,
     QueryHarness harness,
     EventStream events,
+    IServiceScopeFactory scopes,
     OptioMetrics metrics,
     IOptions<OptioOptions> options,
     TimeProvider time,
@@ -292,6 +294,7 @@ internal sealed partial class QueryService(
                         query,
                         user,
                         history,
+                        await GuildPromptAsync(client.Guild, token),
                         end,
                         text =>
                             store.ChangeAsync(
@@ -345,6 +348,27 @@ internal sealed partial class QueryService(
             },
             CancellationToken.None
         );
+    }
+
+    /// <summary>The prompt of the guild, or null for a guild without one, or for Optio without a
+    /// database.</summary>
+    private async Task<string?> GuildPromptAsync(ulong guild, CancellationToken cancellationToken)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        if (scope.ServiceProvider.GetService<GuildSettingsStore>() is not { } store)
+            return null;
+        try
+        {
+            return (await store.GetAsync(guild, cancellationToken)).Prompt;
+        }
+        catch (Exception e) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The query does not run without the rules of the guild.
+            LogNoGuildSettings(logger, e, guild);
+            throw new QueryFailedException(
+                "The settings of your guild are not available. Try again later."
+            );
+        }
     }
 
     /// <summary>Closes a working query. False when another change closed it first.</summary>
@@ -415,6 +439,16 @@ internal sealed partial class QueryService(
         QueryClient Client,
         string Reference,
         CancellationTokenSource Cancellation
+    );
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The settings of guild {GuildId} were not available for a query"
+    )]
+    private static partial void LogNoGuildSettings(
+        ILogger logger,
+        Exception exception,
+        ulong guildId
     );
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The query {Reference} failed")]

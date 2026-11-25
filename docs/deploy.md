@@ -21,14 +21,16 @@ The system needs:
 
 ## 1. Prepare PostgreSQL
 
-Create a role and a database for the server. The server applies its migrations when it starts, so the role must be able to create tables in its database. Optio has no database.
+Create a role and a database for the server, and a role and a database for Optio. Each service applies its migrations when it starts, so each role must be able to create tables in its database. The database of Optio holds only the settings of each guild, such as the prompt of the guild.
 
 ```sql
 CREATE ROLE custos LOGIN PASSWORD 'change-me';
 CREATE DATABASE custos OWNER custos;
+CREATE ROLE optio LOGIN PASSWORD 'change-me-too';
+CREATE DATABASE optio OWNER optio;
 ```
 
-The role needs no other privilege. Make sure that the server container can reach PostgreSQL, for example through a shared Docker network (step 5).
+The roles need no other privilege. Make sure that the containers can reach PostgreSQL, for example through a shared Docker network (step 5).
 
 ## 2. Prepare Keycloak
 
@@ -183,7 +185,7 @@ Each service needs its own Discord application. The server registers its command
 1. For the server, do the steps of [The Discord application](../server/README.md#the-discord-application).
 2. For Optio, do the same steps with a second application. On the page **Bot**, also set **Server Members Intent** to on: Optio reads the roles of the members with an open stream. Keep the other privileged intents off.
 
-Add the bot of Optio to each guild that uses the stream. A stream of a guild without the bot gets one error message.
+Add the bot of Optio to each guild that uses the stream, with the scopes `bot` and `applications.commands`. A stream of a guild without the bot gets one error message. With its database, Optio registers the command `/optioadmin` when it starts. An administrator of the guild sets the prompt of the guild with `/optioadmin settings`.
 
 ## 4. Prepare NATS
 
@@ -233,6 +235,8 @@ services:
     restart: unless-stopped
     environment:
       ConnectionStrings__events: nats://optio:${OPTIO_BROKER_PASSWORD}@events:4222
+      ConnectionStrings__optio: >-
+        Host=postgres;Port=5432;Database=optio;Username=optio;Password=${OPTIO_DB_PASSWORD}
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
     configs:
       - source: optio-settings
@@ -243,6 +247,9 @@ services:
       - Optio__ClaudeApiKey
     ports:
       - "127.0.0.1:8080:8080"
+    networks:
+      - default
+      - postgres
 
 configs:
   server-settings:
@@ -293,6 +300,7 @@ Write the file `.env` next to the Compose file. Do not commit it. Compose reads 
 
 ```ini
 CUSTOS_DB_PASSWORD=change-me
+OPTIO_DB_PASSWORD=change-me-too
 CUSTOS_BROKER_PASSWORD=changeMe1
 OPTIO_BROKER_PASSWORD=changeMe2
 SERVER_DISCORD_TOKEN=<bot token of the server>
@@ -310,7 +318,7 @@ OPTIO_CLAUDE_API_KEY=<key of the Claude API>
 - `UploadApiUrl`: the internal URL of the upload API of the server. The upload API needs no public route.
 - `SystemPrompt` and `McpServices`: the query. A prompt of more lines is easier in its own file: [optio/docs/system-prompt.example.txt](../optio/docs/system-prompt.example.txt) is an example. `Url` is the internal URL of the MCP endpoint of the server. Optio gets the token for it by exchange, with the audience `Resource`. Without `Optio__ClaudeApiKey`, `SystemPrompt`, or `McpServices`, Optio answers no query, and the discovery document has no `query_endpoint`.
 - `secrets`: Compose gets each secret from a variable of the file `.env` next to the Compose file, and mounts it as `/run/secrets/<name>`. Each service reads each file of `/run/secrets` as a configuration key, and `__` in a file name is `:`. Without `Discord__Token`, the server has no Discord connection. Without `Optio__DiscordToken`, Optio has no stream.
-- `ConnectionStrings__*`: the passwords come from the file `.env` too. Without `ConnectionStrings__events`, the server publishes no events, and Optio has no stream. A service starts without the broker, and connects again by itself.
+- `ConnectionStrings__*`: the passwords come from the file `.env` too. Without `ConnectionStrings__events`, the server publishes no events, and Optio has no stream. Without `ConnectionStrings__optio`, Optio has no prompt of a guild and no `/optioadmin`. A service starts without the broker, and connects again by itself.
 - `ASPNETCORE_FORWARDEDHEADERS_ENABLED`: each service applies `X-Forwarded-Proto` and `X-Forwarded-For` of the proxy. A service then trusts these headers from each client that reaches its port, so only the proxy must reach it.
 - Telemetry: add `OTEL_EXPORTER_OTLP_ENDPOINT` to the environment of a service to export its traces, metrics, and logs. Without it, a service exports nothing. The service names are `Custos` for the server and `Optio`. `OTEL_SERVICE_NAME` replaces a name.
 - `networks`: an existing network that PostgreSQL is on. `docker network ls` shows its name. If PostgreSQL runs on another host, remove that network, and use the host name in `Host=`.

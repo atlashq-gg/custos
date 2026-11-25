@@ -51,7 +51,11 @@ var keycloak = builder
 
 // PostgreSQL 18, the version that the table definitions in issue #1 were tested on. No volume: the
 // data lasts one run. The database name is CustosDbContext.ConnectionName of the server.
-var database = builder.AddPostgres("postgres").WithImageTag("18").AddDatabase("custos");
+var postgres = builder.AddPostgres("postgres").WithImageTag("18");
+var database = postgres.AddDatabase("custos");
+
+// The database of Optio, for the settings of the guilds. The name is OptioDbContext.ConnectionName.
+var optioDatabase = postgres.AddDatabase("optio");
 
 // The event broker: NATS with JetStream and the users of optio/nats/nats.conf. A plain container,
 // because AddNats adds a single user, which NATS refuses together with a list of users. No volume:
@@ -112,6 +116,8 @@ var optio = builder
     .WithEnvironment("Optio__CustosClientId", custosClientId)
     .WithEnvironment("Optio__OptioClientSecret", optioSecret)
     .WithReference(server)
+    .WithReference(optioDatabase)
+    .WaitFor(optioDatabase)
     .WithEnvironment("ConnectionStrings__events", Broker("optio"))
     // The bot of Optio for the stream, of its own Discord application:
     //   dotnet user-secrets set Parameters:optio-discord-token <bot token>

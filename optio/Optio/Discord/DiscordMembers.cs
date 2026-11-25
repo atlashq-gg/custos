@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Gateway;
 using Optio.Streams;
@@ -6,13 +5,13 @@ using Optio.Streams;
 namespace Optio.Discord;
 
 /// <summary>
-/// The Discord gateway of Optio, with the intent <c>GUILD_MEMBERS</c>. The guilds, their owners,
+/// The members of the guilds, from the Discord gateway of Optio. The guilds, their owners,
 /// and the permissions of their roles come from the cache of NetCord, which <c>GUILD_CREATE</c>
 /// fills. A separate dictionary holds only the users with an open stream: Optio requests a user
 /// when a stream opens, and the member events keep the roles current. Optio ignores the other
 /// members that NetCord caches.
 /// </summary>
-internal sealed partial class DiscordMembers : IMemberDirectory, IDisposable
+internal sealed partial class DiscordMembers : IMemberDirectory
 {
     /// <summary>How long a stream waits for Discord when it opens.</summary>
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
@@ -26,16 +25,10 @@ internal sealed partial class DiscordMembers : IMemberDirectory, IDisposable
     private readonly ILogger<DiscordMembers> _logger;
     private HashSet<ulong>? _guildIds;
 
-    public DiscordMembers(IOptions<OptioOptions> options, ILogger<DiscordMembers> logger)
+    public DiscordMembers(DiscordGateway gateway, ILogger<DiscordMembers> logger)
     {
         _logger = logger;
-        _client = new GatewayClient(
-            new BotToken(options.Value.DiscordToken!),
-            new GatewayClientConfiguration
-            {
-                Intents = GatewayIntents.Guilds | GatewayIntents.GuildUsers,
-            }
-        );
+        _client = gateway.Client;
         _client.Ready += OnReadyAsync;
         _client.GuildCreate += args => WhenCachedAsync(args.GuildId);
         _client.GuildUserChunk += OnChunk;
@@ -49,33 +42,6 @@ internal sealed partial class DiscordMembers : IMemberDirectory, IDisposable
     }
 
     public event Action<ulong>? GuildReady;
-
-    public async Task StartAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await _client.StartAsync(cancellationToken: cancellationToken);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            // Optio still serves the upload. A stream gets 503 until Discord answers.
-            LogStartFailed(_logger, e);
-        }
-    }
-
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await _client.CloseAsync(cancellationToken: cancellationToken);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            // The connection is already closed.
-        }
-    }
-
-    public void Dispose() => _client.Dispose();
 
     public async Task<MemberState> ConnectAsync(
         ulong guild,
@@ -255,9 +221,6 @@ internal sealed partial class DiscordMembers : IMemberDirectory, IDisposable
 
         public TaskCompletionSource<bool>? Request { get; set; }
     }
-
-    [LoggerMessage(Level = LogLevel.Error, Message = "The Discord gateway did not start")]
-    private static partial void LogStartFailed(ILogger logger, Exception exception);
 
     [LoggerMessage(
         Level = LogLevel.Warning,
