@@ -13,6 +13,7 @@ This project defines the contract between Custos and a compliant service. Custos
 | [03-upload.md](03-upload.md) | The upload of the map data file, the responses, and the upload interval. |
 | [04-versioning.md](04-versioning.md) | The contract version and how Custos and a service agree on one. |
 | [05-stream.md](05-stream.md) | The optional stream of messages from the service. |
+| [06-query.md](06-query.md) | The optional query: a question of the user, the answer on the stream, and the decision before a change. |
 | [schemas/](schemas/) | JSON Schemas (draft 2020-12) for the JSON documents. |
 
 ## Conventions

@@ -27,6 +27,7 @@
     "openid_configuration": { "type": "string", "format": "uri" },
     "client_id": { "type": "string", "minLength": 1 },
     "scopes": { "type": "array", "items": { "type": "string" } },
-    "stream_endpoint": { "type": "string", "format": "uri" }
+    "stream_endpoint": { "type": "string", "format": "uri" },
+    "query_endpoint": { "type": "string", "format": "uri" }
   }
 }

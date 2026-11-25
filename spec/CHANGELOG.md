@@ -11,3 +11,4 @@ First version. It has no minor or patch versions.
 - Upload response `403`: the service does not accept uploads from the user.
 - The example `client_id` in `01-discovery.md` uses the path of the reference server, `/.well-known/custos-client`.
 - Optional stream in `05-stream.md`, marked unstable: the discovery member `stream_endpoint`, the message, the position of the stream, and a random part of the wait before Custos connects again.
+- Optional query in `06-query.md`, marked unstable: the discovery member `query_endpoint`, the query with a reference from the client, the actions `accept`, `refuse`, and `stop`, the states of a query, and the stream message of the kind `query`.

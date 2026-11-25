@@ -20,3 +20,4 @@ A document can mark a part as unstable, as a warning that it changes soon. In `v
 
 - The upload result document ([03-upload.md](03-upload.md#result-document)).
 - The stream ([05-stream.md](05-stream.md)).
+- The query ([06-query.md](06-query.md)).

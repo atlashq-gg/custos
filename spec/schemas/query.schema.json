@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/atlashq-gg/custos/spec/schemas/query.schema.json",
+  "title": "Custos query (unstable)",
+  "type": "object",
+  "required": ["reference", "text"],
+  "properties": {
+    "reference": { "$ref": "#/$defs/reference" },
+    "text": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "new_conversation": { "type": "boolean" }
+  },
+  "not": { "required": ["action"] },
+  "$defs": {
+    "reference": { "type": "string", "pattern": "^[A-Za-z0-9-]{8,64}$" }
+  }
+}
