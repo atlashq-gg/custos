@@ -50,7 +50,10 @@ internal sealed record QueryClient(string Key, ulong Guild, ulong User)
 /// <summary>
 /// The record of the last query of a client in the bucket. It is the truth about the query. Each
 /// change of state is a compare-and-set, and only the winner publishes the message of the change.
-/// <paramref name="Owner"/> is the instance of Optio that runs the query.
+/// <paramref name="Owner"/> is the instance of Optio that runs the query. In the state
+/// <c>waiting</c>, <paramref name="Pending"/> holds the step that waits, and
+/// <paramref name="Deadline"/> is the end of the question. <paramref name="Decision"/> is the
+/// action that won for the last question, or <c>stop</c>.
 /// </summary>
 internal sealed record QueryRecord(
     string Reference,
@@ -64,7 +67,9 @@ internal sealed record QueryRecord(
     DateTimeOffset? Deadline,
     string? Cause,
     string Owner,
-    DateTimeOffset Created
+    DateTimeOffset Created,
+    PendingStep? Pending = null,
+    string? Decision = null
 )
 {
     public bool IsOpen => State != QueryStates.Closed;
@@ -77,6 +82,7 @@ internal sealed record QueryRecord(
             Cause = cause,
             Text = text,
             Deadline = null,
+            Pending = null,
         };
 
     /// <summary>The stream message of the state (spec/06-query.md).</summary>

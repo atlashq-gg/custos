@@ -141,6 +141,11 @@ public sealed class OptioOptions : IValidatableObject
     [Range(5, 600)]
     public int PartBudgetSeconds { get; set; } = 60;
 
+    /// <summary>The lifetime of a question before a change. Without a decision, the query then
+    /// closes as expired.</summary>
+    [Range(10, 600)]
+    public int QuestionSeconds { get; set; } = 60;
+
     /// <summary>The budget of tool calls of one part of a query.</summary>
     [Range(1, 100)]
     public int MaxToolCallsPerPart { get; set; } = 8;
@@ -208,6 +213,10 @@ public sealed class McpServiceOptions
     /// <c>custos:read</c>.</summary>
     [Required]
     public string ReadScope { get; set; } = "";
+
+    /// <summary>The scope of the token for the write tools, for example <c>custos:write</c>.
+    /// Without it, a query uses no write tool of the service.</summary>
+    public string? WriteScope { get; set; }
 
     /// <summary>The card of the service, for a service that gives none in its MCP
     /// <c>instructions</c>. It replaces the card of the service.</summary>
