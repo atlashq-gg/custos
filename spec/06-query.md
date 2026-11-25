@@ -32,7 +32,7 @@ POST {query_endpoint}
 Authorization: Bearer {access_token}
 Content-Type: application/json
 
-{"reference":"0b7e5c1a-9f42-4c1e-8d43-6a1f2e9c7b10","text":"How many rifles are in the seaport?","width":40,"lines":8}
+{"reference":"0b7e5c1a-9f42-4c1e-8d43-6a1f2e9c7b10","text":"How many rifles are in the seaport?"}
 ```
 
 The schema of the body is [schemas/query.schema.json](schemas/query.schema.json).
@@ -41,13 +41,10 @@ The schema of the body is [schemas/query.schema.json](schemas/query.schema.json)
 |---|---|---|---|
 | `reference` | string | yes | The reference of the query. Custos makes it: 8 to 64 letters, digits, or `-`. Custos SHOULD use a random UUID. |
 | `text` | string | yes | The question of the user, 1 to 500 characters. |
-| `width` | integer | yes | The number of characters in one line of the area where Custos shows the answer, 20 to 200. |
-| `lines` | integer | yes | The number of lines of that area, 1 to 50. |
 | `new_conversation` | boolean | no | `true` starts the query with no context from earlier queries. The default is `false`. |
 
 - A second send with the reference of a query is the same query. The service gives the same response as to the first send, with the current state. It does not start a second query.
 - The service SHOULD respond in 1 second. It MUST NOT wait for the answer before it responds.
-- The service uses `width` and `lines` to give an answer that fits the area.
 
 ### Conversation
 
