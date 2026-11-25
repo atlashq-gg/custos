@@ -21,7 +21,7 @@ public sealed class EventStreamTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(config.Subjects, Is.EqualTo(new[] { "events.>" }));
+            Assert.That(config.Subjects, Is.EqualTo(new[] { "events.>", "queries.>" }));
             Assert.That(config.Retention, Is.EqualTo(StreamConfigRetention.Limits));
             Assert.That(config.Storage, Is.EqualTo(StreamConfigStorage.File));
             Assert.That(config.Discard, Is.EqualTo(StreamConfigDiscard.Old));

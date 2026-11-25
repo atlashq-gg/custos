@@ -134,7 +134,7 @@ Optio makes the stream when it starts, and sets its settings again at each start
 | Setting | Value | Content |
 |---|---|---|
 | Name | `OPTIO` | |
-| Subjects | `events.>` | Optio can add the subjects of its own messages. |
+| Subjects | `events.>`, `queries.>` | `queries.>` holds the query messages of Optio ([README](../README.md#query)). |
 | Storage | file | |
 | Retention | limits | |
 | Maximum age | The replay window of Optio, 15 minutes by default | The broker removes each event at its age. |
@@ -145,9 +145,9 @@ Optio makes the stream when it starts, and sets its settings again at each start
 | User | Publish | Subscribe |
 |---|---|---|
 | The producer | `events.<source>.>` | `_INBOX.<user>.>` |
-| `optio` | The JetStream API subjects of the stream `OPTIO` in [deploy/nats/nats.conf](../../deploy/nats/nats.conf) | `_INBOX.optio.>` |
+| `optio` | The JetStream API subjects of the stream `OPTIO` and of the buckets `OPTIO_QUERIES` and `OPTIO_CONVERSATIONS`, the bucket subjects, and `queries.>`, as in [deploy/nats/nats.conf](../../deploy/nats/nats.conf) | `_INBOX.optio.>` |
 
-Each client sets the inbox prefix `_INBOX.<user>`, so that it gets the replies of the broker on its own subjects. Thus a producer can publish only below its own source. It cannot read, and it cannot change the stream. No user reads the replies of another user. Optio does not publish events.
+Each client sets the inbox prefix `_INBOX.<user>`, so that it gets the replies of the broker on its own subjects. Thus a producer can publish only below its own source. It cannot read, and it cannot change the stream. No user reads the replies of another user. Optio does not publish events, and a producer does not publish query messages.
 
 ## Compatibility
 

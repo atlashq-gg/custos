@@ -15,3 +15,5 @@ The first pre-release.
 - The AppHost starts NATS with `nats/nats.conf`, and gives the server and Optio their broker users.
 - Telemetry: the metrics `optio.events`, `optio.events.age`, and `optio.streams`. The service name is `Optio`, unless `OTEL_SERVICE_NAME` sets another.
 - [docs/deploy.md](../docs/deploy.md) deploys the full system with Docker Compose.
+- The query of `spec/06-query.md` at `POST /api/v1/query`, with `query_endpoint` in the discovery document. The record of each query is in the NATS bucket `OPTIO_QUERIES`, and its messages go to the stream `OPTIO` below `queries.<guild>.<user>.<client>`. The loop calls the Claude API and the read-only tools of the MCP services, with the card of each service in the prompt. A part of a query has a budget of time and of tool calls. The conversation of a client stays in the bucket `OPTIO_CONVERSATIONS` for the follow-up window. The actions `stop`, the replacement by a new query, the limits of one open query for each user and of queries in each hour, and the close of interrupted queries at the start and the stop.
+- Telemetry: the metrics `optio.queries` and `optio.tool.calls`.
