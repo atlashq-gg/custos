@@ -53,6 +53,38 @@ var keycloak = builder
 // data lasts one run. The database name is CustosDbContext.ConnectionName of the server.
 var database = builder.AddPostgres("postgres").WithImageTag("18").AddDatabase("custos");
 
+// The event broker: NATS with JetStream and the users of optio/nats/nats.conf. A plain container,
+// because AddNats adds a single user, which NATS refuses together with a list of users. No volume:
+// the events last one run. Aspire makes a new password for each user on each start.
+string[] brokerUsers = ["custos", "optio"];
+var brokerPasswords = brokerUsers.ToDictionary(
+    user => user,
+    user =>
+        builder.AddParameter(
+            $"events-{user}-password",
+            new GenerateParameterDefault { MinLength = 32, Special = false },
+            secret: true
+        )
+);
+var events = builder
+    .AddContainer("events", "nats", "2.15.3-alpine")
+    .WithBindMount(
+        Path.Combine(builder.AppHostDirectory, "..", "nats", "nats.conf"),
+        "/etc/nats/nats.conf",
+        isReadOnly: true
+    )
+    .WithArgs("-c", "/etc/nats/nats.conf")
+    .WithEnvironment("CUSTOS_PASSWORD", brokerPasswords["custos"])
+    .WithEnvironment("OPTIO_PASSWORD", brokerPasswords["optio"])
+    .WithEndpoint(targetPort: 4222, name: "tcp", scheme: "tcp");
+
+// The connection string of a broker user. A service does not wait for the broker: an upload works
+// without it, and the client of each service connects again by itself.
+var brokerAddress = events.GetEndpoint("tcp").Property(EndpointProperty.HostAndPort);
+
+ReferenceExpression Broker(string user) =>
+    ReferenceExpression.Create($"nats://{user}:{brokerPasswords[user]}@{brokerAddress}");
+
 // The launch profile gives the port and the Development environment. appsettings.Development.json
 // of the server holds the localhost URLs of the realm and of the MCP endpoint.
 var server = builder
@@ -60,6 +92,7 @@ var server = builder
     .WithEnvironment("Mcp__Enabled", "true")
     .WithReference(database)
     .WaitFor(database)
+    .WithEnvironment("ConnectionStrings__events", Broker("custos"))
     .WithHttpHealthCheck("/health/ready");
 
 // The AppHost always registers the two parameters. Aspire asks for a value that is not set in the
@@ -67,17 +100,26 @@ var server = builder
 //   dotnet user-secrets set Parameters:discord-token <bot token>
 //   dotnet user-secrets set Parameters:discord-user-id <Discord user ID of the user dev>
 // discord-user-id is for a token without the claim discord_id.
+var discordUserId = builder.AddParameter("discord-user-id");
 server
     .WithEnvironment("Discord__Token", builder.AddParameter("discord-token", secret: true))
-    .WithEnvironment("Custos__DevelopmentDiscordUserId", builder.AddParameter("discord-user-id"));
+    .WithEnvironment("Custos__DevelopmentDiscordUserId", discordUserId);
 
-// appsettings.Development.json of optio holds the localhost URLs of optio, the realm, and the
+// appsettings.Development.json of Optio holds the localhost URLs of Optio, the realm, and the
 // upload API of the server.
 var optio = builder
     .AddProject<Projects.Optio>("optio")
     .WithEnvironment("Optio__CustosClientId", custosClientId)
     .WithEnvironment("Optio__OptioClientSecret", optioSecret)
     .WithReference(server)
+    .WithEnvironment("ConnectionStrings__events", Broker("optio"))
+    // The bot of Optio for the stream, of its own Discord application:
+    //   dotnet user-secrets set Parameters:optio-discord-token <bot token>
+    .WithEnvironment(
+        "Optio__DiscordToken",
+        builder.AddParameter("optio-discord-token", secret: true)
+    )
+    .WithEnvironment("Optio__DevelopmentDiscordUserId", discordUserId)
     .WithHttpHealthCheck("/health/ready");
 
 // The tunnel serves only an endpoint that a container references. This reference also gives the
