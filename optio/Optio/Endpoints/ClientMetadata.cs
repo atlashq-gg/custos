@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 
-namespace Custos.Server.Endpoints;
+namespace Optio.Endpoints;
 
 /// <summary>
 /// The OAuth Client ID Metadata Document of Custos. Its URL is the client ID, and the authorization
@@ -24,9 +24,9 @@ internal static class ClientMetadata
 
     public static IEndpointRouteBuilder MapClientMetadata(this IEndpointRouteBuilder app)
     {
-        app.MapGet(Path, (IOptions<CustosOptions> options) =>
+        app.MapGet(Path, (IOptions<OptioOptions> options) =>
                 new ClientMetadataDocument(
-                    ClientId: options.Value.ResolvedClientId,
+                    ClientId: options.Value.ResolvedCustosClientId,
                     ClientName: "Custos",
                     RedirectUris: [RedirectUri],
                     GrantTypes: ["authorization_code", "refresh_token"],
@@ -34,9 +34,6 @@ internal static class ClientMetadata
                     TokenEndpointAuthMethod: "none"
                 )
             )
-            .WithName("GetClientMetadata")
-            .WithTags("Discovery")
-            .WithSummary("The Client ID Metadata Document of Custos.")
             .AllowAnonymous();
 
         return app;

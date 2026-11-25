@@ -168,7 +168,7 @@ internal static class McpAccessFilter
     public static string ScopeName(McpScope scope, McpOptions options) =>
         scope == McpScope.Write ? options.WriteScope : options.ReadScope;
 
-    private static bool HasScope(ClaimsPrincipal? user, string scope) =>
+    public static bool HasScope(ClaimsPrincipal? user, string scope) =>
         user is not null
         && user.FindAll(ScopeClaim)
             .SelectMany(c => c.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))

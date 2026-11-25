@@ -16,4 +16,7 @@ The contract version is one number. The current version is `v0`. In the discover
 
 ## Unstable parts
 
-A document can mark a part as unstable, as a warning that it changes soon. In `v0`, the upload result document is unstable ([03-upload.md](03-upload.md#result-document)).
+A document can mark a part as unstable, as a warning that it changes soon. In `v0`, these parts are unstable:
+
+- The upload result document ([03-upload.md](03-upload.md#result-document)).
+- The stream ([05-stream.md](05-stream.md)).

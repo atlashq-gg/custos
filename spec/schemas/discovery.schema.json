@@ -26,6 +26,7 @@
     "upload_min_interval_seconds": { "type": "integer", "minimum": 0 },
     "openid_configuration": { "type": "string", "format": "uri" },
     "client_id": { "type": "string", "minLength": 1 },
-    "scopes": { "type": "array", "items": { "type": "string" } }
+    "scopes": { "type": "array", "items": { "type": "string" } },
+    "stream_endpoint": { "type": "string", "format": "uri" }
   }
 }

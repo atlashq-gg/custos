@@ -46,3 +46,4 @@ Use one repository, with one folder for each project at the root.
 ## Log
 
 - 2026-11-17: Created.
+- 2026-11-23: [ADR 0006](0006-optio-is-the-service-of-the-contract.md) adds a fourth project folder, `optio/`. This ADR does not change.

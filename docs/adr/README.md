@@ -2,7 +2,7 @@
 
 Architecture Decision Records (ADRs) for high-level architectural decisions. An ADR records a decision and its case. The rule that applies now lives in the governing document, with a link here. Open an ADR to learn why a rule exists, or to change it.
 
-A decision inside one project needs no ADR. Record it in the issue or the pull request that makes it. Retired records go to `archive/`.
+A decision inside one project needs no ADR. Record it in the issue or the pull request that makes it. Retired records go to [archive/](archive/README.md).
 
 | ID | Title | Status | Tags | Summary |
 |---|---|---|---|---|
@@ -10,8 +10,9 @@ A decision inside one project needs no ADR. Record it in the issue or the pull r
 | [0001](0001-record-decisions-as-adrs.md) | Record decisions as ADRs | accepted | process, documentation | Record each high-level architectural decision as a MADR file with frontmatter, a sequential ID, and a row in this index. |
 | [0002](0002-monorepo-with-projects-at-the-root.md) | Monorepo with projects at the root | accepted | repository | One repository, with one folder for each project at the root: `spec/`, `custos/`, and `server/`. |
 | [0003](0003-agent-instruction-hierarchy.md) | Agent instruction hierarchy | accepted | agents, documentation | One AGENTS.md per level. The root holds the minimum. The nearest file wins. CLAUDE.md only imports it. |
-| [0004](0004-the-specification-is-the-authority.md) | The specification is the authority | accepted | architecture | `spec/` defines the contract, and custos and server conform to it, with the server as a reference implementation. |
 | [0005](0005-license-by-project.md) | License by project | accepted | repository | spec, custos, and the root content are under MIT, and server is under AGPL-3.0-or-later, with one `LICENSE` file in each project folder. |
+| [0006](0006-optio-is-the-service-of-the-contract.md) | Optio is the service of the contract | accepted | architecture, repository | `spec/` defines the contract, Custos calls only Optio, which implements it with tokens of the user, and the server becomes a domain service behind it. Supersedes 0004. |
+| [0007](0007-a-broker-carries-domain-events.md) | A broker carries domain events with their access policy | accepted | architecture | A NATS JetStream broker carries each domain event with its data and an access policy in Discord terms, and Optio applies the policy to the stream of each user and replays from the broker. |
 
 ## Tags
 

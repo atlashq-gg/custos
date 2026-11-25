@@ -22,7 +22,7 @@ Discussions happen in GitHub issues and pull requests. A decision that does not 
 
 ## The specification
 
-`spec/` is the authority for the contract between Custos and a server. Custos and the server conform to it. The server is a reference implementation, not the definition of the contract ([ADR 0004](docs/adr/0004-the-specification-is-the-authority.md)).
+`spec/` is the authority for the contract between Custos and a service. Custos and Optio conform to it. Optio is an implementation, not the definition of the contract. The server is a domain service behind Optio ([ADR 0006](docs/adr/0006-optio-is-the-service-of-the-contract.md)).
 
 ## Changes
 
@@ -38,10 +38,11 @@ Discussions happen in GitHub issues and pull requests. A decision that does not 
 - A release of an application is a tag `<project>-X.Y.Z`, for example `server-0.2.0`. The Maintainer creates the tags. The releases before this format keep their tags `<project>/vX.Y.Z`: `custos/v0.1.0`, `custos/v0.2.0`, and `server/v0.1.0`.
 - The tag `custos-X.Y.Z` builds the AppImage, the installer script, and the Windows installer. It attests the three files and attaches them to a GitHub release.
 - The tag `server-X.Y.Z` publishes the container image `ghcr.io/atlashq-gg/custos-server`. Each push to `main` that changes the server publishes the tag `unstable`.
+- The tag `optio-X.Y.Z` publishes the container image `ghcr.io/atlashq-gg/custos-optio`. Each push to `main` that changes Optio publishes the tag `unstable`.
 
 ## Licenses
 
-The content of this repository is under the MIT license, except `server/`, which is under the AGPL-3.0-or-later license, except `server/catalog/catalog.json`, which is under CC BY-NC-SA 4.0 ([server/catalog/LICENSE.md](server/catalog/LICENSE.md)). Each project folder holds the `LICENSE` file of its license ([ADR 0005](docs/adr/0005-license-by-project.md)).
+The content of this repository is under the MIT license, except `optio/` and `server/`, which are under the AGPL-3.0-or-later license, except `server/catalog/catalog.json`, which is under CC BY-NC-SA 4.0 ([server/catalog/LICENSE.md](server/catalog/LICENSE.md)). Each project folder holds the `LICENSE` file of its license ([ADR 0005](docs/adr/0005-license-by-project.md)).
 
 ## Documents
 

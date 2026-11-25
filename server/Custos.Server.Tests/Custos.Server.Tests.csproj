@@ -19,6 +19,17 @@
       LinkBase="spec"
       CopyToOutputDirectory="PreserveNewest"
     />
+    <!-- The producer contract of the events, and the NATS configuration of development. -->
+    <None
+      Include="..\..\optio\schemas\*.json"
+      LinkBase="optio"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <None
+      Include="..\..\optio\nats\nats.conf"
+      Link="nats\nats.conf"
+      CopyToOutputDirectory="PreserveNewest"
+    />
     <None Include="Discord\CommandGuards.txt" CopyToOutputDirectory="PreserveNewest" />
     <None
       Include="Catalog\test-catalog.json"
@@ -27,7 +38,7 @@
     />
     <None Include="Mcp\McpTools.txt" CopyToOutputDirectory="PreserveNewest" />
     <None
-      Include="..\Custos.Server.AppHost\keycloak\custos-realm.json"
+      Include="..\keycloak\custos-realm.json"
       Link="keycloak\custos-realm.json"
       CopyToOutputDirectory="PreserveNewest"
     />
