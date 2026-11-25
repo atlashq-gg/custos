@@ -326,6 +326,173 @@ public sealed class QueryTests
     }
 
     [Test]
+    public async Task Accepted_change_runs_with_the_token_of_the_decision_and_the_model_answers()
+    {
+        QueueChange("Done: the seaport is Main Depot.");
+        using var stream = await OpenStreamAsync();
+        var client = Client();
+        await client.PostAsJsonAsync(QueryPath, Query("query-0020"));
+        var waiting = await WaitForStateAsync("query-0020", "waiting");
+
+        var accept = await client.PostAsJsonAsync(QueryPath, Action("query-0020", "accept"));
+        var again = await client.PostAsJsonAsync(QueryPath, Action("query-0020", "accept"));
+        var refuse = await client.PostAsJsonAsync(QueryPath, Action("query-0020", "refuse"));
+        var messages = await ReadQueryAsync(stream, "query-0020");
+        var state = await accept.Content.ReadFromJsonAsync<JsonElement>();
+
+        foreach (var message in messages)
+            SpecSchemas.AssertMessage(message);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(waiting.Text, Is.EqualTo("Set Label? \"Main Depot\""));
+            Assert.That(
+                waiting.Deadline,
+                Is.EqualTo(_factory.Time.GetUtcNow().AddSeconds(60)).Within(TimeSpan.FromSeconds(1))
+            );
+            Assert.That(accept.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(state.GetProperty("state").GetString(), Is.EqualTo("applying"));
+            Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(refuse.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
+            Assert.That(
+                messages.Select(m => m.GetProperty("state").GetString()).Distinct(),
+                Is.EqualTo(new[] { "working", "waiting", "applying", "closed" })
+            );
+            Assert.That(messages[^1].GetProperty("cause").GetString(), Is.EqualTo("answer"));
+            Assert.That(_factory.Tools.Writes, Has.Count.EqualTo(1));
+            // The model reads the result of the change.
+            Assert.That(
+                ((ToolResultsMessage)_factory.Model.Requests.Last().Messages[^1])
+                    .Results.Single()
+                    .Content,
+                Is.EqualTo(_factory.Tools.WriteResult)
+            );
+        }
+    }
+
+    [Test]
+    public async Task Refused_change_closes_the_query_and_the_follow_up_knows_it()
+    {
+        const string sid = "session-refuse";
+        QueueChange();
+        var client = Client(sid);
+        await client.PostAsJsonAsync(QueryPath, Query("query-0021"));
+        await WaitForStateAsync("query-0021", "waiting", sid);
+
+        var refuse = await client.PostAsJsonAsync(QueryPath, Action("query-0021", "refuse"));
+        await client.PostAsJsonAsync(QueryPath, Query("query-0022", "Why not?"));
+        await WaitForStateAsync("query-0022", "closed", sid);
+
+        var history = _factory.Model.Requests.Last().Messages;
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(refuse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(_factory.Tools.Writes, Is.Empty);
+            Assert.That(
+                ((ToolResultsMessage)history[^2]).Results.Single().Content,
+                Does.Contain("refused")
+            );
+        }
+    }
+
+    [Test]
+    public async Task Question_with_no_decision_expires_at_its_deadline()
+    {
+        const string sid = "session-expire";
+        QueueChange();
+        await Client(sid).PostAsJsonAsync(QueryPath, Query("query-0023"));
+        await WaitForStateAsync("query-0023", "waiting", sid);
+
+        _factory.Time.Advance(TimeSpan.FromSeconds(61));
+        var record = await WaitForStateAsync("query-0023", "closed", sid);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(record.Cause, Is.EqualTo("expired"));
+            Assert.That(_factory.Tools.Writes, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task Failed_change_closes_the_query_with_a_result_that_is_not_known()
+    {
+        const string sid = "session-fail";
+        QueueChange();
+        _factory.Tools.WriteFails = true;
+        var client = Client(sid);
+        await client.PostAsJsonAsync(QueryPath, Query("query-0024"));
+        await WaitForStateAsync("query-0024", "waiting", sid);
+
+        await client.PostAsJsonAsync(QueryPath, Action("query-0024", "accept"));
+        var record = await WaitForStateAsync("query-0024", "closed", sid);
+
+        Assert.That(record.Cause, Is.EqualTo("result_unknown"));
+    }
+
+    [Test]
+    public async Task Question_continues_after_a_restart_of_optio()
+    {
+        const string sid = "session-restart";
+        QueueChange();
+        await Client(sid).PostAsJsonAsync(QueryPath, Query("query-0025"));
+        await WaitForStateAsync("query-0025", "waiting", sid);
+        _factory.Dispose();
+
+        _factory = new OptioFactory(stream: true, broker: _broker.Url("optio"), query: true);
+        await _factory.WaitForStreamAsync();
+        _factory.Model.Turns.Enqueue(FakeModel.Answer("Done after the restart."));
+        var accept = await Client(sid).PostAsJsonAsync(QueryPath, Action("query-0025", "accept"));
+        var record = await WaitForStateAsync("query-0025", "closed", sid);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(accept.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(record.Cause, Is.EqualTo("answer"));
+            Assert.That(_factory.Tools.Writes, Has.Count.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public async Task New_query_waits_until_the_change_in_progress_completes()
+    {
+        const string sid = "session-apply";
+        QueueChange();
+        _factory.Tools.WriteGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var client = Client(sid);
+        await client.PostAsJsonAsync(QueryPath, Query("query-0026"));
+        await WaitForStateAsync("query-0026", "waiting", sid);
+        await client.PostAsJsonAsync(QueryPath, Action("query-0026", "accept"));
+
+        var stop = await client.PostAsJsonAsync(QueryPath, Action("query-0026", "stop"));
+        var next = client.PostAsJsonAsync(QueryPath, Query("query-0027"));
+        await Task.Delay(300);
+        var waited = !next.IsCompleted;
+        _factory.Tools.WriteGate.SetResult();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(stop.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
+            Assert.That(waited, Is.True);
+            Assert.That((await next).StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+            Assert.That(_factory.Tools.Writes, Has.Count.EqualTo(1));
+        }
+    }
+
+    /// <summary>The turns of a query that finds a structure, then asks to set its
+    /// label.</summary>
+    private void QueueChange(string answer = "Done.")
+    {
+        _factory.Model.Turns.Enqueue(FakeModel.Call(FakeTools.FindItems));
+        _factory.Model.Turns.Enqueue(
+            FakeModel.Call(
+                FakeTools.SetLabel,
+                """{"structure_id":"s-1","label":"Main Depot","""
+                    + "\"confirm_text\":\"Set Label? \\\"Main Depot\\\"\"}"
+            )
+        );
+        _factory.Model.Turns.Enqueue(FakeModel.Answer(answer));
+    }
+
+    [Test]
     public async Task User_with_too_many_queries_gets_429_with_a_wait()
     {
         using var factory = new OptioFactory(

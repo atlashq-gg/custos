@@ -122,17 +122,51 @@ public sealed class LabelToolTests
     }
 
     [Test]
-    public async Task Read_token_does_not_list_the_tool()
+    public async Task Read_token_lists_the_tool_but_its_call_needs_the_write_scope()
     {
+        var structureId = await UploadAsync(Guild);
         using var http = _factory.CreateMcpClient(Labeler.ToString(), "custos:read");
         await using var client = await ConnectAsync(http);
 
         var tools = await client.ListToolsAsync();
-
-        Assert.That(
-            tools.Select(t => t.Name),
-            Is.EquivalentTo(new[] { "find_items", "find_structures", "list_guilds" })
+        var call = await OutcomeAsync(() =>
+            client.CallToolAsync(
+                "set_structure_label",
+                new Dictionary<string, object?>
+                {
+                    ["guild_id"] = Guild.ToString(),
+                    ["structure_id"] = structureId,
+                    ["label"] = "Main Depot",
+                }
+            )
         );
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(
+                tools.Select(t => t.Name),
+                Is.EquivalentTo(
+                    new[] { "find_items", "find_structures", "list_guilds", "set_structure_label" }
+                )
+            );
+            Assert.That(call, Does.Contain("insufficient_scope").Or.Contain("403"));
+        }
+    }
+
+    /// <summary>The result text of a call, or the message of its exception: a call without the
+    /// scope is an HTTP 403, which the client gives as an exception.</summary>
+    private static async Task<string> OutcomeAsync(
+        Func<ValueTask<ModelContextProtocol.Protocol.CallToolResult>> call
+    )
+    {
+        try
+        {
+            return Text(await call());
+        }
+        catch (Exception e)
+        {
+            return e.ToString();
+        }
     }
 
     [Test]

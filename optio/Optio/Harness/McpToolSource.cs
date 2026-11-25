@@ -17,6 +17,21 @@ internal sealed record ToolUser(string AccessToken, ulong Guild, ulong User);
 /// its tools are available now.</summary>
 internal sealed record ServiceCard(string Name, string Title, string? Card, bool Available);
 
+/// <summary>
+/// A call of a write tool, as the service gets it after the user accepts. <paramref name="Call"/>
+/// has the name of the tool at the service and the arguments for the service: the guild, and
+/// <c>confirm</c> true. <paramref name="Shown"/> holds the text values that the question must
+/// show, and <paramref name="Ids"/> the values of the ID arguments.
+/// </summary>
+internal sealed record WriteCall(
+    string Service,
+    string Title,
+    string Status,
+    ToolCall Call,
+    List<string?> Shown,
+    List<string> Ids
+);
+
 /// <summary>The services and the tools of one part of a query.</summary>
 internal interface IToolSession : IAsyncDisposable
 {
@@ -24,23 +39,39 @@ internal interface IToolSession : IAsyncDisposable
 
     IReadOnlyList<ModelTool> Tools { get; }
 
-    /// <summary>Calls a tool. A failure of the tool or of its service gives a tool error.</summary>
+    /// <summary>Calls a read tool. A failure of the tool or of its service gives a tool
+    /// error.</summary>
     Task<ToolResult> CallAsync(ToolCall call, CancellationToken cancellationToken);
+
+    /// <summary>The write call of a call of the model, or null for a read tool.</summary>
+    WriteCall? AsWrite(ToolCall call);
 }
 
 /// <summary>The tools that a query can call for a user.</summary>
 internal interface IToolSource
 {
     Task<IToolSession> OpenAsync(ToolUser user, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Calls a write tool after the user accepted it, with a token of the write scope. A refusal
+    /// of the token or an error of the tool gives a tool error. A failure of the service throws:
+    /// the result of the change is then not known.
+    /// </summary>
+    Task<ToolResult> CallWriteAsync(
+        ToolUser user,
+        WriteCall call,
+        CancellationToken cancellationToken
+    );
 }
 
 /// <summary>
 /// The tools of the MCP services of the configuration. Optio keeps the card and the tool list of
 /// each service for <see cref="OptioOptions.CatalogMinutes"/>. It gets them again with the token
-/// of a query, because Optio has no account of its own at a service. The model gets each read-only
-/// tool as <c>{service}_{tool}</c>, without the hidden tools. Code sets the argument
-/// <c>guild_id</c> to the guild of the query, and the model does not see it. Each call writes an
-/// audit line.
+/// of a query, because Optio has no account of its own at a service. The model gets each tool as
+/// <c>{service}_{tool}</c>, without the hidden tools. A tool that the service does not mark
+/// read-only is a write tool, and only a service with a write scope gives its write tools. Code
+/// sets the argument <c>guild_id</c> to the guild of the query, and <c>confirm</c> of a write tool
+/// to true. The model does not see them. Each call writes an audit line.
 /// </summary>
 internal sealed partial class McpToolSource(
     TokenExchange tokens,
@@ -53,6 +84,7 @@ internal sealed partial class McpToolSource(
 {
     public const string HttpClientName = "mcp";
     public const string GuildArgument = "guild_id";
+    public const string ConfirmArgument = "confirm";
 
     private readonly ConcurrentDictionary<string, Catalog> _catalogs = new();
 
@@ -96,7 +128,7 @@ internal sealed partial class McpToolSource(
 
         try
         {
-            var client = await ConnectAsync(service, user, cancellationToken);
+            var client = await ConnectAsync(service, user, service.ReadScope, cancellationToken);
             session.Clients[service.Name] = client;
             var tools = await client.ListToolsAsync(cancellationToken: cancellationToken);
             var catalog = new Catalog(
@@ -123,18 +155,59 @@ internal sealed partial class McpToolSource(
         }
     }
 
-    /// <summary>A client of a service with a token of the user for the read scope.</summary>
-    private async Task<McpClient> ConnectAsync(
-        McpServiceOptions service,
+    public async Task<ToolResult> CallWriteAsync(
         ToolUser user,
+        WriteCall call,
         CancellationToken cancellationToken
     )
     {
-        var token = await tokens.ExchangeAsync(
-            user.AccessToken,
-            service.ReadScope,
-            cancellationToken
-        ) ?? throw new InvalidOperationException("The authorization server refused the token.");
+        var service = options.Value.McpServices.Single(s => s.Name == call.Service);
+        McpClient client;
+        try
+        {
+            client = await ConnectAsync(service, user, service.WriteScope!, cancellationToken);
+        }
+        catch (TokenRefusedException)
+        {
+            // No change: the service got no call.
+            Audit(service.Name, call.Call.Name, user, "refused");
+            return new ToolResult(
+                call.Call.Id,
+                "The service refused the access for this change. The user can lack the access.",
+                true
+            );
+        }
+        await using (client)
+        {
+            CallToolResult result;
+            try
+            {
+                result = await client.CallToolAsync(
+                    call.Call.Name,
+                    call.Call.Arguments.ToDictionary(a => a.Key, a => (object?)a.Value),
+                    cancellationToken: cancellationToken
+                );
+            }
+            catch
+            {
+                Audit(service.Name, call.Call.Name, user, "failed");
+                throw;
+            }
+            Audit(service.Name, call.Call.Name, user, result.IsError == true ? "error" : "ok");
+            return new ToolResult(call.Call.Id, Text(result), result.IsError == true);
+        }
+    }
+
+    /// <summary>A client of a service with a token of the user for the scope.</summary>
+    private async Task<McpClient> ConnectAsync(
+        McpServiceOptions service,
+        ToolUser user,
+        string scope,
+        CancellationToken cancellationToken
+    )
+    {
+        var token = await tokens.ExchangeAsync(user.AccessToken, scope, cancellationToken)
+            ?? throw new TokenRefusedException();
         return await McpClient.CreateAsync(
             new HttpClientTransport(
                 new HttpClientTransportOptions
@@ -152,6 +225,19 @@ internal sealed partial class McpToolSource(
             cancellationToken: cancellationToken
         );
     }
+
+    private static string Text(CallToolResult result) =>
+        string.Join("\n", result.Content.OfType<TextContentBlock>().Select(c => c.Text));
+
+    /// <summary>True when the JSON Schema of an argument allows the type.</summary>
+    private static bool HasType(JsonElement schema, string type) =>
+        schema.TryGetProperty("type", out var t)
+        && (
+            t.ValueKind == JsonValueKind.String
+                ? t.GetString() == type
+                : t.ValueKind == JsonValueKind.Array
+                    && t.EnumerateArray().Any(i => i.GetString() == type)
+        );
 
     /// <summary>The JSON Schema of a tool without the arguments that code sets.</summary>
     internal static JsonElement Without(JsonElement schema, IReadOnlyCollection<string> names)
@@ -198,8 +284,21 @@ internal sealed partial class McpToolSource(
         bool ReadOnly
     );
 
-    /// <summary>The route of a tool name of the model to its service.</summary>
-    private sealed record Route(McpServiceOptions Service, CatalogTool Tool, bool HasGuild);
+    /// <summary>The route of a tool name of the model to its service. A write tool has
+    /// <paramref name="Shown"/>, its text arguments with no <c>_id</c> at the end, and
+    /// <paramref name="Confirm"/> when it has the boolean argument <c>confirm</c>.</summary>
+    private sealed record Route(
+        McpServiceOptions Service,
+        CatalogTool Tool,
+        string Status,
+        bool HasGuild,
+        bool Write,
+        bool Confirm,
+        string[] Shown
+    );
+
+    private sealed class TokenRefusedException()
+        : Exception("The authorization server refused the token.");
 
     private sealed class Session(McpToolSource source, ToolUser user) : IToolSession
     {
@@ -226,18 +325,45 @@ internal sealed partial class McpToolSource(
             foreach (var tool in catalog?.Tools ?? [])
             {
                 var name = $"{service.Name}_{tool.Name}";
-                if (!tool.ReadOnly || hidden.Contains(name))
+                var write = !tool.ReadOnly;
+                if (hidden.Contains(name) || (write && string.IsNullOrEmpty(service.WriteScope)))
                     continue;
-                var hasGuild =
-                    tool.Schema.TryGetProperty("properties", out var properties)
-                    && properties.TryGetProperty(GuildArgument, out _);
-                _routes[name] = new Route(service, tool, hasGuild);
+                var properties = tool.Schema.TryGetProperty("properties", out var p)
+                    ? p.EnumerateObject().ToList()
+                    : [];
+                var confirm =
+                    write
+                    && properties.Any(a =>
+                        a.Name == ConfirmArgument && HasType(a.Value, "boolean")
+                    );
+                string[] codeSet = confirm ? [GuildArgument, ConfirmArgument] : [GuildArgument];
+                var status = $"{catalog!.Title}: {tool.Title}";
+                _routes[name] = new Route(
+                    service,
+                    tool,
+                    status,
+                    properties.Any(a => a.Name == GuildArgument),
+                    write,
+                    confirm,
+                    [
+                        .. properties
+                            .Where(a =>
+                                write
+                                && !a.Name.EndsWith("_id", StringComparison.Ordinal)
+                                && !codeSet.Contains(a.Name)
+                                && HasType(a.Value, "string")
+                            )
+                            .Select(a => a.Name),
+                    ]
+                );
+                var schema = Without(tool.Schema, codeSet);
                 _tools.Add(
                     new ModelTool(
                         name,
-                        $"{catalog!.Title}: {tool.Title}",
+                        status,
                         tool.Description,
-                        Without(tool.Schema, [GuildArgument])
+                        write ? Questions.WithTextArgument(schema) : schema,
+                        write
                     )
                 );
             }
@@ -245,7 +371,7 @@ internal sealed partial class McpToolSource(
 
         public async Task<ToolResult> CallAsync(ToolCall call, CancellationToken cancellationToken)
         {
-            if (!_routes.TryGetValue(call.Name, out var route))
+            if (!_routes.TryGetValue(call.Name, out var route) || route.Write)
                 return new ToolResult(call.Id, $"The tool {call.Name} does not exist.", true);
 
             var service = route.Service.Name;
@@ -256,7 +382,12 @@ internal sealed partial class McpToolSource(
             {
                 if (!Clients.TryGetValue(service, out var client))
                 {
-                    client = await source.ConnectAsync(route.Service, user, cancellationToken);
+                    client = await source.ConnectAsync(
+                        route.Service,
+                        user,
+                        route.Service.ReadScope,
+                        cancellationToken
+                    );
                     Clients[service] = client;
                 }
                 var result = await client.CallToolAsync(
@@ -270,11 +401,7 @@ internal sealed partial class McpToolSource(
                     user,
                     result.IsError == true ? "error" : "ok"
                 );
-                var text = string.Join(
-                    "\n",
-                    result.Content.OfType<TextContentBlock>().Select(c => c.Text)
-                );
-                return new ToolResult(call.Id, text, result.IsError == true);
+                return new ToolResult(call.Id, Text(result), result.IsError == true);
             }
             catch (Exception e) when (!cancellationToken.IsCancellationRequested)
             {
@@ -283,6 +410,54 @@ internal sealed partial class McpToolSource(
                 return new ToolResult(call.Id, "The service did not answer. Try later.", true);
             }
         }
+
+        public WriteCall? AsWrite(ToolCall call)
+        {
+            if (!_routes.TryGetValue(call.Name, out var route) || !route.Write)
+                return null;
+            var arguments = call.Arguments.ToDictionary();
+            arguments.Remove(Questions.TextArgument);
+            if (route.HasGuild)
+            {
+                arguments[GuildArgument] = JsonSerializer.SerializeToElement(
+                    user.Guild.ToString(CultureInfo.InvariantCulture)
+                );
+            }
+            if (route.Confirm)
+                arguments[ConfirmArgument] = JsonSerializer.SerializeToElement(true);
+            return new WriteCall(
+                route.Service.Name,
+                route.Tool.Title,
+                route.Status,
+                call with
+                {
+                    Name = route.Tool.Name,
+                    Arguments = arguments,
+                },
+                [.. route.Shown.Select(name => Value(arguments, name))],
+                [
+                    .. arguments
+                        .Where(a =>
+                            a.Key != GuildArgument
+                            && a.Key.EndsWith("_id", StringComparison.Ordinal)
+                            && a.Value.ValueKind == JsonValueKind.String
+                        )
+                        .Select(a => a.Value.GetString()!),
+                ]
+            );
+        }
+
+        /// <summary>The value of an argument as text, or null when the call has no
+        /// value.</summary>
+        private static string? Value(Dictionary<string, JsonElement> arguments, string name) =>
+            arguments.TryGetValue(name, out var value)
+                ? value.ValueKind switch
+                {
+                    JsonValueKind.String => value.GetString(),
+                    JsonValueKind.Null => null,
+                    _ => value.GetRawText(),
+                }
+                : null;
 
         public async ValueTask DisposeAsync()
         {
