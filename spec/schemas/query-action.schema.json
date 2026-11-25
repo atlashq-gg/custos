@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/atlashq-gg/custos/spec/schemas/query-action.schema.json",
+  "title": "Custos query action (unstable)",
+  "type": "object",
+  "required": ["reference", "action"],
+  "properties": {
+    "reference": { "$ref": "query.schema.json#/$defs/reference" },
+    "action": { "enum": ["accept", "refuse", "stop"] }
+  },
+  "not": { "required": ["text"] }
+}
