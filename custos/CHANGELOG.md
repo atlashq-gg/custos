@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0-alpha.3
+
+A pre-release that fixes the key of the query on Linux.
+
+- At the level `debug`, the log shows each change of the map data file, and each file that Custos does not send because the service already accepted or refused it.
+- Fix: on Linux, the key of the query did nothing with the installed AppImage. The portal refused the application ID `gg.atlashq.custos`, because the launcher entry had the name `custos.desktop`. `install.sh` now installs the entry as `gg.atlashq.custos.desktop`, and removes the old entry. Run the `install.sh` of the new release, and start Custos again.
+
 ## 0.3.0-alpha.2
 
 The query: a question to the service in plain language. A pre-release.

@@ -19,7 +19,11 @@ TARGET="$BIN_DIR/custos"
 DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}"
 APPLICATIONS="$DATA_DIR/applications"
 ICONS="$DATA_DIR/icons/hicolor"
-ENTRY="$APPLICATIONS/custos.desktop"
+# The name of the entry is the application ID (the identifier in tauri.conf.json). The
+# GlobalShortcuts portal registers Custos by this ID, and refuses an ID without an entry.
+ENTRY="$APPLICATIONS/gg.atlashq.custos.desktop"
+# The name of the entry of the older versions.
+OLD_ENTRY="$APPLICATIONS/custos.desktop"
 # Custos writes this file at each start. It makes Custos the handler of the login link custos://.
 HANDLER="$APPLICATIONS/custos-handler.desktop"
 
@@ -44,7 +48,7 @@ update_database() {
 }
 
 uninstall() {
-    rm -f "$TARGET" "$ENTRY" "$HANDLER" "$ICONS"/*/apps/custos.png
+    rm -f "$TARGET" "$ENTRY" "$OLD_ENTRY" "$HANDLER" "$ICONS"/*/apps/custos.png
     update_database
     echo "Removed Custos. The configuration in ~/.config/custos and the tokens stay."
 }
@@ -94,6 +98,7 @@ install_custos() {
     # The entry starts the installed file. It has no MimeType: the handler of custos:// is the file
     # that Custos writes at each start, with the same path.
     sed -e "s|^Exec=.*|Exec=\"$TARGET\"|" -e '/^MimeType=/d' "$1" >"$ENTRY"
+    rm -f "$OLD_ENTRY"
     for icon in "$work"/squashfs-root/usr/share/icons/hicolor/*/apps/custos.png; do
         [ -f "$icon" ] || continue
         size=$(basename "$(dirname "$(dirname "$icon")")")

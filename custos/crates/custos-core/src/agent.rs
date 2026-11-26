@@ -251,7 +251,10 @@ impl Agent {
                     None | Some(Command::Shutdown) => break,
                     Some(command) => self.handle(command).await,
                 },
-                Some(()) = self.file_events.1.recv() => self.dirty = true,
+                Some(()) = self.file_events.1.recv() => {
+                    tracing::debug!("the map data file changed");
+                    self.dirty = true;
+                }
                 Some(signal) = next_signal(&mut self.stream.task) => self.on_signal(signal).await,
                 _ = ticker.tick() => self.tick().await,
             }
@@ -419,6 +422,7 @@ impl Agent {
         };
         let sha256 = hex::encode(Sha256::digest(&bytes));
         if !self.schedule.is_new(&sha256) {
+            tracing::debug!("no upload: the service already accepted or refused this map data file");
             self.dirty = false;
             return;
         }

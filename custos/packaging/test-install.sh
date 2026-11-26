@@ -12,7 +12,8 @@ export HOME="$home"
 unset XDG_DATA_HOME
 bin="$home/.local/bin/custos"
 data="$home/.local/share"
-entry="$data/applications/custos.desktop"
+entry="$data/applications/gg.atlashq.custos.desktop"
+old_entry="$data/applications/custos.desktop"
 
 fail() {
     printf 'FAIL: %s\n' "$1" >&2
@@ -44,6 +45,7 @@ installed() {
     if grep -q '^MimeType=' "$entry"; then fail "the entry has a MimeType"; fi
     set -- "$data"/icons/hicolor/*/apps/custos.png
     [ -f "$1" ] || fail "no icon"
+    [ ! -e "$old_entry" ] || fail "the entry of an older version stays"
     set -- "$home"/.local/bin/.custos.*
     [ ! -e "$1" ] || fail "a temporary file stays: $1"
 }
@@ -52,8 +54,9 @@ sh "$here/install.sh" "$appimage"
 installed
 echo "ok: install"
 
-# A second run replaces the installed version.
+# A second run replaces the installed version, and the entry of an older version.
 printf 'old' >"$bin"
+printf '[Desktop Entry]\n' >"$old_entry"
 sh "$here/install.sh" "$appimage"
 installed
 echo "ok: replace"
@@ -66,8 +69,9 @@ echo "ok: no download without a version"
 mkdir -p "$home/.config/custos"
 printf 'service_url = "https://example.com"\n' >"$home/.config/custos/config.toml"
 printf '[Desktop Entry]\n' >"$data/applications/custos-handler.desktop"
+printf '[Desktop Entry]\n' >"$old_entry"
 sh "$here/install.sh" --uninstall
-for file in "$bin" "$entry" "$data/applications/custos-handler.desktop"; do
+for file in "$bin" "$entry" "$old_entry" "$data/applications/custos-handler.desktop"; do
     [ ! -e "$file" ] || fail "$file stays after the removal"
 done
 set -- "$data"/icons/hicolor/*/apps/custos.png
