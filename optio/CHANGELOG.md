@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The discovery document lists the features in `features_supported`: always `upload`, `stream` while the stream is on, and `query` while the query is on.
 - The default `ServiceName` is `Optio`, the name that Custos shows to the user.
 - The NATS configuration moves to [deploy/nats/nats.conf](../deploy/nats/nats.conf), and the deployment guide to [deploy/README.md](../deploy/README.md), with the files `compose.yaml` and `.env.example`. The tests and the AppHost read the realm and the NATS configuration from `deploy/`.
 - The query of `spec/06-query.md` at `POST /api/v1/query`, with `query_endpoint` in the discovery document. The record of each query is in the NATS bucket `OPTIO_QUERIES`, and its messages go to the stream `OPTIO` below `queries.<guild>.<user>.<client>`. The loop calls the Claude API and the read-only tools of the MCP services, with the card of each service in the prompt. A part of a query has a budget of time and of tool calls. The conversation of a client stays in the bucket `OPTIO_CONVERSATIONS` for the follow-up window. The actions `stop`, the replacement by a new query, the limits of one open query for each user and of queries in each hour, and the close of interrupted queries at the start and the stop.

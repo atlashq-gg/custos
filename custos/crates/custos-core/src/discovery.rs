@@ -13,6 +13,8 @@ const WELL_KNOWN: &str = "/.well-known/custos-configuration";
 pub struct Discovery {
     pub custos_versions_supported: Vec<String>,
     pub service_name: String,
+    /// The features of the service. Use [`Discovery::has`].
+    features_supported: Vec<String>,
     pub service_documentation: Option<Url>,
     pub upload_endpoint: Url,
     pub upload_max_bytes: u64,
@@ -20,11 +22,30 @@ pub struct Discovery {
     pub openid_configuration: Url,
     pub client_id: String,
     pub scopes: Vec<String>,
-    /// The stream of spec/05-stream.md. A service without it has no stream.
-    pub stream_endpoint: Option<Url>,
+    /// The stream of spec/05-stream.md. Use [`Discovery::stream_endpoint`].
+    #[serde(rename = "stream_endpoint")]
+    stream: Option<Url>,
     /// The query of spec/06-query.md. Use [`Discovery::query_endpoint`].
     #[serde(rename = "query_endpoint")]
     query: Option<Url>,
+}
+
+/// A feature of `features_supported` (spec/01-discovery.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Feature {
+    Upload,
+    Stream,
+    Query,
+}
+
+impl Feature {
+    fn name(self) -> &'static str {
+        match self {
+            Feature::Upload => "upload",
+            Feature::Stream => "stream",
+            Feature::Query => "query",
+        }
+    }
 }
 
 /// The members of the metadata of the authorization server that Custos uses.
@@ -54,6 +75,10 @@ pub enum DiscoveryError {
     Insecure(Url),
     #[error("the authorization server does not support PKCE with S256")]
     NoS256,
+    #[error("the service does not list the feature {0} in features_supported")]
+    NoFeature(&'static str),
+    #[error("the service lists the feature {0}, but the discovery document does not have {1}")]
+    Incomplete(&'static str, &'static str),
 }
 
 impl Discovery {
@@ -67,10 +92,22 @@ impl Discovery {
             .copied()
     }
 
-    /// The endpoint of the query. A service without a stream has no query.
+    /// True when `features_supported` names the feature.
+    #[must_use]
+    pub fn has(&self, feature: Feature) -> bool {
+        self.features_supported.iter().any(|f| f == feature.name())
+    }
+
+    /// The endpoint of the stream, when the service lists the feature.
+    #[must_use]
+    pub fn stream_endpoint(&self) -> Option<&Url> {
+        self.stream.as_ref().filter(|_| self.has(Feature::Stream))
+    }
+
+    /// The endpoint of the query, when the service lists the feature.
     #[must_use]
     pub fn query_endpoint(&self) -> Option<&Url> {
-        self.stream_endpoint.as_ref().and(self.query.as_ref())
+        self.query.as_ref().filter(|_| self.has(Feature::Query))
     }
 
     fn validate(self) -> Result<Self, DiscoveryError> {
@@ -79,11 +116,23 @@ impl Discovery {
                 offered: self.custos_versions_supported,
             });
         }
+        if !self.has(Feature::Upload) {
+            return Err(DiscoveryError::NoFeature(Feature::Upload.name()));
+        }
+        if self.has(Feature::Stream) && self.stream.is_none() {
+            return Err(DiscoveryError::Incomplete("stream", "stream_endpoint"));
+        }
+        if self.has(Feature::Query) && self.query.is_none() {
+            return Err(DiscoveryError::Incomplete("query", "query_endpoint"));
+        }
+        if self.has(Feature::Query) && !self.has(Feature::Stream) {
+            return Err(DiscoveryError::Incomplete("query", "the feature stream"));
+        }
         require_allowed(
             [&self.upload_endpoint, &self.openid_configuration]
                 .into_iter()
-                .chain(self.stream_endpoint.as_ref())
-                .chain(self.query.as_ref()),
+                .chain(self.stream_endpoint())
+                .chain(self.query_endpoint()),
         )?;
         Ok(self)
     }
@@ -191,6 +240,7 @@ pub(crate) mod tests {
         serde_json::json!({
             "custos_versions_supported": ["0"],
             "service_name": "Test",
+            "features_supported": ["upload"],
             "upload_endpoint": format!("{base}/api/v1/uploads"),
             "upload_max_bytes": 4_194_304,
             "upload_min_interval_seconds": 60,
@@ -281,41 +331,66 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn stream_endpoint_is_read_and_must_be_secure() {
-        let server = mock_service(
-            |d| d["stream_endpoint"] = "https://example.com/api/v1/stream".into(),
-            |_| {},
-        )
-        .await;
+        let stream = |d: &mut serde_json::Value, url: &str| {
+            d["features_supported"] = serde_json::json!(["upload", "stream"]);
+            d["stream_endpoint"] = url.into();
+        };
+        let server = mock_service(|d| stream(d, "https://example.com/api/v1/stream"), |_| {}).await;
         let service = fetch_from(&server).await.unwrap();
-        assert_eq!(service.discovery.stream_endpoint.unwrap().path(), "/api/v1/stream");
+        assert_eq!(service.discovery.stream_endpoint().unwrap().path(), "/api/v1/stream");
 
-        let server = mock_service(
-            |d| d["stream_endpoint"] = "http://example.com/api/v1/stream".into(),
-            |_| {},
-        )
-        .await;
+        let server = mock_service(|d| stream(d, "http://example.com/api/v1/stream"), |_| {}).await;
         assert!(matches!(fetch_from(&server).await, Err(DiscoveryError::Insecure(_))));
     }
 
     #[tokio::test]
-    async fn query_endpoint_needs_the_stream_and_must_be_secure() {
-        let query = "https://example.com/api/v1/query";
-        let server = mock_service(|d| d["query_endpoint"] = query.into(), |_| {}).await;
-        assert_eq!(fetch_from(&server).await.unwrap().discovery.query_endpoint(), None);
-
-        let server = mock_service(
-            |d| {
-                d["stream_endpoint"] = "https://example.com/api/v1/stream".into();
+    async fn features_decide_which_endpoints_custos_uses() {
+        let (stream, query) = ("https://example.com/api/v1/stream", "https://example.com/api/v1/query");
+        let document = |features: serde_json::Value| {
+            move |d: &mut serde_json::Value| {
+                d["features_supported"] = features;
+                d["stream_endpoint"] = stream.into();
                 d["query_endpoint"] = query.into();
-            },
-            |_| {},
-        )
-        .await;
+            }
+        };
+
+        // Endpoints of features that the list does not name are ignored, also an insecure one.
+        let server = mock_service(document(serde_json::json!(["upload", "a_future_feature"])), |_| {}).await;
+        let service = fetch_from(&server).await.unwrap();
+        assert_eq!(service.discovery.stream_endpoint(), None);
+        assert_eq!(service.discovery.query_endpoint(), None);
+
+        let server = mock_service(document(serde_json::json!(["upload", "stream", "query"])), |_| {}).await;
         let service = fetch_from(&server).await.unwrap();
         assert_eq!(service.discovery.query_endpoint().unwrap().as_str(), query);
 
-        let server = mock_service(|d| d["query_endpoint"] = "http://example.com/q".into(), |_| {}).await;
-        assert!(matches!(fetch_from(&server).await, Err(DiscoveryError::Insecure(_))));
+        let server = mock_service(document(serde_json::json!(["upload", "query"])), |_| {}).await;
+        assert!(matches!(
+            fetch_from(&server).await,
+            Err(DiscoveryError::Incomplete("query", _))
+        ));
+    }
+
+    #[tokio::test]
+    async fn listed_feature_needs_its_members_and_upload_is_required() {
+        let server = mock_service(|d| d["features_supported"] = serde_json::json!(["stream"]), |_| {}).await;
+        assert!(matches!(
+            fetch_from(&server).await,
+            Err(DiscoveryError::NoFeature("upload"))
+        ));
+
+        let server = mock_service(
+            |d| d["features_supported"] = serde_json::json!(["upload", "stream"]),
+            |_| {},
+        )
+        .await;
+        assert!(matches!(
+            fetch_from(&server).await,
+            Err(DiscoveryError::Incomplete("stream", "stream_endpoint"))
+        ));
+
+        let server = mock_service(|d| d["features_supported"] = serde_json::Value::Null, |_| {}).await;
+        assert!(fetch_from(&server).await.is_err());
     }
 
     #[tokio::test]

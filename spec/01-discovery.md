@@ -25,6 +25,7 @@ The schema is [schemas/discovery.schema.json](schemas/discovery.schema.json).
 |---|---|---|---|
 | `custos_versions_supported` | array of strings | yes | The contract versions that the service supports ([04-versioning.md](04-versioning.md)). |
 | `service_name` | string | yes | A short name that Custos shows to the user. |
+| `features_supported` | array of strings | yes | The [features](#features) that the service has, and has turned on. |
 | `service_documentation` | string (URL) | no | A page for humans about the service. |
 | `upload_endpoint` | string (URL) | yes | The endpoint for the upload ([03-upload.md](03-upload.md)). |
 | `upload_max_bytes` | integer | yes | The largest body that the upload endpoint accepts. |
@@ -32,8 +33,22 @@ The schema is [schemas/discovery.schema.json](schemas/discovery.schema.json).
 | `openid_configuration` | string (URL) | yes | The URL of the metadata document of the authorization server ([Authorization server](#authorization-server)). |
 | `client_id` | string | yes | The client ID that Custos uses at the authorization server. |
 | `scopes` | array of strings | yes | The scopes that Custos requests. It can be empty. |
-| `stream_endpoint` | string (URL) | no | The endpoint of the stream ([05-stream.md](05-stream.md)). |
-| `query_endpoint` | string (URL) | no | The endpoint of the query ([06-query.md](06-query.md)). It needs `stream_endpoint`. |
+| `stream_endpoint` | string (URL) | with `stream` | The endpoint of the stream ([05-stream.md](05-stream.md)). |
+| `query_endpoint` | string (URL) | with `query` | The endpoint of the query ([06-query.md](06-query.md)). |
+
+### Features
+
+| Feature | Document | Members that it needs |
+|---|---|---|
+| `upload` | [03-upload.md](03-upload.md) | `upload_endpoint`, `upload_max_bytes`, `upload_min_interval_seconds` |
+| `stream` | [05-stream.md](05-stream.md) | `stream_endpoint` |
+| `query` | [06-query.md](06-query.md) | `query_endpoint`, and the feature `stream` |
+
+- In contract version `v0`, `features_supported` MUST contain `upload`.
+- The service MUST list only a feature that it has and that it turned on. A feature that the operator turned off is not in the list.
+- Each feature in the list MUST have the members that it needs. Custos MUST reject a document with a feature that does not have them.
+- Custos MUST use a feature only when the list names it. It ignores the members of a feature that the list does not name.
+- Custos MUST ignore a name that it does not know. A newer service can list more features.
 
 Each URL in the document MUST use HTTPS, with the same exception for loopback hosts. The URLs can point to a different host than the service URL, for example to an identity provider.
 
@@ -59,13 +74,15 @@ Custos uses these members. It ignores all other members.
 {
   "custos_versions_supported": ["0"],
   "service_name": "Example Logistics",
+  "features_supported": ["upload", "stream"],
   "service_documentation": "https://example.com/docs",
   "upload_endpoint": "https://example.com/api/v1/uploads",
   "upload_max_bytes": 4194304,
   "upload_min_interval_seconds": 60,
   "openid_configuration": "https://id.example.com/realms/custos/.well-known/openid-configuration",
   "client_id": "https://example.com/.well-known/custos-client",
-  "scopes": ["openid", "offline_access"]
+  "scopes": ["openid", "offline_access"],
+  "stream_endpoint": "https://example.com/api/v1/stream"
 }
 ```
 

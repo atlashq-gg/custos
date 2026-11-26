@@ -8,14 +8,14 @@ The contract states only how Custos and the service exchange a query. How the se
 
 ## Discovery
 
-The optional member `query_endpoint` of the discovery document ([01-discovery.md](01-discovery.md)) announces the query:
+The feature `query` in `features_supported` of the discovery document ([01-discovery.md](01-discovery.md#features)) announces the query. Its member is:
 
 | Member | Type | Content |
 |---|---|---|
 | `query_endpoint` | string (URL) | The endpoint of the query. |
 
 - The URL obeys the HTTPS rule of the discovery document.
-- A service with `query_endpoint` MUST also have `stream_endpoint`. Custos MUST ignore `query_endpoint` when `stream_endpoint` is not present.
+- A service with the feature `query` MUST also have the feature `stream`. Custos MUST reject a document with `query` and without `stream` ([01-discovery.md](01-discovery.md#features)).
 
 ## Client
 
