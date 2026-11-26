@@ -40,7 +40,7 @@ pub fn parse(line: &str) -> Result<Option<Input>, String> {
         _ if line == NEW => return Err(format!("Write a question after {NEW}.")),
         Some((NEW, text)) => (text.trim(), true),
         _ if line.starts_with('/') => {
-            return Err(format!("The commands are {NEW} <question> and {STOP}."));
+            return Err(format!("{line} is not a command. {HELP} shows the commands."));
         }
         _ => (line, false),
     };
@@ -56,16 +56,22 @@ pub fn parse(line: &str) -> Result<Option<Input>, String> {
     }))
 }
 
-/// The help line while the user types a question. `waiting` is true while a question of the service
-/// waits for a decision.
+/// The command that shows the commands.
+pub const HELP: &str = "/help";
+/// The line that shows while the user types a question.
+pub const AWAITING: &str = "Awaiting input...";
+
+/// The lines of [`HELP`].
 #[must_use]
-pub fn hint(waiting: bool) -> String {
-    let keys = if waiting {
-        "Y accepts the change. N refuses it. "
-    } else {
-        ""
-    };
-    format!("{keys}Enter sends. {NEW} <question> starts a new conversation. {STOP} stops. Escape cancels.")
+pub fn help() -> [String; 6] {
+    [
+        "Enter sends the question.".into(),
+        format!("{NEW} <question> starts a new conversation."),
+        format!("{STOP} stops the open question."),
+        format!("{HELP} shows this help."),
+        "Y or N on an empty line accepts or refuses a change.".into(),
+        "Escape cancels.".into(),
+    ]
 }
 
 /// A key that the user pushes while the overlay takes the keyboard.
@@ -94,6 +100,8 @@ pub struct Entry {
     pub text: String,
     /// The error of the last Enter, until the next change of the text.
     pub error: Option<String>,
+    /// True after [`HELP`], until the next change of the text.
+    pub help: bool,
 }
 
 impl Entry {
@@ -102,6 +110,12 @@ impl Entry {
     pub fn key(&mut self, key: Key, waiting: bool) -> Outcome {
         match key {
             Key::Escape => return Outcome::Close,
+            Key::Enter if self.text.trim() == HELP => {
+                self.text.clear();
+                self.error = None;
+                self.help = true;
+                return Outcome::Continue;
+            }
             Key::Enter => {
                 return match parse(&self.text) {
                     Ok(Some(input)) => Outcome::Send(input),
@@ -125,6 +139,7 @@ impl Entry {
             }
         }
         self.error = None;
+        self.help = false;
         Outcome::Continue
     }
 }
@@ -342,17 +357,17 @@ impl Cause {
         matches!(self, Cause::Failed | Cause::Interrupted | Cause::ResultUnknown)
     }
 
-    /// The text of the end when the service gives none.
-    fn text(self) -> &'static str {
+    /// The text of the end when the service gives none. `service` is the name of the service.
+    fn text(self, service: &str) -> String {
         match self {
-            Cause::Answer => "No answer.",
-            Cause::Refused => "You refused the change.",
-            Cause::Expired => "The question expired.",
-            Cause::Replaced => "A new question replaced this question.",
-            Cause::Stopped => "You stopped the question.",
-            Cause::Failed => "The question failed.",
-            Cause::Interrupted => "The service stopped while it worked on the question.",
-            Cause::ResultUnknown => "The result of the change is not known.",
+            Cause::Answer => "No answer.".into(),
+            Cause::Refused => "You refused the change.".into(),
+            Cause::Expired => "The question expired.".into(),
+            Cause::Replaced => "A new question replaced this question.".into(),
+            Cause::Stopped => "You stopped the question.".into(),
+            Cause::Failed => "The question failed.".into(),
+            Cause::Interrupted => format!("{service} stopped while it worked on the question."),
+            Cause::ResultUnknown => "The result of the change is not known.".into(),
         }
     }
 }
@@ -409,6 +424,8 @@ fn parse_time(text: &str) -> Option<SystemTime> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Query {
     pub reference: String,
+    /// The name of the service, from its discovery document.
+    pub service: String,
     /// The question of the user. `None` for a query that Custos learned from the stream only, for
     /// example after a restart.
     pub question: Option<String>,
@@ -430,15 +447,37 @@ pub struct Query {
 pub struct Line {
     pub prompt: &'static str,
     pub text: String,
-    pub is_error: bool,
+    pub tone: Tone,
+}
+
+/// The color of a line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tone {
+    Normal,
+    Error,
+    /// The line that tells the user that the overlay has the keyboard.
+    Input,
+}
+
+impl Line {
+    /// A line with the indent of a next line of a message.
+    #[must_use]
+    pub fn indented(text: impl Into<String>) -> Self {
+        Self {
+            prompt: INDENT,
+            text: text.into(),
+            tone: Tone::Normal,
+        }
+    }
 }
 
 impl Query {
-    /// A question that Custos sends now.
+    /// A question that Custos sends now to the service with this name.
     #[must_use]
-    pub fn sending(reference: String, question: String) -> Self {
+    pub fn sending(reference: String, service: String, question: String) -> Self {
         Self {
             reference,
+            service,
             question: Some(question),
             state: State::Sending,
             text: None,
@@ -449,10 +488,10 @@ impl Query {
         }
     }
 
-    /// A query that Custos learned from the stream.
+    /// A query that Custos learned from the stream of the service with this name.
     #[must_use]
-    pub fn learned(update: Update, now: Instant) -> Self {
-        let mut query = Self::sending(update.reference.clone(), String::new());
+    pub fn learned(update: Update, service: String, now: Instant) -> Self {
+        let mut query = Self::sending(update.reference.clone(), service, String::new());
         query.question = None;
         query.apply(update, now);
         query
@@ -514,7 +553,7 @@ impl Query {
                 lines.push(Line {
                     prompt,
                     text: text.chars().map(|c| if c.is_control() { ' ' } else { c }).collect(),
-                    is_error,
+                    tone: if is_error { Tone::Error } else { Tone::Normal },
                 });
             }
         };
@@ -527,16 +566,17 @@ impl Query {
             State::Working => add(&step("Working"), false),
             State::Applying => add(&step("Applying the change"), false),
             State::Waiting => {
-                add(self.text.as_deref().unwrap_or("Accept the change?"), false);
                 let seconds = self
                     .deadline
                     .and_then(|deadline| deadline.duration_since(now).ok())
                     .map_or(0, |left| left.as_secs());
-                add(&format!("{key}, then Y accepts or N refuses ({seconds} s)"), false);
+                let question = self.text.as_deref().unwrap_or("Accept the change?");
+                add(&format!("{question} [Y/N] ({seconds} s)"), false);
             }
             State::Closed => {
                 let cause = self.cause.unwrap_or(Cause::Failed);
-                let text = self.text.as_deref().unwrap_or(cause.text());
+                let fallback = cause.text(&self.service);
+                let text = self.text.as_deref().unwrap_or(&fallback);
                 let is_error = self.local_error || cause.is_error();
                 let mut text_lines: Vec<&str> = text.split('\n').collect();
                 if let Some(max) = max_lines.filter(|&max| text_lines.len() > max) {
@@ -550,7 +590,7 @@ impl Query {
             }
         }
         if self.no_contact(now) {
-            add("No contact with the service", true);
+            add(&format!("No contact with {}", self.service), true);
         }
         if let Some(question) = &self.question {
             lines.insert(
@@ -558,7 +598,7 @@ impl Query {
                 Line {
                     prompt: PROMPT,
                     text: question.clone(),
-                    is_error: false,
+                    tone: Tone::Normal,
                 },
             );
         }
@@ -623,9 +663,23 @@ mod tests {
     }
 
     #[test]
+    fn help_shows_until_the_next_change() {
+        let mut entry = Entry::default();
+        for c in " /help".chars() {
+            entry.key(Key::Char(c), false);
+        }
+        assert_eq!(entry.key(Key::Enter, false), Outcome::Continue);
+        assert!(entry.help);
+        assert_eq!(entry.text, "");
+        entry.key(Key::Char('a'), false);
+        assert!(!entry.help);
+        assert!(help().iter().any(|line| line.contains(HELP)));
+    }
+
+    #[test]
     fn entry_shows_an_error_until_the_next_change_and_has_a_limit() {
         let mut entry = Entry::default();
-        for c in "/help".chars() {
+        for c in "/hepl".chars() {
             entry.key(Key::Char(c), false);
         }
         assert_eq!(entry.key(Key::Enter, false), Outcome::Continue);
@@ -635,7 +689,7 @@ mod tests {
 
         let mut entry = Entry {
             text: "a".repeat(MAX_TEXT),
-            error: None,
+            ..Entry::default()
         };
         entry.key(Key::Char('b'), false);
         assert_eq!(entry.text.len(), MAX_TEXT);
@@ -751,7 +805,7 @@ mod tests {
     fn lines_show_the_question_and_each_state() {
         let now = Instant::now();
         let at = parse_time("2026-11-25T20:00:00Z").unwrap();
-        let mut query = Query::sending("r".into(), "How many rifles?".into());
+        let mut query = Query::sending("r".into(), "Optio".into(), "How many rifles?".into());
         assert_eq!(
             texts(&query.lines(at, "Ctrl+Alt+K", None)),
             ["> How many rifles?", "  Sent"]
@@ -766,11 +820,7 @@ mod tests {
         query.apply(update("waiting", Some("Set Label? \"Main Depot\""), None), now);
         assert_eq!(
             texts(&query.lines(at, "Ctrl+Alt+K", None)),
-            [
-                "> How many rifles?",
-                "  Set Label? \"Main Depot\"",
-                "  Ctrl+Alt+K, then Y accepts or N refuses (5 s)"
-            ]
+            ["> How many rifles?", "  Set Label? \"Main Depot\" [Y/N] (5 s)"]
         );
 
         query.apply(update("closed", Some("Line 1\nLine 2\nLine 3"), Some("answer")), now);
@@ -790,12 +840,12 @@ mod tests {
     fn an_end_with_an_error_and_an_unknown_cause_are_errors() {
         let now = Instant::now();
         let at = SystemTime::UNIX_EPOCH;
-        let mut query = Query::learned(update("closed", None, Some("power_failure")), now);
+        let mut query = Query::learned(update("closed", None, Some("power_failure")), "Optio".into(), now);
         assert_eq!(query.question, None);
         assert_eq!(texts(&query.lines(at, "K", None)), ["! The question failed."]);
-        assert!(query.lines(at, "K", None)[0].is_error);
+        assert_eq!(query.lines(at, "K", None)[0].tone, Tone::Error);
 
-        query = Query::sending("r".into(), "Hi".into());
+        query = Query::sending("r".into(), "Optio".into(), "Hi".into());
         query.fail("Optio refused the question.".into(), now);
         assert_eq!(
             texts(&query.lines(at, "K", None)),
@@ -807,11 +857,11 @@ mod tests {
     fn no_contact_after_the_deadline_and_the_answer_goes_after_its_lifetime() {
         let now = Instant::now();
         let deadline = parse_time("2026-11-25T20:00:05Z").unwrap();
-        let mut query = Query::learned(update("working", None, None), now);
+        let mut query = Query::learned(update("working", None, None), "Optio".into(), now);
         assert!(!query.no_contact(deadline + DEADLINE_GRACE));
         assert!(query.no_contact(deadline + DEADLINE_GRACE + Duration::from_secs(1)));
         let lines = query.lines(deadline + Duration::from_secs(60), "K", None);
-        assert_eq!(texts(&lines).last().unwrap(), "! No contact with the service");
+        assert_eq!(texts(&lines).last().unwrap(), "! No contact with Optio");
 
         let lifetime = Duration::from_secs(180);
         assert!(query.shows(now + Duration::from_secs(1000), lifetime));

@@ -150,15 +150,16 @@ While you type:
 | Backspace | Removes the last character. |
 | `Y`, with an empty line | Accepts the change that the service asks about. |
 | `N`, with an empty line | Refuses the change. |
+| `/help` | Shows the commands. |
 | Escape | Cancels. The game gets the keyboard back. |
 
-While you type, the area of the query shows the last question with its full answer, and a help line. The cursor at the prompt does not fade.
+While you type, the area of the query shows the last question with its full answer, and the amber line `> Awaiting input...`. The cursor at the prompt does not fade.
 
 The overlay shows the question and its state in its own area, at the edge of the anchor. The lines of the events do not move it. The states are:
 
 - `Sent`: Custos sent the question, and waits for the response.
 - `Working`: the service works on the question. The line names the current step.
-- A question of the service, for example `Set Label? "Main Depot"`, with the remaining time. Push the key, then `Y` or `N`. With no decision, the question expires.
+- A question of the service with `[Y/N]` and the remaining time, for example `Set Label? "Main Depot" [Y/N] (42 s)`. Push the key, then `Y` or `N`. With no decision, the question expires.
 - `Applying the change`: the service changes the data. The user cannot stop it.
 - The answer, or the cause of the end. An end with an error is red.
 
@@ -168,7 +169,7 @@ The answer stays in the overlay until the next question, for `answer_seconds` at
 
 On Linux, Custos asks the desktop for the key through the `GlobalShortcuts` portal when it starts. The desktop can ask the user to confirm the key. The desktop keeps the key, so a later change of `key` has no effect: change the key in the settings of the desktop. On KDE Plasma, it is in **System Settings**, **Keyboard**, **Shortcuts**. On Windows, Custos uses `key` as a hot key of Windows, and applies a change at once. If another application has the key, Custos writes a warning to the log.
 
-The query needs the overlay. With `enabled = false` in `[overlay]`, or while Foxhole does not run, the key shows a notification. On KDE Plasma and Sway, the overlay takes the keyboard with the mode Exclusive of the layer-shell protocol. This mode can make the game leave fullscreen while you type. On GNOME, the X11 window of the overlay takes the focus. Nobody tested the input with the game yet.
+The query needs the overlay. With `enabled = false` in `[overlay]`, or while Foxhole does not run, the key does nothing, and **Ask a question** in the tray menu is not available. On KDE Plasma and Sway, the overlay takes the keyboard with the mode Exclusive of the layer-shell protocol. This mode can make the game leave fullscreen while you type. On GNOME, the X11 window of the overlay takes the focus. Nobody tested the input with the game yet.
 
 ## Notifications
 

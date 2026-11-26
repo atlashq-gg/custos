@@ -18,8 +18,8 @@ use std::time::Instant;
 
 use custos_core::agent::Command;
 use custos_core::config::Overlay as Settings;
-use custos_core::lines::{ERROR_PROMPT, INDENT, Lines, Notification, Reference};
-use custos_core::query::{Entry, Key, Line, Outcome};
+use custos_core::lines::{ERROR_PROMPT, Lines, Notification, PROMPT, Reference};
+use custos_core::query::{self, Entry, Key, Line, Outcome, Tone};
 use tauri::{AppHandle, Manager};
 
 use crate::Tray;
@@ -91,6 +91,11 @@ pub fn expire(reference: &Reference) {
     });
 }
 
+/// True while the overlay is open.
+pub fn is_open() -> bool {
+    OVERLAY.with_borrow(Option::is_some)
+}
+
 /// Starts a question at the prompt: the overlay takes the keyboard, and holds the new messages.
 /// Returns false when the overlay is not open.
 pub fn begin_input() -> bool {
@@ -148,7 +153,8 @@ fn end_input() {
 }
 
 /// Shows the current lines of the query. While the user types, they are the last query in full, the
-/// help line, and the error of the typed line. Returns false when the overlay is not open.
+/// help after `/help`, the error of the typed line, and the line that awaits the input. Returns false
+/// when the overlay is not open.
 pub fn render_query() -> bool {
     OVERLAY.with_borrow_mut(|overlay| {
         let Some(overlay) = overlay else { return false };
@@ -156,18 +162,21 @@ pub fn render_query() -> bool {
             None => crate::ask::overlay_lines(usize::from(overlay.settings.lines)),
             Some(entry) => {
                 let mut lines = crate::ask::full_lines();
-                lines.push(Line {
-                    prompt: INDENT,
-                    text: crate::ask::hint(),
-                    is_error: false,
-                });
+                if entry.help {
+                    lines.extend(query::help().into_iter().map(Line::indented));
+                }
                 if let Some(error) = &entry.error {
                     lines.push(Line {
                         prompt: ERROR_PROMPT,
                         text: error.clone(),
-                        is_error: true,
+                        tone: Tone::Error,
                     });
                 }
+                lines.push(Line {
+                    prompt: PROMPT,
+                    text: query::AWAITING.into(),
+                    tone: Tone::Input,
+                });
                 lines
             }
         };
@@ -226,7 +235,7 @@ mod platform {
 
     use custos_core::layout::{self, MARGIN, Rect, SIDE_MARGIN};
     use custos_core::lines::{self, Lines, Row};
-    use custos_core::query::{Key, Line};
+    use custos_core::query::{Key, Line, Tone};
     use custos_core::screen;
     use gtk::prelude::*;
     use gtk::{cairo, gdk, glib, pango};
@@ -420,7 +429,7 @@ mod platform {
             }
             for line in lines {
                 let text = format!("{}{}", line.prompt, line.text);
-                let label = self.label(text.chars().count(), line.is_error);
+                let label = self.label(text.chars().count(), line.tone);
                 label.set_text(&text);
                 self.query.add(&label);
             }
@@ -429,7 +438,7 @@ mod platform {
         }
 
         /// A label for a line of `chars` characters, with the alignment and the wrap of the overlay.
-        fn label(&self, chars: usize, is_error: bool) -> gtk::Label {
+        fn label(&self, chars: usize, tone: Tone) -> gtk::Label {
             let label = gtk::Label::new(None);
             label.set_halign(if self.settings.anchor.is_left() {
                 gtk::Align::Start
@@ -444,9 +453,11 @@ mod platform {
             let chars = i32::try_from(chars + 1).unwrap_or(i32::MAX);
             label.set_width_chars(chars.min(self.max_chars));
             label.set_max_width_chars(self.max_chars);
-            if is_error {
-                // Not the class "error": a GTK theme can give it a background.
-                label.style_context().add_class("custos-error");
+            // Not the class "error": a GTK theme can give it a background.
+            match tone {
+                Tone::Normal => {}
+                Tone::Error => label.style_context().add_class("custos-error"),
+                Tone::Input => label.style_context().add_class("custos-input"),
             }
             label
         }
@@ -458,7 +469,8 @@ mod platform {
             }
             self.labels.clear();
             for row in lines.rows(Instant::now()) {
-                let label = self.label(row.prompt.len() + row.text.chars().count(), row.is_error);
+                let tone = if row.is_error { Tone::Error } else { Tone::Normal };
+                let label = self.label(row.prompt.len() + row.text.chars().count(), tone);
                 // The line shows from its start (see `animate`).
                 label.set_visible(false);
                 self.lines.add(&label);
@@ -635,7 +647,7 @@ mod platform {
 
     use custos_core::layout::{self, Rect};
     use custos_core::lines::{self, Lines};
-    use custos_core::query::Line;
+    use custos_core::query::{Line, Tone};
     use serde_json::json;
     use tauri::webview::PageLoadEvent;
     use tauri::{AppHandle, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
@@ -769,7 +781,14 @@ mod platform {
         pub fn render_query(&mut self, lines: &[Line]) {
             let rows: Vec<_> = lines
                 .iter()
-                .map(|line| json!({"prompt": line.prompt, "text": line.text, "error": line.is_error}))
+                .map(|line| {
+                    let tone = match line.tone {
+                        Tone::Normal => "",
+                        Tone::Error => "custos-error",
+                        Tone::Input => "custos-input",
+                    };
+                    json!({"prompt": line.prompt, "text": line.text, "class": tone})
+                })
                 .collect();
             if let Err(e) = self.window.eval(format!("renderQuery({})", json!(rows))) {
                 tracing::warn!("cannot show the query in the overlay: {e}");

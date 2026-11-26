@@ -28,6 +28,7 @@ struct Tray {
     status: MenuItem<Wry>,
     pause: MenuItem<Wry>,
     sign: MenuItem<Wry>,
+    ask: MenuItem<Wry>,
     /// The channel to the agent, and the configuration that it runs with. `None` until the
     /// configuration is valid.
     agent: Mutex<Option<(mpsc::UnboundedSender<Command>, config::Config)>>,
@@ -133,7 +134,8 @@ fn setup(app: &AppHandle, loaded: Result<config::Config, config::ConfigError>) -
     let status = MenuItem::with_id(app, "status", "Starting", false, None::<&str>)?;
     let pause = MenuItem::with_id(app, "pause", "Pause", false, None::<&str>)?;
     let sign = MenuItem::with_id(app, "sign", "Sign in", false, None::<&str>)?;
-    let ask_item = MenuItem::with_id(app, "ask", "Ask a question", true, None::<&str>)?;
+    // Enabled while the overlay is open, because the question is typed at its prompt.
+    let ask = MenuItem::with_id(app, "ask", "Ask a question", false, None::<&str>)?;
     let config_item = MenuItem::with_id(app, "config", "Open configuration", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(
@@ -143,7 +145,7 @@ fn setup(app: &AppHandle, loaded: Result<config::Config, config::ConfigError>) -
             &PredefinedMenuItem::separator(app)?,
             &pause,
             &sign,
-            &ask_item,
+            &ask,
             &config_item,
             &PredefinedMenuItem::separator(app)?,
             &quit,
@@ -162,6 +164,7 @@ fn setup(app: &AppHandle, loaded: Result<config::Config, config::ConfigError>) -
         status,
         pause,
         sign,
+        ask,
         agent: Mutex::new(None),
         state: Mutex::new(None),
         game_running: AtomicBool::new(false),
@@ -297,6 +300,9 @@ fn update_overlay(app: &AppHandle, game_running: bool) -> tauri::Result<()> {
         } else if let Err(e) = overlay::open(&handle, settings) {
             tracing::warn!("cannot open the overlay: {e}. Custos shows desktop notifications.");
         }
+        if let Err(e) = handle.state::<Tray>().ask.set_enabled(overlay::is_open()) {
+            tracing::warn!("cannot update the tray menu: {e}");
+        }
     })
 }
 
@@ -366,7 +372,7 @@ fn on_menu_event(app: &AppHandle, event: &tauri::menu::MenuEvent) {
         "pause" => tray.send(Command::Pause),
         "sign" if state == Some(State::SignedOut) => tray.send(Command::SignIn),
         "sign" => tray.send(Command::SignOut),
-        "ask" => ask::start(app),
+        "ask" => ask::start(),
         "config" => match config::default_path() {
             Ok(path) => {
                 if let Err(e) = app.opener().open_path(path.to_string_lossy(), None::<&str>) {

@@ -701,7 +701,7 @@ impl Agent {
         let (reference, before) = match &input {
             Input::Ask { text, .. } => {
                 let reference = query::new_reference();
-                self.set_query(Query::sending(reference.clone(), text.clone()));
+                self.set_query(Query::sending(reference.clone(), name.clone(), text.clone()));
                 (reference, QueryState::Sending)
             }
             Input::Act(action) => match &self.query {
@@ -793,7 +793,7 @@ impl Agent {
             }
             Some(query) if query.is_open() => return,
             _ if update.state == QueryState::Closed => return,
-            _ => Query::learned(update, now),
+            _ => Query::learned(update, self.service_name(), now),
         };
         self.set_query(query);
     }

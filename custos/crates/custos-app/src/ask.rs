@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::time::{Duration, Instant, SystemTime};
 
-use custos_core::query::{self, Line, Query, State};
+use custos_core::query::{Line, Query, State};
 use custos_core::shortcut::Shortcut;
 use tauri::AppHandle;
 
@@ -88,20 +88,10 @@ pub fn is_waiting() -> bool {
     SHOWN.with_borrow(|shown| shown.query.as_ref().is_some_and(|q| q.state == State::Waiting))
 }
 
-/// The help line while the user types a question.
-pub fn hint() -> String {
-    query::hint(is_waiting())
-}
-
-/// Starts a question at the prompt of the overlay. Without the overlay, tells the user why.
-pub fn start(app: &AppHandle) {
+/// Starts a question at the prompt of the overlay. Without the overlay, the key does nothing.
+pub fn start() {
     if !crate::overlay::begin_input() {
-        crate::notify(
-            app,
-            "Custos",
-            "Custos takes a question at the prompt of the overlay, while Foxhole runs. The overlay \
-             is not open.",
-        );
+        tracing::debug!("no question: the overlay is not open");
     }
 }
 
@@ -149,10 +139,7 @@ mod portal {
         let mut activated = portal.receive_activated().await?;
         while let Some(activation) = activated.next().await {
             if activation.shortcut_id() == ASK {
-                let _ = app.run_on_main_thread({
-                    let app = app.clone();
-                    move || super::start(&app)
-                });
+                let _ = app.run_on_main_thread(super::start);
             }
         }
         // The session stays open while the stream of signals lives.
@@ -172,8 +159,7 @@ pub fn listen(app: &AppHandle, key: &Shortcut) {
     }
     let result = shortcuts.on_shortcut(key.to_string().as_str(), |app, _, event| {
         if event.state == ShortcutState::Pressed {
-            let handle = app.clone();
-            let _ = app.run_on_main_thread(move || start(&handle));
+            let _ = app.run_on_main_thread(start);
         }
     });
     if let Err(e) = result {

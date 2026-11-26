@@ -68,9 +68,7 @@ function renderQuery(rows) {
     document.getElementById("query").replaceChildren(
         ...rows.map((row) => {
             const label = document.createElement("label");
-            if (row.error) {
-                label.className = "custos-error";
-            }
+            label.className = row.class;
             label.textContent = row.prompt + row.text;
             return label;
         }),
