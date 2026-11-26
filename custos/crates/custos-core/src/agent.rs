@@ -91,6 +91,8 @@ pub enum Event {
     OpenUrl(url::Url),
     /// The open query of this client, or its last query, changed.
     Query(Box<Query>),
+    /// The service has a query (`true`), or it has none, or Custos does not know the service.
+    QueryAvailable(bool),
 }
 
 /// What the agent needs from its environment. Tests replace the process check, the paths, and the store.
@@ -237,6 +239,8 @@ impl Agent {
 
     /// Runs until [`Command::Shutdown`] arrives or the command channel closes.
     pub async fn run(mut self, mut commands: mpsc::UnboundedReceiver<Command>) {
+        // A new agent knows no service yet, also after a change of the service URL.
+        self.emit(Event::QueryAvailable(false));
         self.tokens = self.load_tokens().await;
         let mut ticker = tokio::time::interval(self.settings.tick);
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -357,6 +361,7 @@ impl Agent {
             Ok(service) => {
                 self.schedule
                     .set_service_minimum(Duration::from_secs(service.discovery.upload_min_interval_seconds));
+                self.emit(Event::QueryAvailable(service.discovery.query_endpoint().is_some()));
                 self.service = Some(service);
                 // The service is available again, so an error about it is no longer correct.
                 self.expire(Kind::ServiceError);
@@ -370,6 +375,13 @@ impl Agent {
                 ),
             ),
         }
+    }
+
+    /// Forgets the service after a `404`, and gets the discovery document again at once.
+    fn forget_service(&mut self) {
+        self.service = None;
+        self.last_discovery_attempt = None;
+        self.emit(Event::QueryAvailable(false));
     }
 
     fn start_watching(&mut self) {
@@ -446,13 +458,10 @@ impl Agent {
                 self.dirty = false;
                 self.expire(Kind::UploadError);
                 self.expire(Kind::ServiceError);
-                self.notify(accepted_notification(&service.discovery.service_name, &result));
+                self.notify(accepted_notification(&result));
             }
             Outcome::Unauthorized => {}
-            Outcome::NotFound => {
-                self.service = None;
-                self.last_discovery_attempt = None;
-            }
+            Outcome::NotFound => self.forget_service(),
             Outcome::Rejected { status, problem } => {
                 self.schedule.rejected(sha256);
                 self.dirty = false;
@@ -658,8 +667,7 @@ impl Agent {
             }
             End::NotFound => {
                 tracing::warn!("the stream endpoint does not exist. Custos gets the discovery document again.");
-                self.service = None;
-                self.last_discovery_attempt = None;
+                self.forget_service();
             }
             End::RateLimited(wait) => self.stream_failed(now, "the user has too many open streams", Some(wait)),
             End::Failed(cause) => self.stream_failed(now, &cause, None),
@@ -734,8 +742,7 @@ impl Agent {
                 return;
             }
             Some(Ok(Response::NotFound)) if is_question => {
-                self.service = None;
-                self.last_discovery_attempt = None;
+                self.forget_service();
                 Response::NotFound.error_text(&name)
             }
             // The service does not know the query, so it is not open.
@@ -949,21 +956,12 @@ async fn next_signal(task: &mut Option<(JoinHandle<()>, mpsc::UnboundedReceiver<
     }
 }
 
-fn accepted_notification(service: &str, result: &UploadResult) -> Notification {
-    use std::fmt::Write;
-
-    let mut body = format!("{service} received {} KB.", result.size_bytes.div_ceil(1024));
-    if let Some(war) = &result.war {
-        let _ = write!(body, " War {}.", war.war_number);
-    }
-    if !result.stockpiles.is_empty() {
-        let names: Vec<_> = result.stockpiles.iter().map(|s| s.name.as_str()).collect();
-        let _ = write!(body, " Stockpiles: {}.", names.join(", "));
-    }
+/// The short message of an accepted upload: `Uploaded 120kB`.
+fn accepted_notification(result: &UploadResult) -> Notification {
     Notification {
         reference: Some(Kind::Upload.into()),
-        title: "Stockpile data sent".into(),
-        body,
+        title: format!("Uploaded {}kB", result.size_bytes.div_ceil(1000)),
+        body: String::new(),
         is_error: false,
     }
 }
@@ -1152,8 +1150,7 @@ mod tests {
             unreachable!()
         };
         assert_eq!(n.reference, Some(Kind::Upload.into()));
-        assert_eq!(n.title, "Stockpile data sent");
-        assert!(n.body.contains("War 142"), "{}", n.body);
+        assert_eq!(n.text(), "Uploaded 1kB");
 
         f.stop_game();
         f.next(|e| *e == Event::GameRunning(false)).await;
@@ -1620,6 +1617,12 @@ mod tests {
         assert_eq!(working.reference, sending.reference);
         assert_eq!(working.state, QueryState::Working);
         assert!(working.deadline.is_some());
+    }
+
+    #[tokio::test]
+    async fn service_with_a_query_makes_the_query_available() {
+        let mut f = Fixture::start_streaming(Some(tokens("a1"))).await;
+        f.next(|e| *e == Event::QueryAvailable(true)).await;
     }
 
     #[tokio::test]

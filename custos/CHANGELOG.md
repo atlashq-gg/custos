@@ -10,6 +10,8 @@ The query: a question to the service in plain language.
 - The overlay shows the question and its state in its own area, at the edge of the anchor. The events do not move it. After the deadline of a state, Custos shows that the service is not in contact.
 - The answer stays in the overlay until the next question, for `answer_seconds` at most (default 180). While the user types, the overlay shows the last answer in full.
 - Without the overlay, a question of the service and the end of a query show as desktop notifications.
+- While the service has a query, the overlay shows the key in amber: `> [Ctrl+Alt+K] for input. See /help.` Set `hint = false` in `[query]` to remove the line.
+- The message of an accepted upload is short: `Uploaded 120kB`, with 1 kB = 1,000 bytes.
 - The default `service_url` is `https://optio.atlashq.gg`. Each key of the configuration is now optional. At the first start, Custos writes the configuration file with the defaults and starts at once.
 - The example paths in a new configuration file are the paths of the user: below `$HOME` on Linux, and below `%LOCALAPPDATA%` on Windows.
 

@@ -152,14 +152,18 @@ fn end_input() {
     render_query();
 }
 
-/// Shows the current lines of the query. While the user types, they are the last query in full, the
-/// help after `/help`, the error of the typed line, and the line that awaits the input. Returns false
-/// when the overlay is not open.
+/// Shows the current lines of the query, and the line with the key. While the user types, they are
+/// the last query in full, the help after `/help`, the error of the typed line, and the line that
+/// awaits the input. Returns false when the overlay is not open.
 pub fn render_query() -> bool {
     OVERLAY.with_borrow_mut(|overlay| {
         let Some(overlay) = overlay else { return false };
         let query = match &overlay.entry {
-            None => crate::ask::overlay_lines(usize::from(overlay.settings.lines)),
+            None => {
+                let mut lines = crate::ask::overlay_lines(usize::from(overlay.settings.lines));
+                lines.extend(crate::ask::key_hint());
+                lines
+            }
             Some(entry) => {
                 let mut lines = crate::ask::full_lines();
                 if entry.help {

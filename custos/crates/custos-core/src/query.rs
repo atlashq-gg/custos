@@ -61,6 +61,12 @@ pub const HELP: &str = "/help";
 /// The line that shows while the user types a question.
 pub const AWAITING: &str = "Awaiting input...";
 
+/// The line that tells the user the key of a question while the overlay does not have the keyboard.
+#[must_use]
+pub fn key_hint(key: &str) -> String {
+    format!("[{key}] for input. See {HELP}.")
+}
+
 /// The lines of [`HELP`].
 #[must_use]
 pub fn help() -> [String; 6] {
@@ -660,6 +666,11 @@ mod tests {
         assert_eq!(entry.text, "ny");
         assert_eq!(Entry::default().key(Key::Enter, false), Outcome::Close);
         assert_eq!(entry.key(Key::Escape, false), Outcome::Close);
+    }
+
+    #[test]
+    fn key_hint_names_the_key_and_the_help() {
+        assert_eq!(key_hint("Ctrl+Alt+K"), "[Ctrl+Alt+K] for input. See /help.");
     }
 
     #[test]
