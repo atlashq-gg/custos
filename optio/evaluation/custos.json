@@ -1,0 +1,330 @@
+{
+  "services": [
+    {
+      "name": "custos",
+      "title": "Custos",
+      "card": "Custos holds the logistics records of Foxhole guilds. It knows the stockpiles, the items in each stockpile with their quantities, and the structures that hold the stockpiles, such as storage depots and seaports, with their labels. The records come from the map data files that players upload, and each record belongs to a war. Custos does not hold players, crews, tasks, orders, or plans. It does not know the war map, the front lines, or the production of items.",
+      "write": true,
+      "tools": [
+        {
+          "name": "list_guilds",
+          "title": "List guilds",
+          "description": "The Discord guilds of the Custos bot where you are a member: the guild ID, the name, your access, the current war, and the guilds that share their records with it.",
+          "read_only": true,
+          "input_schema": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        {
+          "name": "set_structure_label",
+          "title": "Set the label of a structure",
+          "description": "Change the label of a structure in the records of the guild. Without a label, the generated label shows again. A label has 1 to 64 characters: letters, digits, spaces, and - ' . , ( ) / & +. It is unique in the guild and the war.",
+          "read_only": false,
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "guild_id": {
+                "description": "The ID of the Discord guild.",
+                "type": "string"
+              },
+              "structure_id": {
+                "description": "The ID of the structure, from find_structures.",
+                "type": "string"
+              },
+              "label": {
+                "description": "The new label. Empty or absent: the generated label shows again.",
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "guild_id",
+              "structure_id"
+            ]
+          }
+        },
+        {
+          "name": "find_items",
+          "title": "Find items",
+          "description": "The stockpiles that hold an item, with the quantities. One row for each item in each stockpile, and one total for each item. A row with crated true counts crates: crate_size is the number in one crate, and pallet_size is the number in one pallet. Filters: items (code name or name), stockpiles (ID, part of a name, or public), structures (ID or part of a label), and structure_categories. war is a war number, and the default is the current war.",
+          "read_only": true,
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "guild_id": {
+                "description": "The ID of the Discord guild.",
+                "type": "string"
+              },
+              "items": {
+                "description": "Item code names or names.",
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "default": null
+              },
+              "stockpiles": {
+                "description": "Stockpile IDs, parts of stockpile names, or public.",
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "default": null
+              },
+              "structures": {
+                "description": "Structure IDs or parts of labels.",
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "default": null
+              },
+              "structure_categories": {
+                "description": "Structure categories.",
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "default": null
+              },
+              "war": {
+                "description": "A war number.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "default": null
+              },
+              "limit": {
+                "description": "At most this many rows, 50 by default and 200 at most.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "default": null
+              },
+              "cursor": {
+                "description": "The next_cursor of the earlier page.",
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "guild_id"
+            ]
+          }
+        },
+        {
+          "name": "find_structures",
+          "title": "Find structures",
+          "description": "The structures, with their labels, places, stockpiles, and items. One row for each structure. An item with crated true counts crates: crate_size is the number in one crate, and pallet_size is the number in one pallet. Filters: structures (ID or part of a label), structure_categories, items (code name or name), and stockpiles (ID, part of a name, or public). war is a war number, and the default is the current war.",
+          "read_only": true,
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "guild_id": {
+                "description": "The ID of the Discord guild.",
+                "type": "string"
+              },
+              "structures": {
+                "description": "Structure IDs or parts of labels.",
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "default": null
+              },
+              "structure_categories": {
+                "description": "Structure categories.",
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "default": null
+              },
+              "items": {
+                "description": "Item code names or names.",
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "default": null
+              },
+              "stockpiles": {
+                "description": "Stockpile IDs, parts of stockpile names, or public.",
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "default": null
+              },
+              "war": {
+                "description": "A war number.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "default": null
+              },
+              "limit": {
+                "description": "At most this many rows, 50 by default and 200 at most.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "default": null
+              },
+              "cursor": {
+                "description": "The next_cursor of the earlier page.",
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "guild_id"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "hidden_tools": [
+    "custos_list_guilds"
+  ],
+  "cases": [
+    {
+      "question": "How many rifles do we have?",
+      "tools": [
+        "custos_find_items"
+      ]
+    },
+    {
+      "question": "How many rifles did we have in the last war?",
+      "tools": [
+        "custos_find_items"
+      ]
+    },
+    {
+      "question": "Where are our bmats?",
+      "tools": [
+        "custos_find_items",
+        "custos_find_structures"
+      ]
+    },
+    {
+      "question": "How many crates of 7.62 are in the seaport?",
+      "tools": [
+        "custos_find_items",
+        "custos_find_structures"
+      ]
+    },
+    {
+      "question": "Which stockpiles hold shirts?",
+      "tools": [
+        "custos_find_items",
+        "custos_find_structures"
+      ]
+    },
+    {
+      "question": "List our storage depots.",
+      "tools": [
+        "custos_find_structures"
+      ]
+    },
+    {
+      "question": "What is in the depot with the label Main Depot?",
+      "tools": [
+        "custos_find_items",
+        "custos_find_structures"
+      ]
+    },
+    {
+      "question": "Which seaports have no label?",
+      "tools": [
+        "custos_find_structures"
+      ]
+    },
+    {
+      "question": "Rename the seaport at Westgate to Main Depot.",
+      "tools": [
+        "custos_find_structures"
+      ]
+    },
+    {
+      "question": "Remove the label North Bunker.",
+      "tools": [
+        "custos_find_structures"
+      ]
+    },
+    {
+      "question": "Which crew does the next fuel run?",
+      "tools": []
+    },
+    {
+      "question": "Where is the front line now?",
+      "tools": []
+    },
+    {
+      "question": "Who is online in the guild now?",
+      "tools": []
+    }
+  ]
+}

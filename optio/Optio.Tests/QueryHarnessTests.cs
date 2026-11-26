@@ -184,7 +184,7 @@ public sealed class QueryHarnessTests
                 new ServiceCard("custos", "Custos", "Custos holds the stockpiles.", true),
                 new ServiceCard("second", "Second", null, false),
             ],
-            Record(),
+            Record().Guild,
             "  Be brief.  "
         );
 
