@@ -46,7 +46,8 @@ internal static class Authentication
 
         builder
             .Services.AddAuthorizationBuilder()
-            .AddPolicy(CustosPolicy, policy => policy
+            .AddPolicy(CustosPolicy, policy =>
+                policy
                     .RequireAuthenticatedUser()
                     .RequireAssertion(context =>
                     {
@@ -56,7 +57,8 @@ internal static class Authentication
                                 .Value.ResolvedCustosClientId
                             : null;
                         return clientId is not null && context.User.HasClaim("azp", clientId);
-                    }));
+                    })
+            );
 
         return builder;
     }
