@@ -14,7 +14,7 @@ public sealed class OptioOptions : IValidatableObject
 
     /// <summary>The name that Custos shows to the user.</summary>
     [Required]
-    public string ServiceName { get; set; } = "optio";
+    public string ServiceName { get; set; } = "Optio";
 
     /// <summary>A page for humans about the service, for the discovery document.</summary>
     [Url]
