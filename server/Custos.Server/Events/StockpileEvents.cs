@@ -4,6 +4,7 @@ using Custos.Server.Discord;
 using Custos.Server.Storage;
 using Custos.Server.Telemetry;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Custos.Server.Events;
 
@@ -44,6 +45,7 @@ internal sealed partial class StockpileEvents(
     GameCatalog catalog,
     EventPublisher publisher,
     ServerMetrics metrics,
+    IOptions<CustosOptions> options,
     ILogger<StockpileEvents> logger
 )
 {
@@ -112,7 +114,16 @@ internal sealed partial class StockpileEvents(
                 var label = labels.GetValueOrDefault((reader, diff.StructureId))
                     ?? labels[(origin, diff.StructureId)];
                 var name = diff.Name ?? "Public";
-                if (ChangeText.Make(label, name, diff.Before, diff.After, catalog) is not { } text)
+                var text = ChangeText.Make(
+                    label,
+                    name,
+                    diff.Before,
+                    diff.After,
+                    catalog,
+                    options.Value.ChangeTextMaxChanges,
+                    options.Value.ChangeTextMaxLength
+                );
+                if (text is null)
                     continue;
 
                 publisher.Publish(

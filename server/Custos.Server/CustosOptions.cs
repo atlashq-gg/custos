@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Custos.Server.Events;
 
 namespace Custos.Server;
 
@@ -70,6 +71,16 @@ public sealed class CustosOptions
     /// </summary>
     [Required]
     public string CatalogPath { get; set; } = "catalog/catalog.json";
+
+    /// <summary>The largest number of change lines in the text of a stockpile event. The text
+    /// gives the number of the other changes.</summary>
+    [Range(1, int.MaxValue)]
+    public int ChangeTextMaxChanges { get; set; } = 5;
+
+    /// <summary>The largest number of characters in the text of a stockpile event. The limit of
+    /// the stream (spec/05-stream.md) is also the largest permitted value.</summary>
+    [Range(1, ChangeText.SpecMaxLength)]
+    public int ChangeTextMaxLength { get; set; } = ChangeText.SpecMaxLength;
 
     public static string Combine(string baseUrl, string path) => baseUrl.TrimEnd('/') + path;
 }

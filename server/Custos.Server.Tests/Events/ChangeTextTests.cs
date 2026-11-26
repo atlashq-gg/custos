@@ -5,6 +5,9 @@ namespace Custos.Server.Tests.Events;
 
 public sealed class ChangeTextTests
 {
+    private const int MaxChanges = 5;
+    private const int MaxLength = ChangeText.SpecMaxLength;
+
     private static readonly GameCatalog Catalog = GameCatalog.Load(
         Path.Combine(AppContext.BaseDirectory, "TestData", "test-catalog.json")
     );
@@ -95,18 +98,34 @@ public sealed class ChangeTextTests
         var label = new string('x', 400);
         var before = Enumerable.Range(1, 8).Select(i => ("item_crate", $"{label}{i}", 1)).ToArray();
 
-        var text = ChangeText.Make("Depot", "Main", Entries(before), Entries([]), Catalog);
+        var text = Make("Depot", Entries(before), Entries([]));
 
-        Assert.That(text, Has.Length.LessThanOrEqualTo(ChangeText.MaxLength));
+        Assert.That(text, Has.Length.LessThanOrEqualTo(MaxLength));
         Assert.That(text, Does.EndWith("\n+7 more"));
     }
 
     [Test]
     public void Long_label_is_cut_at_the_limit_of_a_message() =>
-        Assert.That(
-            ChangeText.Make(new string('x', 600), "Main", null, Entries([]), Catalog),
-            Has.Length.EqualTo(ChangeText.MaxLength)
-        );
+        Assert.That(Make(new string('x', 600), null, Entries([])), Has.Length.EqualTo(MaxLength));
+
+    [Test]
+    public void Text_keeps_the_limits_of_the_configuration()
+    {
+        var before = Enumerable.Range(1, 4).Select(i => ("item_crate", $"I{i}", i)).ToArray();
+        var after = Enumerable.Range(1, 4).Select(i => ("item_crate", $"I{i}", i * 2)).ToArray();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                ChangeText.Make("Depot", "Main", Entries(before), Entries(after), Catalog, 2, 100),
+                Is.EqualTo("Depot, Main\nI4 crates +4 (8)\nI3 crates +3 (6)\n+2 more")
+            );
+            Assert.That(
+                ChangeText.Make("Depot", "Main", null, Entries(after), Catalog, 2, 10),
+                Is.EqualTo("Depot, Ma…")
+            );
+        });
+    }
 
     [Test]
     public void Change_of_an_entry_with_the_quantity_0_gives_no_text() =>
@@ -115,14 +134,13 @@ public sealed class ChangeTextTests
     private static string? Make(
         (string Category, string CodeName, int Quantity)[]? before,
         params (string Category, string CodeName, int Quantity)[] after
-    ) =>
-        ChangeText.Make(
-            "Depot",
-            "Main",
-            before is null ? null : Entries(before),
-            Entries(after),
-            Catalog
-        );
+    ) => Make("Depot", before is null ? null : Entries(before), Entries(after));
+
+    private static string? Make(
+        string label,
+        Dictionary<EntryKey, int>? before,
+        Dictionary<EntryKey, int> after
+    ) => ChangeText.Make(label, "Main", before, after, Catalog, MaxChanges, MaxLength);
 
     private static string[] Lines(string? text) => text?.Split('\n') ?? [];
 

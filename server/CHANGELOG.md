@@ -3,6 +3,7 @@
 ## Unreleased
 
 - The development realm moves to [deploy/keycloak/custos-realm.json](../deploy/keycloak/custos-realm.json), and the deployment guide to [deploy/README.md](../deploy/README.md). The tests read the realm and the NATS configuration from `deploy/`.
+- The options `Custos:ChangeTextMaxChanges` (default `5`) and `Custos:ChangeTextMaxLength` (default `500`, the largest permitted value) set the limits of the text of a stockpile event.
 
 ## 0.3.0-alpha.1
 

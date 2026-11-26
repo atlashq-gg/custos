@@ -56,6 +56,8 @@ The section `Custos` in `appsettings.json` or environment variables (`Custos__Au
 | `Shard` | `live` | A stable label for the shard of `WarApiBaseUrl`. The war API does not label its shard. The label is a part of the ID of each structure, so do not change it during a war. The server supports one shard. |
 | `CatalogPath` | `catalog/catalog.json` | The catalog of the game ([catalog/](catalog/README.md)). A relative path starts at the folder of the server. Without the file, each name is the code name. |
 | `WarPollIntervalSeconds` | `300` | The time between two requests for the current war. `0` stops the requests. |
+| `ChangeTextMaxChanges` | `5` | The largest number of change lines in the text of a stockpile event ([Events](#events)). |
+| `ChangeTextMaxLength` | `500` | The largest number of characters in the text of a stockpile event. `500` is the limit of the stream, and the largest permitted value. |
 
 ## Guilds
 
@@ -215,7 +217,7 @@ An event of the type `stockpile.changed` has these members in `data`, after `pol
 
 | Member | Content |
 |---|---|
-| `message.text` | The text for a person. The first line holds the label and the stockpile. Then come at most 5 changes, each with its signed difference and the new total in parentheses, for example `Rifle crates +20 (40)` or `Basic Materials -400 (0)`. Then comes `+N more`. A new stockpile gives one line, for example `Fort Barley Seaport, Main: new, 12 items`. At most 500 characters. |
+| `message.text` | The text for a person. The first line holds the label and the stockpile. Then come at most `ChangeTextMaxChanges` changes, each with its signed difference and the new total in parentheses, for example `Rifle crates +20 (40)` or `Basic Materials -400 (0)`. Then comes `+N more`. A new stockpile gives one line, for example `Fort Barley Seaport, Main: new, 12 items`. At most `ChangeTextMaxLength` characters. When the text is too long, it has fewer change lines. |
 | `message.reference` | `stockpile:<stockpile ID>`, so that a new change of the stockpile replaces its message in Custos. |
 | `guild_id` | The guild of the policy. |
 | `origin_guild` | The guild of the upload. |
