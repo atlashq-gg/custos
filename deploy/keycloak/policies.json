@@ -1,0 +1,19 @@
+{
+  "policies": [
+    {
+      "name": "custos-cimd",
+      "description": "Clients whose ID is the URL of the metadata document on Optio.",
+      "enabled": true,
+      "conditions": [
+        {
+          "condition": "client-id-uri",
+          "configuration": {
+            "client-id-uri-scheme": ["https"],
+            "client-id-uri-allow-permitted-domains": ["custos.example.com"]
+          }
+        }
+      ],
+      "profiles": ["custos-cimd"]
+    }
+  ]
+}

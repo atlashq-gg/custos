@@ -19,8 +19,8 @@ The AppHost starts the full system:
 | Optio | `http://localhost:5090` | The service URL for Custos. |
 | server | `http://localhost:5080` | The domain service of the guild records ([server/README.md](../server/README.md)). |
 | PostgreSQL 18 | (dashboard) | The database of the server. The data lasts for one run. |
-| NATS | (dashboard) | The event broker with JetStream, with the users of [nats/nats.conf](nats/nats.conf). The server publishes its events to it, and Optio makes the stream. The events last for one run. |
-| Keycloak | `http://localhost:8180` | The realm `custos` from [server/keycloak/custos-realm.json](../server/keycloak/custos-realm.json), with the user `dev`, password `dev`. |
+| NATS | (dashboard) | The event broker with JetStream, with the users of [deploy/nats/nats.conf](../deploy/nats/nats.conf). The Server publishes its events to it, and Optio makes the stream. The events last for one run. |
+| Keycloak | `http://localhost:8180` | The realm `custos` from [deploy/keycloak/custos-realm.json](../deploy/keycloak/custos-realm.json), with the user `dev`, password `dev`. |
 | Dashboard | `http://localhost:15180` | The Aspire dashboard. The login URL is in the console output. |
 
 The server needs a Discord bot token in the user secrets of the AppHost ([server/README.md](../server/README.md#run)). Optio needs a Discord bot token for the stream, in the parameter `optio-discord-token`. In development, it can be the token of the bot of the server. The AppHost makes a new secret for the client `optio` and a new password for each broker user on each start.
@@ -72,7 +72,7 @@ The stream sends the events of the domain services to Custos ([spec](../spec/05-
 
 A domain service sends events to Optio through NATS JetStream. Each event holds the text for the user and the policy that tells who can read it. The contract for such a producer is [docs/producers.md](docs/producers.md), with the schema [schemas/event.schema.json](schemas/event.schema.json). A new producer needs a NATS user, and no change in Optio.
 
-The NATS configuration of development is [nats/nats.conf](nats/nats.conf). It holds the users `custos` and `optio` with their permissions. Each user reads its password from an environment variable of the NATS server.
+The NATS configuration of development is [deploy/nats/nats.conf](../deploy/nats/nats.conf). It holds the users `custos` and `optio` with their permissions. Each user reads its password from an environment variable of the NATS server.
 
 ## Configuration
 
@@ -152,7 +152,7 @@ docker run --rm -p 8080:8080 custos-optio
 
 ## Deploy
 
-[docs/deploy.md](../docs/deploy.md) deploys the full system: Keycloak, PostgreSQL, the broker, the server, and Optio.
+[deploy/README.md](../deploy/README.md) deploys the full system: Keycloak, PostgreSQL, the broker, the Server, and Optio.
 
 ## License
 

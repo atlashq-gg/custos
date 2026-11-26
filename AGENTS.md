@@ -26,5 +26,6 @@ The rules that apply now are in these files. Read an ADR only to learn why a rul
 | `server/` | [server/AGENTS.md](server/AGENTS.md) |
 | `optio/` | [optio/AGENTS.md](optio/AGENTS.md) |
 | `custos/` | [custos/AGENTS.md](custos/AGENTS.md) |
+| `deploy/` | [deploy/AGENTS.md](deploy/AGENTS.md) |
 
 Add one row in the commit that creates a project folder.

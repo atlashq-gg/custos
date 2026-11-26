@@ -1,0 +1,17 @@
+{
+  "profiles": [
+    {
+      "name": "custos-cimd",
+      "description": "Accepts the metadata document of Custos.",
+      "executors": [
+        {
+          "executor": "client-id-metadata-document",
+          "configuration": {
+            "cimd-allow-http-scheme": "false",
+            "cimd-allow-permitted-domains": ["custos.example.com", "oauth2callback"]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -26,7 +26,7 @@
       CopyToOutputDirectory="PreserveNewest"
     />
     <None
-      Include="..\..\optio\nats\nats.conf"
+      Include="..\..\deploy\nats\nats.conf"
       Link="nats\nats.conf"
       CopyToOutputDirectory="PreserveNewest"
     />
@@ -38,7 +38,7 @@
     />
     <None Include="Mcp\McpTools.txt" CopyToOutputDirectory="PreserveNewest" />
     <None
-      Include="..\keycloak\custos-realm.json"
+      Include="..\..\deploy\keycloak\custos-realm.json"
       Link="keycloak\custos-realm.json"
       CopyToOutputDirectory="PreserveNewest"
     />

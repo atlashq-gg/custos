@@ -11,7 +11,7 @@ using NATS.Client.JetStream.Models;
 namespace Optio.Tests.Infrastructure;
 
 /// <summary>
-/// A NATS container with a copy of <c>optio/nats/nats.conf</c> and one more user, <c>admin</c>,
+/// A NATS container with a copy of <c>deploy/nats/nats.conf</c> and one more user, <c>admin</c>,
 /// that has all permissions. The password of each user is its name. The host port does not change
 /// at a restart.
 /// </summary>

@@ -11,7 +11,7 @@ namespace Optio.Tests.Feasibility;
 
 /// <summary>
 /// The feasibility tests M38 of issue #48: NATS JetStream for the event path, with NATS.Net and
-/// <c>optio/nats/nats.conf</c>. Each test writes its measurements to the test output. The
+/// <c>deploy/nats/nats.conf</c>. Each test writes its measurements to the test output. The
 /// findings are in a comment on #48.
 /// </summary>
 [Category("Feasibility")]

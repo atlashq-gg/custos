@@ -20,12 +20,12 @@
       CopyToOutputDirectory="PreserveNewest"
     />
     <None
-      Include="..\..\server\keycloak\custos-realm.json"
+      Include="..\..\deploy\keycloak\custos-realm.json"
       Link="keycloak\custos-realm.json"
       CopyToOutputDirectory="PreserveNewest"
     />
     <None
-      Include="..\nats\nats.conf"
+      Include="..\..\deploy\nats\nats.conf"
       Link="nats\nats.conf"
       CopyToOutputDirectory="PreserveNewest"
     />
