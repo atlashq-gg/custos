@@ -134,7 +134,7 @@ On Windows, the overlay is a transparent webview window above the other windows,
 
 ## Query
 
-If the discovery document of the service has `query_endpoint`, the user can ask the service a question in plain language ([spec/06-query.md](../spec/06-query.md)). The service answers on its stream. Thus the query needs the stream: Custos shows the answer only while Foxhole runs, the user is signed in, and Custos is not paused.
+If the discovery document of the service lists the feature `query` in `features_supported`, the user can ask the service a question in plain language ([spec/06-query.md](../spec/06-query.md)). The service answers on its stream. Thus the query needs the stream: Custos shows the answer only while Foxhole runs, the user is signed in, and Custos is not paused.
 
 1. Push the key, `Ctrl+Alt+K` by default. The overlay takes the keyboard, and you type at its prompt. While you type, the overlay holds the new messages, so that no line moves.
 2. Type the question, and push Enter. The game gets the keyboard back, and the held messages show.

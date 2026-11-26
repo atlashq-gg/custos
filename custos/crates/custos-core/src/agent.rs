@@ -542,7 +542,7 @@ impl Agent {
     /// The endpoint of the stream, when Custos must keep the stream open: the service has a stream, the
     /// user is signed in, Custos is not paused, Foxhole runs, and the service did not refuse the user.
     fn stream_endpoint(&self) -> Option<url::Url> {
-        let endpoint = self.service.as_ref()?.discovery.stream_endpoint.clone()?;
+        let endpoint = self.service.as_ref()?.discovery.stream_endpoint()?.clone();
         let wanted = self.tokens.is_some() && !self.paused && self.game_running && !self.stream.forbidden;
         wanted.then_some(endpoint)
     }
@@ -1016,6 +1016,7 @@ mod tests {
                     d["upload_min_interval_seconds"] = 0.into();
                     if stream {
                         let upload = d["upload_endpoint"].as_str().unwrap().to_owned();
+                        d["features_supported"] = serde_json::json!(["upload", "stream", "query"]);
                         d["stream_endpoint"] = upload.replace("/uploads", "/stream").into();
                         d["query_endpoint"] = upload.replace("/uploads", "/query").into();
                     }

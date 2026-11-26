@@ -47,7 +47,7 @@ When the authorization server refuses the exchange, or the server does not answe
 
 ## Stream
 
-The stream sends the events of the domain services to Custos ([spec](../spec/05-stream.md), [ADR 0007](../docs/adr/0007-a-broker-carries-domain-events.md)). It is on when the configuration has the broker and the Discord token. Then the discovery document has `stream_endpoint`.
+The stream sends the events of the domain services to Custos ([spec](../spec/05-stream.md), [ADR 0007](../docs/adr/0007-a-broker-carries-domain-events.md)). It is on when the configuration has the broker and the Discord token. Then the discovery document lists `stream` in `features_supported`, and has `stream_endpoint`.
 
 1. When Optio starts, it makes the stream `OPTIO` on the broker, or sets its settings again. The broker keeps the events for the replay window, and removes each event at its age.
 2. A stream opens with a token of Custos. The guild is the claim `active_guild`, and the user is the claim `discord_id`.
@@ -70,7 +70,7 @@ The stream sends the events of the domain services to Custos ([spec](../spec/05-
 
 ## Query
 
-The query answers a question of the user in plain language, on the stream ([spec](../spec/06-query.md)). It is on when the stream is on and the configuration has `ClaudeApiKey`, `SystemPrompt`, and one item of `McpServices` or more. Then the discovery document has `query_endpoint`.
+The query answers a question of the user in plain language, on the stream ([spec](../spec/06-query.md)). It is on when the stream is on and the configuration has `ClaudeApiKey`, `SystemPrompt`, and one item of `McpServices` or more. Then the discovery document lists `query` in `features_supported`, and has `query_endpoint`.
 
 1. Custos sends `POST /api/v1/query` with a reference that it makes and the question. The client is the claim `sid` of the token, so a token with no `sid` gets `403`.
 2. Optio writes the record of the query to the bucket `OPTIO_QUERIES`, and responds `202`. Each change of state is a compare-and-set on the record, and the winner publishes the message of the change below `queries.<guild>.<user>.<client>` in the stream `OPTIO`. Thus the messages replay with the events, and only the streams of the client get them.

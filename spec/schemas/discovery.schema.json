@@ -6,6 +6,7 @@
   "required": [
     "custos_versions_supported",
     "service_name",
+    "features_supported",
     "upload_endpoint",
     "upload_max_bytes",
     "upload_min_interval_seconds",
@@ -20,6 +21,11 @@
       "items": { "type": "string", "pattern": "^[0-9]+$" }
     },
     "service_name": { "type": "string", "minLength": 1 },
+    "features_supported": {
+      "type": "array",
+      "contains": { "const": "upload" },
+      "items": { "type": "string", "minLength": 1 }
+    },
     "service_documentation": { "type": "string", "format": "uri" },
     "upload_endpoint": { "type": "string", "format": "uri" },
     "upload_max_bytes": { "type": "integer", "minimum": 1 },
@@ -29,5 +35,18 @@
     "scopes": { "type": "array", "items": { "type": "string" } },
     "stream_endpoint": { "type": "string", "format": "uri" },
     "query_endpoint": { "type": "string", "format": "uri" }
-  }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "features_supported": { "contains": { "const": "stream" } } } },
+      "then": { "required": ["stream_endpoint"] }
+    },
+    {
+      "if": { "properties": { "features_supported": { "contains": { "const": "query" } } } },
+      "then": {
+        "required": ["query_endpoint"],
+        "properties": { "features_supported": { "contains": { "const": "stream" } } }
+      }
+    }
+  ]
 }

@@ -9,6 +9,7 @@ namespace Optio.Endpoints;
 public sealed record DiscoveryDocument(
     string[] CustosVersionsSupported,
     string ServiceName,
+    string[] FeaturesSupported,
     string UploadEndpoint,
     int UploadMaxBytes,
     int UploadMinIntervalSeconds,
@@ -33,9 +34,13 @@ internal static class Discovery
         app.MapGet(Path, (HttpContext http, IOptions<OptioOptions> options) =>
             {
                 var o = options.Value;
+                // The stream and the query only when they are configured (StreamSetup, QuerySetup).
+                var stream = http.RequestServices.GetService<EventStream>() is not null;
+                var query = http.RequestServices.GetService<QueryService>() is not null;
                 return new DiscoveryDocument(
                     CustosVersionsSupported: SupportedVersions,
                     ServiceName: o.ServiceName,
+                    FeaturesSupported: Features(stream, query),
                     UploadEndpoint: OptioOptions.Combine(o.PublicBaseUrl, Uploads.Path),
                     UploadMaxBytes: o.UploadMaxBytes,
                     UploadMinIntervalSeconds: o.UploadMinIntervalSeconds,
@@ -43,18 +48,27 @@ internal static class Discovery
                     ClientId: o.ResolvedCustosClientId,
                     Scopes: o.Scopes,
                     ServiceDocumentation: o.ServiceDocumentation,
-                    // Only when the stream is configured (StreamSetup).
-                    StreamEndpoint: http.RequestServices.GetService<EventStream>() is null
-                        ? null
-                        : OptioOptions.Combine(o.PublicBaseUrl, StreamEndpoint.Path),
-                    // Only when the query is configured (QuerySetup).
-                    QueryEndpoint: http.RequestServices.GetService<QueryService>() is null
-                        ? null
-                        : OptioOptions.Combine(o.PublicBaseUrl, Endpoints.QueryEndpoint.Path)
+                    StreamEndpoint: stream
+                        ? OptioOptions.Combine(o.PublicBaseUrl, StreamEndpoint.Path)
+                        : null,
+                    QueryEndpoint: stream && query
+                        ? OptioOptions.Combine(o.PublicBaseUrl, Endpoints.QueryEndpoint.Path)
+                        : null
                 );
             })
             .AllowAnonymous();
 
         return app;
     }
+
+    /// <summary>
+    /// The features of spec/01-discovery.md that Optio has turned on. The upload is always on. The
+    /// query needs the stream.
+    /// </summary>
+    public static string[] Features(bool stream, bool query) =>
+        [
+            "upload",
+            .. stream ? ["stream"] : Array.Empty<string>(),
+            .. stream && query ? ["query"] : Array.Empty<string>(),
+        ];
 }
