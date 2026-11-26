@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix: on Linux, when the typed question wrapped, the `>` of the prompt and the cursor moved to the middle line, and the cursor was not after the last character. The prompt is now one line of text that wraps, as on Windows.
+
 ## 0.3.0-alpha.3
 
 A pre-release that fixes the key of the query on Linux.
