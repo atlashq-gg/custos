@@ -17,27 +17,29 @@ namespace Custos.Server.Events;
 /// </summary>
 internal static class ChangeText
 {
-    public const int MaxChanges = 5;
-
     /// <summary>The limit of the text of a stream message (spec/05-stream.md).</summary>
-    public const int MaxLength = 500;
+    public const int SpecMaxLength = 500;
 
     /// <summary>The text for the change from <paramref name="before"/> to
     /// <paramref name="after"/>. A new stockpile has no <paramref name="before"/>. Null when no
-    /// quantity changed, for example when only an entry with the quantity 0 came or went.</summary>
+    /// quantity changed, for example when only an entry with the quantity 0 came or went. The text
+    /// has at most <paramref name="maxChanges"/> change lines and <paramref name="maxLength"/>
+    /// characters.</summary>
     public static string? Make(
         string structureLabel,
         string stockpileName,
         IReadOnlyDictionary<EntryKey, int>? before,
         IReadOnlyDictionary<EntryKey, int> after,
-        GameCatalog catalog
+        GameCatalog catalog,
+        int maxChanges,
+        int maxLength
     )
     {
         var place = $"{structureLabel}, {stockpileName}";
         if (before is null)
         {
             var count = after.Count(e => e.Value != 0);
-            return Cut($"{place}: new, {count} {(count == 1 ? "item" : "items")}");
+            return Cut($"{place}: new, {count} {(count == 1 ? "item" : "items")}", maxLength);
         }
 
         var changes = Rank(before, after, catalog)
@@ -47,14 +49,14 @@ internal static class ChangeText
             return null;
 
         // Fewer change lines when the text is too long, for example with a long label.
-        for (var shown = Math.Min(changes.Count, MaxChanges); ; shown--)
+        for (var shown = Math.Min(changes.Count, maxChanges); ; shown--)
         {
             List<string> lines = [place, .. changes.Take(shown)];
             if (shown < changes.Count)
                 lines.Add($"+{Number(changes.Count - shown)} more");
             var text = string.Join('\n', lines);
-            if (text.Length <= MaxLength || shown == 0)
-                return Cut(text);
+            if (text.Length <= maxLength || shown == 0)
+                return Cut(text, maxLength);
         }
     }
 
@@ -96,8 +98,8 @@ internal static class ChangeText
     private static string Signed(int value) =>
         value.ToString("+0;-0", CultureInfo.InvariantCulture);
 
-    private static string Cut(string text) =>
-        text.Length <= MaxLength ? text : text[..(MaxLength - 1)] + "…";
+    private static string Cut(string text, int maxLength) =>
+        text.Length <= maxLength ? text : text[..(maxLength - 1)] + "…";
 }
 
 /// <summary>The key of a stockpile entry: its category and its code name.</summary>
