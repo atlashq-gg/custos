@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.0-alpha.2
 
-The query: a question to the service in plain language.
+The query: a question to the service in plain language. A pre-release.
 
 - Custos reads `features_supported` of the discovery document, and uses the stream and the query only when the list names them. It refuses a document without `upload`, or with a listed feature without its members.
 - Custos implements the query of `spec/06-query.md`, with `query_endpoint` of the discovery document.

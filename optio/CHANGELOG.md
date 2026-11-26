@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-alpha.2
+
+A pre-release with the query.
 
 - The discovery document lists the features in `features_supported`: always `upload`, `stream` while the stream is on, and `query` while the query is on.
 - The default `ServiceName` is `Optio`, the name that Custos shows to the user.
