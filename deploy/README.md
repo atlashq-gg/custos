@@ -57,7 +57,7 @@ To add the MCP endpoint of the Server to a harness, give it the URL of the endpo
 claude mcp add --transport http custos https://records.example.com/mcp
 ```
 
-The harness opens the login of Keycloak. The consent page shows the two scopes. A token with `custos:read` only does not list the write tools.
+The harness opens the login of Keycloak. The consent page shows the two scopes. A token with `custos:read` only lists the write tools, but a call of a write tool needs `custos:write`.
 
 ## 3. Prepare the Discord applications
 
@@ -126,21 +126,22 @@ curl https://custos.example.com/.well-known/custos-configuration
 curl https://records.example.com/.well-known/oauth-protected-resource
 ```
 
-1. `/health/ready` of each service must give `Healthy`. The Server checks its database. Readiness does not depend on the broker, because the upload works without it.
+1. `/health/ready` of each service must give `Healthy`. Each service checks its database. Readiness does not depend on the broker, because the upload works without it.
 2. The log of Optio must show `The stream OPTIO of the events is ready`. A warning that the event broker is not available shows a wrong host, user, or password.
-3. The discovery document must show the public URL in `upload_endpoint` and `client_id`. With the broker and the Discord token of Optio, it lists `stream` in `features_supported`, and has `stream_endpoint`.
+3. The discovery document must show the public URL in `upload_endpoint` and `client_id`. With the broker and the Discord token of Optio, it lists `stream` in `features_supported`, and has `stream_endpoint`. With the settings of the query, it also lists `query`, and has `query_endpoint`.
 4. The metadata document of the Server must show `"resource": "https://records.example.com/mcp"`.
 5. Set the URL of Optio in Custos, and log in. Keycloak shows a consent page on the first login.
 6. After an upload that changes a stockpile, the log of the Server shows no warning of the event broker. A member with a read role of the guild gets the event on the stream.
-7. With the Discord tokens, the logs have no warning about a token. In a guild, `/custosadmin settings view` works.
+7. Push the key of the query in Custos, and ask about a stockpile of the guild. The overlay shows the progress and the answer. The log of Optio has an audit line for each tool call.
+8. With the Discord tokens, the logs have no warning about a token. In a guild, `/custosadmin settings view` works.
 
 ## Operation
 
-- Run one instance of each service. The rate limits, the cache of the war API, the Discord gateways, and the count of open streams are in the memory of the process.
+- Run one instance of each service. The rate limits, the limit of queries in each hour, the cache of the war API, the Discord gateways, and the count of open streams are in the memory of the process.
 - Each image of a service has a `HEALTHCHECK` with the flag `--healthcheck`, because the images have no shell and no `curl`. The check uses `/health/alive`. Check `/health/ready` from the proxy or from a monitor.
-- Back up the database of the Server before you update an image. The Server applies new migrations when it starts.
+- Back up the databases of the Server and of Optio before you update an image. Each service applies new migrations when it starts.
 - The broker keeps the events of the replay window, 15 minutes by default, and removes each event at its age. Optio sets the age limit of the stream at each start, from `ReplayWindowMinutes`. Optio keeps no events. After a restart of Optio, a client that connects again with its position gets the events that it missed.
-- When the broker is not available, an upload still succeeds, and its event can be lost. A stream request gets `503`, and Custos tries again later.
+- When the broker is not available, an upload still succeeds, and its event can be lost. A stream request or a query gets `503`, and Custos tries again later. The broker also holds the open queries and the conversations, so the volume `events-data` keeps them over a restart of the broker.
 - The archive and the purge of a war are manual ([server/README.md](../server/README.md#wars)).
 
 ## License
