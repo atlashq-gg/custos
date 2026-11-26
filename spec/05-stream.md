@@ -6,7 +6,7 @@ A service can send messages to Custos on a stream. The stream is optional. A ser
 
 ## Discovery
 
-The optional member `stream_endpoint` of the discovery document ([01-discovery.md](01-discovery.md)) announces the stream:
+The feature `stream` in `features_supported` of the discovery document ([01-discovery.md](01-discovery.md#features)) announces the stream. Its member is:
 
 | Member | Type | Content |
 |---|---|---|

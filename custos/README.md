@@ -136,7 +136,7 @@ On Windows, the overlay is a transparent webview window above the other windows,
 
 ## Query
 
-If the discovery document of the service has `query_endpoint`, the user can ask the service a question in plain language ([spec/06-query.md](../spec/06-query.md)). The service answers on its stream. Thus the query needs the stream: Custos shows the answer only while Foxhole runs, the user is signed in, and Custos is not paused.
+If the discovery document of the service lists the feature `query` in `features_supported`, the user can ask the service a question in plain language ([spec/06-query.md](../spec/06-query.md)). The service answers on its stream. Thus the query needs the stream: Custos shows the answer only while Foxhole runs, the user is signed in, and Custos is not paused.
 
 The overlay shows the key in amber, for example `> [Ctrl+Alt+K] for input. See /help.`, while the service has a query. On Linux, it shows the key that the desktop bound. Set `hint = false` in `[query]` to remove the line.
 

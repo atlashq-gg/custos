@@ -57,6 +57,8 @@ public sealed class QueryTests
                 Is.EqualTo(OptioFactory.PublicBaseUrl + QueryPath)
             );
             Assert.That(off.TryGetProperty("query_endpoint", out _), Is.False);
+            Assert.That(DiscoveryTests.Features(on), Is.EqualTo(["upload", "stream", "query"]));
+            Assert.That(DiscoveryTests.Features(off), Is.EqualTo(["upload", "stream"]));
         }
     }
 

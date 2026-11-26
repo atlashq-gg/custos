@@ -58,6 +58,8 @@ public sealed class StreamTests
                 Is.EqualTo(OptioFactory.PublicBaseUrl + Path)
             );
             Assert.That(off.TryGetProperty("stream_endpoint", out _), Is.False);
+            Assert.That(DiscoveryTests.Features(on), Does.Contain("stream"));
+            Assert.That(DiscoveryTests.Features(off), Is.EqualTo(["upload"]));
         }
     }
 

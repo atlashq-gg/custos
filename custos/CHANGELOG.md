@@ -4,7 +4,8 @@
 
 The query: a question to the service in plain language.
 
-- Custos reads `query_endpoint` of the discovery document, and implements the query of `spec/06-query.md`. It ignores the query of a service without a stream.
+- Custos reads `features_supported` of the discovery document, and uses the stream and the query only when the list names them. It refuses a document without `upload`, or with a listed feature without its members.
+- Custos implements the query of `spec/06-query.md`, with `query_endpoint` of the discovery document.
 - A key starts a question at the prompt of the overlay: `Ctrl+Alt+K` by default, `key` in the new table `[query]`. On Linux, Custos asks the desktop for the key through the `GlobalShortcuts` portal. KDE Plasma 6 and GNOME 48 or later have the portal, and Sway does not. On Windows, the key is a hot key. The tray menu item **Ask a question** also starts a question. The key and the menu item work only while the overlay is open.
 - While the user types, the overlay takes the keyboard and holds the new messages. Enter sends the question, gives the keyboard back to the game, and shows the held messages. Escape cancels. `/new <question>` starts a new conversation, `/stop` stops the open question, and `/help` shows the commands. The amber line `> Awaiting input...` shows while the overlay has the keyboard. A question of the service ends with `[Y/N]` and the remaining time. While it waits and the line is empty, `Y` accepts the change and `N` refuses it.
 - The overlay shows the question and its state in its own area, at the edge of the anchor. The events do not move it. After the deadline of a state, Custos shows that the service is not in contact.

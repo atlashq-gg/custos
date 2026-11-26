@@ -41,6 +41,7 @@ public sealed class DiscoveryTests
                 document.GetProperty("scopes").EnumerateArray().Select(s => s.GetString()),
                 Is.EqualTo(["openid", "custos:client"])
             );
+            Assert.That(Features(document), Is.EqualTo(["upload"]));
             Assert.That(document.TryGetProperty("service_documentation", out _), Is.False);
             Assert.That(
                 document.TryGetProperty("authorization_endpoint", out _),
@@ -49,6 +50,10 @@ public sealed class DiscoveryTests
             );
         }
     }
+
+    /// <summary>The member <c>features_supported</c> of a discovery document.</summary>
+    internal static string?[] Features(JsonElement document) =>
+        [.. document.GetProperty("features_supported").EnumerateArray().Select(f => f.GetString())];
 
     [Test]
     public async Task Client_metadata_document_names_itself_and_the_redirect_uri()
