@@ -1,17 +1,14 @@
-//! The query in the application: the key that opens the input window, and the query that the overlay
-//! and the input window show. The agent keeps the query, and sends each change of it.
+//! The query in the application: the key that starts a question at the prompt of the overlay, and the
+//! query that the overlay shows. The agent keeps the query, and sends each change of it.
 //!
 //! Call each function on the main thread, except [`listen`].
 
 use std::cell::RefCell;
 use std::time::{Duration, Instant, SystemTime};
 
-use custos_core::agent::Command;
-use custos_core::query::{self, Action, Input, Line, Query, State};
+use custos_core::query::{self, Line, Query, State};
 use custos_core::shortcut::Shortcut;
-use tauri::{AppHandle, Manager};
-
-use crate::Tray;
+use tauri::AppHandle;
 
 /// The query that shows, and the settings of the query.
 struct Shown {
@@ -38,8 +35,8 @@ pub fn configure(settings: &custos_core::config::Query) {
     });
 }
 
-/// Shows the new state of the query. Returns the text for a desktop notification when the overlay
-/// and the input window are not open, and the user must read the new state.
+/// Shows the new state of the query. Returns the text for a desktop notification when the overlay is
+/// not open, and the user must read the new state.
 pub fn set(query: &Query) -> Option<String> {
     let old_state = SHOWN.with_borrow_mut(|shown| {
         let old = shown
@@ -51,9 +48,8 @@ pub fn set(query: &Query) -> Option<String> {
         old
     });
     let overlay_open = crate::overlay::render_query();
-    let window_open = crate::input::refresh();
     let must_read = matches!(query.state, State::Waiting | State::Closed) && old_state != Some(query.state);
-    (must_read && !overlay_open && !window_open).then(|| {
+    (must_read && !overlay_open).then(|| {
         let lines = SHOWN.with_borrow(|shown| query.lines(SystemTime::now(), &shown.key, None));
         // The question of the user is the title of the notification, not a line of its text.
         lines
@@ -76,8 +72,8 @@ pub fn overlay_lines(max_lines: usize) -> Vec<Line> {
     })
 }
 
-/// The lines of the input window: the last query with its full text.
-pub fn window_lines() -> Vec<Line> {
+/// The lines of the last query with its full text, while the user types a question.
+pub fn full_lines() -> Vec<Line> {
     SHOWN.with_borrow(|shown| {
         shown
             .query
@@ -92,36 +88,24 @@ pub fn is_waiting() -> bool {
     SHOWN.with_borrow(|shown| shown.query.as_ref().is_some_and(|q| q.state == State::Waiting))
 }
 
-/// The help line of the input window.
+/// The help line while the user types a question.
 pub fn hint() -> String {
     query::hint(is_waiting())
 }
 
-/// Reads a line of the input window and sends it to the agent. The error is a text for the user. The
-/// window closes after `Ok`.
-pub fn submit(app: &AppHandle, line: &str) -> Result<(), String> {
-    if let Some(input) = query::parse(line)? {
-        app.state::<Tray>().send(Command::Query(input));
+/// Starts a question at the prompt of the overlay. Without the overlay, tells the user why.
+pub fn start(app: &AppHandle) {
+    if !crate::overlay::begin_input() {
+        crate::notify(
+            app,
+            "Custos",
+            "Custos takes a question at the prompt of the overlay, while Foxhole runs. The overlay \
+             is not open.",
+        );
     }
-    Ok(())
 }
 
-/// The key of a decision in the input window: `y` accepts, and `n` refuses. Returns true when the key
-/// is a decision for the query that waits.
-pub fn decide(app: &AppHandle, key: char) -> bool {
-    let action = match key.to_ascii_lowercase() {
-        'y' => Action::Accept,
-        'n' => Action::Refuse,
-        _ => return false,
-    };
-    if !is_waiting() {
-        return false;
-    }
-    app.state::<Tray>().send(Command::Query(Input::Act(action)));
-    true
-}
-
-/// Opens the input window when the user pushes the key. On Linux, the `GlobalShortcuts` portal of the
+/// Starts a question when the user pushes the key. On Linux, the `GlobalShortcuts` portal of the
 /// desktop gives the key. Sway has no such portal, so the menu item of the tray is the only way there.
 #[cfg(target_os = "linux")]
 pub fn listen(app: &AppHandle, key: &Shortcut) {
@@ -129,7 +113,7 @@ pub fn listen(app: &AppHandle, key: &Shortcut) {
     let trigger = key.to_portal();
     tauri::async_runtime::spawn(async move {
         if let Err(e) = portal::listen(&app, &trigger).await {
-            tracing::warn!("the desktop gives no key for the input window: {e}. Use Ask a question in the tray menu.");
+            tracing::warn!("the desktop gives no key for a question: {e}. Use Ask a question in the tray menu.");
         }
     });
 }
@@ -160,14 +144,14 @@ mod portal {
             .await?
             .response()?;
         for shortcut in bound.shortcuts() {
-            tracing::info!("the key {} opens the input window", shortcut.trigger_description());
+            tracing::info!("the key {} starts a question", shortcut.trigger_description());
         }
         let mut activated = portal.receive_activated().await?;
         while let Some(activation) = activated.next().await {
             if activation.shortcut_id() == ASK {
                 let _ = app.run_on_main_thread({
                     let app = app.clone();
-                    move || crate::input::open(&app)
+                    move || super::start(&app)
                 });
             }
         }
@@ -177,7 +161,7 @@ mod portal {
     }
 }
 
-/// Opens the input window when the user pushes the key: a hot key of Windows.
+/// Starts a question when the user pushes the key: a hot key of Windows.
 #[cfg(windows)]
 pub fn listen(app: &AppHandle, key: &Shortcut) {
     use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
@@ -189,11 +173,11 @@ pub fn listen(app: &AppHandle, key: &Shortcut) {
     let result = shortcuts.on_shortcut(key.to_string().as_str(), |app, _, event| {
         if event.state == ShortcutState::Pressed {
             let handle = app.clone();
-            let _ = app.run_on_main_thread(move || crate::input::open(&handle));
+            let _ = app.run_on_main_thread(move || start(&handle));
         }
     });
     if let Err(e) = result {
-        tracing::warn!("cannot use the key {key} for the input window: {e}. Use Ask a question in the tray menu.");
+        tracing::warn!("cannot use the key {key} for a question: {e}. Use Ask a question in the tray menu.");
     }
 }
 

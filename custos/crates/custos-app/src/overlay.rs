@@ -7,17 +7,22 @@
 //! style in `dist/overlay.css`.
 //!
 //! The lines of the query (see [`crate::ask`]) have their own area at the edge of the anchor, so that
-//! the lines of the events do not move them.
+//! the lines of the events do not move them. The user types a question at the prompt: then the
+//! overlay takes the keyboard, and holds the new messages until the user sends the question or
+//! cancels it.
 //!
 //! Call each function on the main thread.
 
 use std::cell::RefCell;
 use std::time::Instant;
 
+use custos_core::agent::Command;
 use custos_core::config::Overlay as Settings;
-use custos_core::lines::{Lines, Notification, Reference};
-use custos_core::query::Line;
-use tauri::AppHandle;
+use custos_core::lines::{ERROR_PROMPT, INDENT, Lines, Notification, Reference};
+use custos_core::query::{Entry, Key, Line, Outcome};
+use tauri::{AppHandle, Manager};
+
+use crate::Tray;
 
 /// The number of seconds between two searches for the monitor of the game.
 const PLACE_INTERVAL: u32 = 5;
@@ -28,6 +33,9 @@ struct Overlay {
     /// The lines of the query that show.
     query: Vec<Line>,
     settings: Settings,
+    /// The line that the user types at the prompt. `None` while the game has the keyboard.
+    entry: Option<Entry>,
+    app: AppHandle,
     /// The number of seconds since the overlay opened.
     seconds: u32,
 }
@@ -46,6 +54,8 @@ pub fn open(app: &AppHandle, settings: Settings) -> Result<(), String> {
             lines: Lines::new(settings.into()),
             query: Vec::new(),
             settings,
+            entry: None,
+            app: app.clone(),
             seconds: 0,
         });
     });
@@ -81,11 +91,86 @@ pub fn expire(reference: &Reference) {
     });
 }
 
-/// Shows the current lines of the query. Returns false when the overlay is not open.
+/// Starts a question at the prompt: the overlay takes the keyboard, and holds the new messages.
+/// Returns false when the overlay is not open.
+pub fn begin_input() -> bool {
+    let open = OVERLAY.with_borrow_mut(|overlay| {
+        let Some(overlay) = overlay else { return false };
+        if overlay.entry.is_none() {
+            overlay.entry = Some(Entry::default());
+            overlay.lines.hold();
+            overlay.view.take_keyboard(true);
+            overlay.view.render_input(Some(""));
+        }
+        true
+    });
+    render_query();
+    open
+}
+
+/// Applies a key while the overlay has the keyboard.
+pub fn key(key: Key) {
+    let waiting = crate::ask::is_waiting();
+    let outcome = OVERLAY.with_borrow_mut(|overlay| {
+        let overlay = overlay.as_mut()?;
+        let entry = overlay.entry.as_mut()?;
+        let outcome = entry.key(key, waiting);
+        if outcome == Outcome::Continue {
+            let text = entry.text.clone();
+            overlay.view.render_input(Some(&text));
+        }
+        Some((outcome, overlay.app.clone()))
+    });
+    match outcome {
+        Some((Outcome::Continue, _)) => {
+            render_query();
+        }
+        Some((Outcome::Close, _)) => end_input(),
+        Some((Outcome::Send(input), app)) => {
+            app.state::<Tray>().send(Command::Query(input));
+            end_input();
+        }
+        None => {}
+    }
+}
+
+/// Gives the keyboard back to the game, and shows the held messages.
+fn end_input() {
+    with(|overlay| {
+        if overlay.entry.take().is_some() {
+            overlay.view.take_keyboard(false);
+            overlay.view.render_input(None);
+            overlay.lines.release(Instant::now());
+            overlay.view.render(&overlay.lines);
+        }
+    });
+    render_query();
+}
+
+/// Shows the current lines of the query. While the user types, they are the last query in full, the
+/// help line, and the error of the typed line. Returns false when the overlay is not open.
 pub fn render_query() -> bool {
     OVERLAY.with_borrow_mut(|overlay| {
         let Some(overlay) = overlay else { return false };
-        let query = crate::ask::overlay_lines(usize::from(overlay.settings.lines));
+        let query = match &overlay.entry {
+            None => crate::ask::overlay_lines(usize::from(overlay.settings.lines)),
+            Some(entry) => {
+                let mut lines = crate::ask::full_lines();
+                lines.push(Line {
+                    prompt: INDENT,
+                    text: crate::ask::hint(),
+                    is_error: false,
+                });
+                if let Some(error) = &entry.error {
+                    lines.push(Line {
+                        prompt: ERROR_PROMPT,
+                        text: error.clone(),
+                        is_error: true,
+                    });
+                }
+                lines
+            }
+        };
         if query != overlay.query {
             overlay.view.render_query(&query);
             overlay.query = query;
@@ -107,6 +192,26 @@ fn tick() {
     });
 }
 
+/// The command of the page `dist/overlay.js` on Windows: a key while the overlay has the keyboard.
+#[tauri::command]
+#[allow(clippy::needless_pass_by_value)] // Tauri gives the arguments by value.
+pub fn overlay_key(app: AppHandle, key: String) -> Result<(), String> {
+    let key = match key.as_str() {
+        "Escape" => Key::Escape,
+        "Backspace" => Key::Backspace,
+        "Enter" => Key::Enter,
+        _ => {
+            let mut chars = key.chars();
+            match (chars.next(), chars.next()) {
+                (Some(c), None) => Key::Char(c),
+                _ => return Ok(()),
+            }
+        }
+    };
+    app.run_on_main_thread(move || self::key(key))
+        .map_err(|e| e.to_string())
+}
+
 fn with(f: impl FnOnce(&mut Overlay)) {
     OVERLAY.with_borrow_mut(|overlay| {
         if let Some(overlay) = overlay {
@@ -121,7 +226,7 @@ mod platform {
 
     use custos_core::layout::{self, MARGIN, Rect, SIDE_MARGIN};
     use custos_core::lines::{self, Lines, Row};
-    use custos_core::query::Line;
+    use custos_core::query::{Key, Line};
     use custos_core::screen;
     use gtk::prelude::*;
     use gtk::{cairo, gdk, glib, pango};
@@ -146,7 +251,11 @@ mod platform {
         query: gtk::Box,
         /// The prompt with the cursor that fades in and out while no line types.
         prompt: gtk::Box,
+        /// The line that the user types, between the prompt and the cursor.
+        typed: gtk::Label,
         cursor: gtk::Label,
+        /// True while the overlay has the keyboard.
+        input: bool,
         opened: Instant,
         /// The style, which applies to the screen until the overlay closes.
         style: gtk::CssProvider,
@@ -173,7 +282,7 @@ mod platform {
                 window.init_layer_shell();
                 window.set_namespace("custos-overlay");
                 window.set_layer(Layer::Overlay);
-                // The game keeps the keyboard. The mode Exclusive makes a game leave fullscreen.
+                // The game keeps the keyboard until the user types a question (see `take_keyboard`).
                 window.set_keyboard_mode(KeyboardMode::None);
                 let vertical = if anchor.is_top() { Edge::Top } else { Edge::Bottom };
                 let horizontal = if anchor.is_left() { Edge::Left } else { Edge::Right };
@@ -217,11 +326,13 @@ mod platform {
             let terminal = gtk::Box::new(gtk::Orientation::Vertical, 2);
             let lines = gtk::Box::new(gtk::Orientation::Vertical, 2);
             let query = gtk::Box::new(gtk::Orientation::Vertical, 2);
-            let prompt = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-            prompt.set_halign(align);
-            let cursor = gtk::Label::new(Some(&CURSOR.to_string()));
-            prompt.add(&gtk::Label::new(Some(lines::PROMPT)));
-            prompt.add(&cursor);
+            let (prompt, typed, cursor) = prompt(align);
+            window.connect_key_press_event(|_, event| {
+                if let Some(key) = key_of(event) {
+                    super::key(key);
+                }
+                glib::Propagation::Stop
+            });
             if anchor.is_top() {
                 terminal.add(&query);
             }
@@ -244,7 +355,9 @@ mod platform {
                 lines,
                 query,
                 prompt,
+                typed,
                 cursor,
+                input: false,
                 opened: Instant::now(),
                 style,
                 settings,
@@ -272,6 +385,32 @@ mod platform {
             }
             // The default handler of the close request destroys the window.
             self.window.close();
+        }
+
+        /// Gives the keyboard to the overlay, or back to the game. On the layer surface, the mode
+        /// Exclusive can make a game leave fullscreen while the user types.
+        pub fn take_keyboard(&mut self, take: bool) {
+            if self.layer_shell {
+                self.window.set_keyboard_mode(if take {
+                    KeyboardMode::Exclusive
+                } else {
+                    KeyboardMode::None
+                });
+            } else {
+                self.window.set_accept_focus(take);
+                if take {
+                    self.window.present_with_time(gtk::current_event_time());
+                }
+            }
+        }
+
+        /// Shows the typed line at the prompt, or no line when `None`.
+        pub fn render_input(&mut self, text: Option<&str>) {
+            self.input = text.is_some();
+            self.typed.set_max_width_chars(self.max_chars);
+            self.typed.set_text(text.unwrap_or_default());
+            self.animate();
+            self.window.resize(1, 1);
         }
 
         /// Shows the lines of the query in their area. They do not type.
@@ -354,14 +493,18 @@ mod platform {
                     }
                 }
             }
-            if self.prompt.is_visible() == typing {
-                self.prompt.set_visible(!typing);
+            // While the user types, the prompt shows, and its cursor does not fade.
+            let prompt = !typing || self.input;
+            if self.prompt.is_visible() != prompt {
+                self.prompt.set_visible(prompt);
                 resized = true;
             }
             if resized {
                 self.window.resize(1, 1);
             }
-            if !typing {
+            if self.input {
+                self.cursor.set_opacity(1.0);
+            } else if !typing {
                 self.cursor.set_opacity(lines::cursor_opacity(self.opened.elapsed()));
             }
         }
@@ -431,6 +574,33 @@ mod platform {
                 char_width
             );
             true
+        }
+    }
+
+    /// The prompt: its box, the label of the typed line, and the label of the cursor.
+    fn prompt(align: gtk::Align) -> (gtk::Box, gtk::Label, gtk::Label) {
+        let prompt = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        prompt.set_halign(align);
+        let typed = gtk::Label::new(None);
+        typed.set_xalign(0.0);
+        typed.set_line_wrap(true);
+        typed.set_line_wrap_mode(pango::WrapMode::WordChar);
+        let cursor = gtk::Label::new(Some(&CURSOR.to_string()));
+        prompt.add(&gtk::Label::new(Some(lines::PROMPT)));
+        prompt.add(&typed);
+        prompt.add(&cursor);
+        (prompt, typed, cursor)
+    }
+
+    /// The key of the typed line, or `None` for a key that the line does not use.
+    fn key_of(event: &gdk::EventKey) -> Option<Key> {
+        use gdk::keys::constants as keys;
+        let keyval = event.keyval();
+        match keyval {
+            keys::Escape => Some(Key::Escape),
+            keys::BackSpace => Some(Key::Backspace),
+            keys::Return | keys::KP_Enter => Some(Key::Enter),
+            _ => keyval.to_unicode().filter(|c| !c.is_control()).map(Key::Char),
         }
     }
 
@@ -573,6 +743,25 @@ mod platform {
             // JSON is valid JavaScript.
             if let Err(e) = self.window.eval(format!("render({page})")) {
                 tracing::warn!("cannot show the lines in the overlay: {e}");
+            }
+        }
+
+        /// Gives the keyboard to the overlay, or back to the game.
+        pub fn take_keyboard(&mut self, take: bool) {
+            let result = self
+                .window
+                .set_focusable(take)
+                .and_then(|()| if take { self.window.set_focus() } else { Ok(()) });
+            if let Err(e) = result {
+                tracing::warn!("cannot change the keyboard of the overlay: {e}");
+            }
+        }
+
+        /// Gives the typed line to the page, which shows it at the prompt and sends each key (see
+        /// `dist/overlay.js`). `None` ends the input.
+        pub fn render_input(&mut self, text: Option<&str>) {
+            if let Err(e) = self.window.eval(format!("renderInput({})", json!(text))) {
+                tracing::warn!("cannot show the typed line in the overlay: {e}");
             }
         }
 

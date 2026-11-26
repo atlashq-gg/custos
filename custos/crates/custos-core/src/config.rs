@@ -89,7 +89,7 @@ const REST_OF_TEMPLATE: &str = r#"
 
 # The query: a question to the service in plain language, if the service has a query.
 # [query]
-# The key that opens the input window. The desktop can ask you to confirm it, and its settings can
+# The key that starts a question at the prompt of the overlay. The desktop can ask you to confirm it, and its settings can
 # change it later.
 # key = "Ctrl+Alt+K"
 # The time that the answer stays in the overlay, in seconds, from 1 to 3600. A new question replaces
@@ -117,7 +117,7 @@ pub struct Config {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Query {
-    /// The key that opens the input window, for example `Ctrl+Alt+K`.
+    /// The key that starts a question, for example `Ctrl+Alt+K`.
     pub key: String,
     /// The time that the answer stays in the overlay, in seconds.
     pub answer_seconds: u16,

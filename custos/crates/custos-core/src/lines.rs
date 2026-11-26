@@ -187,6 +187,9 @@ pub struct Lines {
     limits: Limits,
     /// The oldest message first.
     messages: Vec<Message>,
+    /// The new messages while the user types a question, oldest first. `None` while no question is
+    /// typed.
+    held: Option<Vec<Notification>>,
 }
 
 impl Lines {
@@ -195,12 +198,30 @@ impl Lines {
         Self {
             limits,
             messages: Vec::new(),
+            held: None,
+        }
+    }
+
+    /// Holds the new messages, so that no line moves while the user types a question.
+    pub fn hold(&mut self) {
+        self.held.get_or_insert_with(Vec::new);
+    }
+
+    /// Shows the held messages, as if they arrived now. Their lifetimes start now.
+    pub fn release(&mut self, now: Instant) {
+        for notification in self.held.take().unwrap_or_default() {
+            self.put(notification, now);
         }
     }
 
     /// Adds a message at the bottom, or in place of the message with the same reference. Its lines type
     /// one after the other, after the lines that still type, as on a ticker tape.
     pub fn put(&mut self, notification: Notification, now: Instant) {
+        if let Some(held) = &mut self.held {
+            // A held message with the same reference is old.
+            held.retain(|n| n.reference.is_none() || n.reference != notification.reference);
+            return held.push(notification);
+        }
         self.prune(now);
         let index = notification
             .reference
@@ -250,6 +271,9 @@ impl Lines {
 
     /// Removes the message with this reference. Returns false when no message has it.
     pub fn expire(&mut self, reference: &Reference) -> bool {
+        if let Some(held) = &mut self.held {
+            held.retain(|n| n.reference.as_ref() != Some(reference));
+        }
         let count = self.messages.len();
         self.messages
             .retain(|m| m.notification.reference.as_ref() != Some(reference));
@@ -364,6 +388,27 @@ mod tests {
     /// A time after all typing of short texts.
     fn later(now: Instant) -> Instant {
         now + Duration::from_secs(5)
+    }
+
+    #[test]
+    fn held_messages_show_after_the_release_and_an_expiry_removes_them() {
+        let now = Instant::now();
+        let mut lines = Lines::new(LIMITS);
+        lines.put(service(Some("s:1"), "Old"), now);
+        lines.hold();
+        lines.put(service(Some("s:2"), "First"), now);
+        lines.put(service(Some("s:2"), "Second"), now);
+        lines.put(service(Some("s:3"), "Gone"), now);
+        assert!(!lines.expire(&Reference::Service("s:3".into())));
+        assert_eq!(shown(&lines, later(now)), ["Old"]);
+
+        let release = now + Duration::from_secs(10);
+        lines.release(release);
+        assert_eq!(shown(&lines, later(release)), ["Old", "Second"]);
+        // The lifetime of a held message starts at the release.
+        let at = release + LIFETIME * 3 / 4;
+        lines.prune(at);
+        assert_eq!(shown(&lines, at), ["Second"]);
     }
 
     #[test]

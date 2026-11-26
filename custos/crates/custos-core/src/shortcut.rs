@@ -1,4 +1,4 @@
-//! The key that opens the input window of the query, for example `Ctrl+Alt+K`.
+//! The key that starts a question at the prompt of the overlay, for example `Ctrl+Alt+K`.
 
 use std::fmt;
 

@@ -1,12 +1,11 @@
 //! The tray application of Custos: a tray menu, the overlay while Foxhole runs, desktop notifications,
-//! the input window of the query, and the deep link `custos://oauth2callback` for the login. The work happens in
+//! the question at the prompt of the overlay, and the deep link `custos://oauth2callback` for the login. The work happens in
 //! [`custos_core::agent::Agent`].
 
 // A release build on Windows opens no console window.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod ask;
-mod input;
 mod overlay;
 
 use std::sync::Mutex;
@@ -34,7 +33,7 @@ struct Tray {
     agent: Mutex<Option<(mpsc::UnboundedSender<Command>, config::Config)>>,
     state: Mutex<Option<State>>,
     game_running: AtomicBool,
-    /// The key that opens the input window, after Custos asked the desktop for it.
+    /// The key that starts a question, after Custos asked the desktop for it.
     key: Mutex<Option<String>>,
 }
 
@@ -78,11 +77,7 @@ fn main() {
     #[cfg(windows)]
     let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
     let app = builder
-        .invoke_handler(tauri::generate_handler![
-            input::commands::query_submit,
-            input::commands::query_decide,
-            input::commands::query_close
-        ])
+        .invoke_handler(tauri::generate_handler![overlay::overlay_key])
         .setup(|app| {
             setup(app.handle(), loaded)?;
             Ok(())
@@ -338,8 +333,8 @@ fn on_agent_event(app: &AppHandle, event: Event) -> tauri::Result<()> {
             })?;
         }
         Event::Expire(reference) => app.run_on_main_thread(move || overlay::expire(&reference))?,
-        // The query shows in the overlay and in the input window. When neither is open, a question or
-        // an end shows as a desktop notification.
+        // The query shows in the overlay. When it is not open, a question or an end shows as a
+        // desktop notification.
         Event::Query(query) => {
             let app = app.clone();
             let title = query.question.clone().unwrap_or_else(|| "Custos".into());
@@ -371,7 +366,7 @@ fn on_menu_event(app: &AppHandle, event: &tauri::menu::MenuEvent) {
         "pause" => tray.send(Command::Pause),
         "sign" if state == Some(State::SignedOut) => tray.send(Command::SignIn),
         "sign" => tray.send(Command::SignOut),
-        "ask" => input::open(app),
+        "ask" => ask::start(app),
         "config" => match config::default_path() {
             Ok(path) => {
                 if let Err(e) = app.opener().open_path(path.to_string_lossy(), None::<&str>) {

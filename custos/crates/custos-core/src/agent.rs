@@ -48,7 +48,7 @@ pub enum Command {
     /// A new configuration with the same service URL. A new service URL needs a new agent, because
     /// the tokens belong to the service.
     Reconfigure(Box<Config>),
-    /// A line or a key of the input window of the query.
+    /// A question or an action that the user typed at the prompt of the overlay.
     Query(Input),
     Shutdown,
 }
@@ -686,7 +686,7 @@ impl Agent {
         }
     }
 
-    /// Sends a question or an action of the input window.
+    /// Sends a question or an action that the user typed.
     async fn on_input(&mut self, input: Input) {
         let Some(service) = self.service.clone() else {
             return self.notify_error(

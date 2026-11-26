@@ -14,7 +14,7 @@ Custos is a tray application for Linux and Windows. It watches the map data file
 - If the service has a stream, Custos keeps it open while Foxhole runs, the user is signed in, and Custos is not paused. The stream gives the events of the service, for example a change of a stockpile. Custos shows each event in the overlay.
 - Custos keeps the position of the stream in memory. When it connects again, the service sends the events that Custos did not get. After a restart of Custos, the stream starts from now.
 - Custos gets a new access token before the old one expires. A network error does not sign the user out.
-- If the service has a query, a key opens an input window. The user asks a question in plain language, and the overlay shows the progress and the answer. Before the service changes data, the user must accept the change.
+- If the service has a query, the user pushes a key and types a question in plain language at the prompt of the overlay. The overlay shows the progress and the answer. Before the service changes data, the user must accept the change.
 
 ## Requirements
 
@@ -88,7 +88,7 @@ lines = 12
 
 # Optional. The query, if the service has one.
 [query]
-# The key that opens the input window. It needs Ctrl, Alt, or Super. Default: "Ctrl+Alt+K".
+# The key that starts a question at the prompt of the overlay. It needs Ctrl, Alt, or Super. Default: "Ctrl+Alt+K".
 key = "Ctrl+Alt+K"
 # The time that the answer stays in the overlay, in seconds, from 1 to 3600. Default: 180.
 answer_seconds = 180
@@ -126,7 +126,7 @@ The overlay shows at most `messages` messages and `lines` lines of text, from `[
 
 On Linux, Custos finds the monitor of the game through the window list of XWayland. If it cannot find the game window, the desktop selects the monitor. On Windows, the overlay shows on the primary monitor.
 
-The overlay takes no pointer input and no keyboard input, so the game keeps them. When Foxhole stops, the overlay closes, and Custos shows desktop notifications.
+The overlay takes no pointer input, and no keyboard input except while the user types a question ([Query](#query)). Thus the game keeps them. When Foxhole stops, the overlay closes, and Custos shows desktop notifications.
 
 The overlay needs the layer-shell protocol of Wayland. GNOME does not have it. Thus on GNOME on Wayland, Custos starts again with the X11 backend of GTK (`GDK_BACKEND=x11`). The overlay is then an X11 window of XWayland above the other windows. Custos does this only with `enabled = true` in `[overlay]`, and only when `GDK_BACKEND` is not set. Custos decides this when it starts. Thus on GNOME, a change of `enabled` from `false` to `true` needs a restart of Custos. The tray, the notifications, and the login link then also use X11. On another desktop without the layer-shell protocol, Custos writes `cannot open the overlay` to the log and shows desktop notifications.
 
@@ -136,38 +136,39 @@ On Windows, the overlay is a transparent webview window above the other windows,
 
 If the discovery document of the service has `query_endpoint`, the user can ask the service a question in plain language ([spec/06-query.md](../spec/06-query.md)). The service answers on its stream. Thus the query needs the stream: Custos shows the answer only while Foxhole runs, the user is signed in, and Custos is not paused.
 
-1. Push the key, `Ctrl+Alt+K` by default. The input window opens above the game, and takes the keyboard.
-2. Type the question, and push Enter. The window closes, and the game gets the keyboard back.
+1. Push the key, `Ctrl+Alt+K` by default. The overlay takes the keyboard, and you type at its prompt. While you type, the overlay holds the new messages, so that no line moves.
+2. Type the question, and push Enter. The game gets the keyboard back, and the held messages show.
 3. Read the progress and the answer in the overlay.
 
-In the input window:
+While you type:
 
 | Input | Result |
 |---|---|
 | Enter | Sends the question. A new question replaces the open question. |
 | `/new <question>` | Sends the question with no context from the earlier questions. |
 | `/stop` | Stops the open question. |
-| `Y`, with an empty entry | Accepts the change that the service asks about. |
-| `N`, with an empty entry | Refuses the change. |
-| Escape, or a click outside the window | Closes the window. |
+| Backspace | Removes the last character. |
+| `Y`, with an empty line | Accepts the change that the service asks about. |
+| `N`, with an empty line | Refuses the change. |
+| Escape | Cancels. The game gets the keyboard back. |
 
-The window also shows the last question and its full answer, and a help line.
+While you type, the area of the query shows the last question with its full answer, and a help line. The cursor at the prompt does not fade.
 
 The overlay shows the question and its state in its own area, at the edge of the anchor. The lines of the events do not move it. The states are:
 
 - `Sent`: Custos sent the question, and waits for the response.
 - `Working`: the service works on the question. The line names the current step.
-- A question of the service, for example `Set Label? "Main Depot"`, with the remaining time. Open the input window, and push `Y` or `N`. With no decision, the question expires.
+- A question of the service, for example `Set Label? "Main Depot"`, with the remaining time. Push the key, then `Y` or `N`. With no decision, the question expires.
 - `Applying the change`: the service changes the data. The user cannot stop it.
 - The answer, or the cause of the end. An end with an error is red.
 
 Each state has a deadline. If the service sends nothing before it, the overlay shows `No contact with the service`.
 
-The answer stays in the overlay until the next question, for `answer_seconds` at most. The overlay shows at most `lines` lines of it, and then tells the user to open the input window for the full text. Without the overlay and the input window, a question of the service and the end of a query show as desktop notifications.
+The answer stays in the overlay until the next question, for `answer_seconds` at most. The overlay shows at most `lines` lines of it. Its last line then tells the user that the key shows the full text. While the user types, the overlay shows the last answer in full. Without the overlay, a question of the service and the end of a query show as desktop notifications.
 
 On Linux, Custos asks the desktop for the key through the `GlobalShortcuts` portal when it starts. The desktop can ask the user to confirm the key. The desktop keeps the key, so a later change of `key` has no effect: change the key in the settings of the desktop. On KDE Plasma, it is in **System Settings**, **Keyboard**, **Shortcuts**. On Windows, Custos uses `key` as a hot key of Windows, and applies a change at once. If another application has the key, Custos writes a warning to the log.
 
-On KDE Plasma and Sway, the input window is on the overlay layer of the layer-shell protocol. On GNOME, it is an X11 window above the other windows. Nobody tested the input window with the game yet.
+The query needs the overlay. With `enabled = false` in `[overlay]`, or while Foxhole does not run, the key shows a notification. On KDE Plasma and Sway, the overlay takes the keyboard with the mode Exclusive of the layer-shell protocol. This mode can make the game leave fullscreen while you type. On GNOME, the X11 window of the overlay takes the focus. Nobody tested the input with the game yet.
 
 ## Notifications
 
@@ -183,7 +184,7 @@ Custos shows these messages in the overlay while it is open, and as desktop noti
 | An event of the service | A message on the stream of the service, for example a change of a stockpile. The title is the name of the service. A message of the kind `error` shows as an error. |
 | The events of … are not available | Custos cannot open the stream two times in a row. The text gives the cause. Custos tries again after a wait of 1 second, doubled after each failure, to 60 seconds at most. When the stream opens, the message goes. |
 | … sends no events to this user | The service refused the stream for this user. Custos tries again after the next sign-in. |
-| A question or an answer | A question of the service that waits for a decision, or the end of a query. Only while the overlay and the input window are not open. The title is the question of the user. |
+| A question or an answer | A question of the service that waits for a decision, or the end of a query. Only while the overlay is not open. The title is the question of the user. |
 
 Custos shows the same error at most one time in 15 minutes.
 

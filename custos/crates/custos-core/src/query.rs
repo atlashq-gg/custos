@@ -1,5 +1,5 @@
 //! The query of spec/06-query.md: the input of the user, the requests to the service, and the open
-//! query of this client, as the overlay and the input window show it.
+//! query of this client, as the overlay shows it.
 
 use std::time::{Duration, Instant, SystemTime};
 
@@ -18,7 +18,7 @@ pub const DEADLINE_GRACE: Duration = Duration::from_secs(5);
 /// The longest time of one request. The service answers in 1 second (spec/06-query.md).
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// What the user typed in the input window, or the key that the user pushed there.
+/// What the user typed at the prompt of the overlay, or the key of a decision.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Input {
     /// A question. `/new <text>` starts a new conversation.
@@ -32,7 +32,7 @@ pub const STOP: &str = "/stop";
 /// The command that sends a question with no context from the earlier queries.
 pub const NEW: &str = "/new";
 
-/// Reads a line of the input window. An empty line is `None`. The error is a text for the user.
+/// Reads a typed line. An empty line is `None`. The error is a text for the user.
 pub fn parse(line: &str) -> Result<Option<Input>, String> {
     let line = line.trim();
     let (text, new_conversation) = match line.split_once(char::is_whitespace) {
@@ -56,7 +56,8 @@ pub fn parse(line: &str) -> Result<Option<Input>, String> {
     }))
 }
 
-/// The help line of the input window. `waiting` is true while a question waits for a decision.
+/// The help line while the user types a question. `waiting` is true while a question of the service
+/// waits for a decision.
 #[must_use]
 pub fn hint(waiting: bool) -> String {
     let keys = if waiting {
@@ -64,7 +65,68 @@ pub fn hint(waiting: bool) -> String {
     } else {
         ""
     };
-    format!("{keys}Enter sends. {NEW} <question> starts a new conversation. {STOP} stops. Escape closes.")
+    format!("{keys}Enter sends. {NEW} <question> starts a new conversation. {STOP} stops. Escape cancels.")
+}
+
+/// A key that the user pushes while the overlay takes the keyboard.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Key {
+    Char(char),
+    Backspace,
+    Enter,
+    Escape,
+}
+
+/// What a key does to the typed line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Outcome {
+    /// The user types on.
+    Continue,
+    /// The user cancelled, or sent an empty line. The game gets the keyboard back.
+    Close,
+    /// Send this input. The game gets the keyboard back.
+    Send(Input),
+}
+
+/// The line that the user types at the prompt of the overlay.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Entry {
+    pub text: String,
+    /// The error of the last Enter, until the next change of the text.
+    pub error: Option<String>,
+}
+
+impl Entry {
+    /// Applies a key. `waiting` is true while a question of the service waits for a decision: then
+    /// `Y` and `N` on an empty line decide it.
+    pub fn key(&mut self, key: Key, waiting: bool) -> Outcome {
+        match key {
+            Key::Escape => return Outcome::Close,
+            Key::Enter => {
+                return match parse(&self.text) {
+                    Ok(Some(input)) => Outcome::Send(input),
+                    Ok(None) => Outcome::Close,
+                    Err(e) => {
+                        self.error = Some(e);
+                        Outcome::Continue
+                    }
+                };
+            }
+            Key::Char(c) if waiting && self.text.is_empty() && c.eq_ignore_ascii_case(&'y') => {
+                return Outcome::Send(Input::Act(Action::Accept));
+            }
+            Key::Char(c) if waiting && self.text.is_empty() && c.eq_ignore_ascii_case(&'n') => {
+                return Outcome::Send(Input::Act(Action::Refuse));
+            }
+            Key::Char(c) if !c.is_control() && self.text.chars().count() < MAX_TEXT => self.text.push(c),
+            Key::Char(_) => return Outcome::Continue,
+            Key::Backspace => {
+                self.text.pop();
+            }
+        }
+        self.error = None;
+        Outcome::Continue
+    }
 }
 
 /// An action for the open query.
@@ -440,9 +502,9 @@ impl Query {
         self.closed_at.is_none_or(|closed| now < closed + lifetime)
     }
 
-    /// The lines of the query at `now`. `key` is the name of the key of the input window. With
+    /// The lines of the query at `now`. `key` is the name of the key that starts a question. With
     /// `max_lines`, the text of the end has at most that number of lines, and its last line tells the
-    /// user that the input window shows the full text.
+    /// user that the key shows the full text.
     #[must_use]
     pub fn lines(&self, now: SystemTime, key: &str, max_lines: Option<usize>) -> Vec<Line> {
         let mut lines = Vec::new();
@@ -526,6 +588,57 @@ mod tests {
         assert!(parse("/help").is_err());
         assert!(parse(&"a".repeat(MAX_TEXT + 1)).is_err());
         assert_eq!(parse(&"a".repeat(MAX_TEXT)).map(|i| i.is_some()), Ok(true));
+    }
+
+    #[test]
+    fn entry_types_sends_and_decides() {
+        let mut entry = Entry::default();
+        for c in "Hi!".chars() {
+            assert_eq!(entry.key(Key::Char(c), false), Outcome::Continue);
+        }
+        entry.key(Key::Backspace, false);
+        assert_eq!(entry.text, "Hi");
+        assert_eq!(
+            entry.key(Key::Enter, false),
+            Outcome::Send(Input::Ask {
+                text: "Hi".into(),
+                new_conversation: false
+            })
+        );
+
+        let mut entry = Entry::default();
+        assert_eq!(
+            entry.key(Key::Char('Y'), true),
+            Outcome::Send(Input::Act(Action::Accept))
+        );
+        assert_eq!(
+            entry.key(Key::Char('n'), true),
+            Outcome::Send(Input::Act(Action::Refuse))
+        );
+        assert_eq!(entry.key(Key::Char('n'), false), Outcome::Continue);
+        assert_eq!(entry.key(Key::Char('y'), true), Outcome::Continue);
+        assert_eq!(entry.text, "ny");
+        assert_eq!(Entry::default().key(Key::Enter, false), Outcome::Close);
+        assert_eq!(entry.key(Key::Escape, false), Outcome::Close);
+    }
+
+    #[test]
+    fn entry_shows_an_error_until_the_next_change_and_has_a_limit() {
+        let mut entry = Entry::default();
+        for c in "/help".chars() {
+            entry.key(Key::Char(c), false);
+        }
+        assert_eq!(entry.key(Key::Enter, false), Outcome::Continue);
+        assert!(entry.error.is_some());
+        entry.key(Key::Backspace, false);
+        assert_eq!(entry.error, None);
+
+        let mut entry = Entry {
+            text: "a".repeat(MAX_TEXT),
+            error: None,
+        };
+        entry.key(Key::Char('b'), false);
+        assert_eq!(entry.text.len(), MAX_TEXT);
     }
 
     #[test]
