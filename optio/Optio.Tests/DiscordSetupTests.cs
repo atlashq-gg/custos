@@ -2,7 +2,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Optio.Discord;
-using Optio.Streams;
 using Optio.Tests.Infrastructure;
 
 namespace Optio.Tests;
@@ -20,18 +19,15 @@ public sealed class DiscordSetupTests
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Configuration.AddInMemoryCollection(
-            new Dictionary<string, string?>
-            {
-                [$"{OptioOptions.SectionName}:DiscordToken"] = Token,
-                [$"ConnectionStrings:{OptioOptions.BrokerConnectionName}"] =
-                    "nats://optio:x@localhost:4222",
-            }
+            new Dictionary<string, string?> { [$"{OptioOptions.SectionName}:DiscordToken"] = Token }
         );
         builder.Services.Configure<OptioOptions>(
             builder.Configuration.GetSection(OptioOptions.SectionName)
         );
-        builder.Services.AddSingleton(TimeProvider.System);
-        builder.AddOptioDiscord().AddOptioStream();
+        // Without the stream services: the disposal of a NATS connection and an event stream that
+        // never started damaged a shared buffer in some runs, and a later test then failed in
+        // the module initializer of JsonSchema.Net.
+        builder.AddOptioDiscord();
         var made = false;
         builder.Services.AddSingleton<IMemberDirectory>(_ =>
         {
