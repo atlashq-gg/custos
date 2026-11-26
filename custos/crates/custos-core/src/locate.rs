@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 pub const APP_ID: &str = "505460";
 
 /// The save folder inside a Steam library.
-const SAVE_DIR_IN_LIBRARY: &str =
+pub(crate) const SAVE_DIR_IN_LIBRARY: &str =
     "steamapps/compatdata/505460/pfx/drive_c/users/steamuser/AppData/Local/Foxhole/Saved/SaveGames";
 
 const USER_DATA: &str = "UserData.sav";

@@ -11,42 +11,68 @@ use url::Url;
 /// The interval between two uploads when the file does not set one.
 pub const DEFAULT_UPLOAD_INTERVAL_SECONDS: u64 = 300;
 
-// The lines of the template that depend on the platform. A path in single quotes is a literal
-// string, so the backslashes of Windows need no escape.
-#[cfg(not(windows))]
-macro_rules! platform_template {
-    () => {
-        r#"
-# The folder that holds the save files of Foxhole. Custos finds it in the Proton prefix when this is not set.
-# save_dir = "/home/user/.local/share/Steam/steamapps/compatdata/505460/pfx/drive_c/users/steamuser/AppData/Local/Foxhole/Saved/SaveGames"
+/// The service of Custos when the file sets none.
+pub const DEFAULT_SERVICE_URL: &str = "https://optio.atlashq.gg";
 
-# The Steam folder. Custos tries the usual locations when this is not set.
-# steam_root = "/home/user/.local/share/Steam"
-"#
-    };
-}
-#[cfg(windows)]
-macro_rules! platform_template {
-    () => {
-        r#"
-# The folder that holds the save files of Foxhole. Default: %LOCALAPPDATA%\Foxhole\Saved\SaveGames.
-# save_dir = 'C:\Users\user\AppData\Local\Foxhole\Saved\SaveGames'
-"#
-    };
-}
-
-/// The content of a new configuration file. Custos writes it when no file exists.
-pub const TEMPLATE: &str = concat!(
-    r#"# Custos configuration.
+/// The content of a new configuration file, with the paths of this user. Custos writes it when no file
+/// exists. Each value is the default, or an example in a comment.
+#[must_use]
+pub fn template() -> String {
+    format!(
+        r#"# Custos configuration.
 
 # The URL of the service. Custos gets all other settings from its discovery document.
-# service_url = "https://example.com"
+# service_url = "{DEFAULT_SERVICE_URL}"
 
 # The shortest time between two uploads, in seconds. The service can set a longer time.
-# upload_interval_seconds = 300
-"#,
-    platform_template!(),
-    r#"
+# upload_interval_seconds = {DEFAULT_UPLOAD_INTERVAL_SECONDS}
+{platform}{rest}"#,
+        platform = platform_template(),
+        rest = REST_OF_TEMPLATE,
+    )
+}
+
+/// The lines of the template about the save folder, with the paths of this user.
+#[cfg(not(windows))]
+fn platform_template() -> String {
+    let steam = dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("/home/user"))
+        .join(".local/share/Steam");
+    let save_dir = steam.join(crate::locate::SAVE_DIR_IN_LIBRARY);
+    format!(
+        r"
+# The folder that holds the save files of Foxhole. Custos finds it in the Proton prefix when this is not set.
+# save_dir = {}
+
+# The Steam folder. Custos tries the usual locations when this is not set.
+# steam_root = {}
+",
+        toml_path(&save_dir),
+        toml_path(&steam)
+    )
+}
+
+/// The lines of the template about the save folder, with the default folder of this user.
+#[cfg(windows)]
+fn platform_template() -> String {
+    let save_dir = crate::locate::windows_save_dir()
+        .unwrap_or_else(|| PathBuf::from(r"C:\Users\user\AppData\Local\Foxhole\Saved\SaveGames"));
+    format!(
+        r"
+# The folder that holds the save files of Foxhole. Default: %LOCALAPPDATA%\Foxhole\Saved\SaveGames.
+# save_dir = {}
+",
+        toml_path(&save_dir)
+    )
+}
+
+/// A path as a TOML string, with the escapes that it needs.
+fn toml_path(path: &Path) -> String {
+    toml::Value::String(path.display().to_string()).to_string()
+}
+
+/// The lines of the template that are the same on each platform.
+const REST_OF_TEMPLATE: &str = r#"
 # The overlay shows the messages above the game while Foxhole runs. Without it, Custos shows
 # desktop notifications.
 # [overlay]
@@ -69,12 +95,12 @@ pub const TEMPLATE: &str = concat!(
 # The time that the answer stays in the overlay, in seconds, from 1 to 3600. A new question replaces
 # it before that time.
 # answer_seconds = 180
-"#
-);
+"#;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
+    #[serde(default = "default_service_url")]
     pub service_url: Url,
     #[serde(default = "default_interval")]
     pub upload_interval_seconds: u64,
@@ -175,16 +201,16 @@ impl Anchor {
     }
 }
 
+fn default_service_url() -> Url {
+    Url::parse(DEFAULT_SERVICE_URL).expect("the default service URL is valid")
+}
+
 fn default_interval() -> u64 {
     DEFAULT_UPLOAD_INTERVAL_SECONDS
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
-    #[error("no configuration file at {0}. Custos created a template: set service_url in it.")]
-    Created(PathBuf),
-    #[error("the configuration file {path} has no service_url. Set it in the file.")]
-    Incomplete { path: PathBuf },
     #[error("cannot read {path}: {source}")]
     Io { path: PathBuf, source: std::io::Error },
     #[error("the configuration file {path} is not valid: {source}")]
@@ -216,8 +242,7 @@ pub fn default_path() -> Result<PathBuf, ConfigError> {
 /// several steps.
 const SETTLE: Duration = Duration::from_millis(500);
 
-/// Reads the configuration. If the file does not exist, writes [`TEMPLATE`] and returns
-/// [`ConfigError::Created`].
+/// Reads the configuration. If the file does not exist, writes the [`template`] and reads it.
 pub fn load(path: &Path) -> Result<Config, ConfigError> {
     match read(path) {
         Err(ConfigError::Io { source, .. }) if source.kind() == std::io::ErrorKind::NotFound => {
@@ -225,7 +250,8 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
                 path: path.into(),
                 source,
             })?;
-            Err(ConfigError::Created(path.into()))
+            tracing::info!("Custos wrote the configuration file {}", path.display());
+            read(path)
         }
         result => result,
     }
@@ -260,9 +286,6 @@ fn read(path: &Path) -> Result<Config, ConfigError> {
     })?;
 
     parse(&text).map_err(|e| match e {
-        ParseError::Toml(source) if source.message().contains("service_url") => {
-            ConfigError::Incomplete { path: path.into() }
-        }
         ParseError::Toml(source) => ConfigError::Parse {
             path: path.into(),
             source,
@@ -310,7 +333,7 @@ fn write_template(path: &Path) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(path, TEMPLATE)
+    std::fs::write(path, template())
 }
 
 #[cfg(test)]
@@ -416,18 +439,29 @@ mod tests {
     }
 
     #[test]
-    fn missing_file_creates_the_template() {
+    fn missing_file_creates_the_template_with_the_defaults() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("custos").join("config.toml");
 
-        assert!(matches!(load(&path), Err(ConfigError::Created(_))));
-        assert_eq!(std::fs::read_to_string(&path).unwrap(), TEMPLATE);
-        assert!(matches!(load(&path), Err(ConfigError::Incomplete { .. })));
+        let config = load(&path).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), template());
+        assert_eq!(config.service_url.as_str(), "https://optio.atlashq.gg/");
+        assert_eq!(config, parse("").ok().unwrap());
     }
 
     #[test]
-    fn template_examples_are_valid() {
-        let text: Vec<_> = TEMPLATE
+    fn template_has_the_paths_of_this_user() {
+        let template = template();
+        let home = dirs::home_dir().unwrap().display().to_string();
+        let local = dirs::data_local_dir().unwrap().display().to_string();
+        assert!(template.contains(&home) || template.contains(&local), "{template}");
+        assert!(!template.contains("/home/user"));
+    }
+
+    #[test]
+    fn template_examples_are_valid_and_are_the_defaults() {
+        let template = template();
+        let text: Vec<_> = template
             .lines()
             .map(|line| {
                 line.strip_prefix("# ")
@@ -435,7 +469,22 @@ mod tests {
                     .unwrap_or(line)
             })
             .collect();
-        assert!(parse(&text.join("\n")).is_ok());
+        let Ok(config) = parse(&text.join("\n")) else { panic!() };
+        let defaults = parse("").ok().unwrap();
+        assert_eq!(
+            (
+                config.service_url,
+                config.upload_interval_seconds,
+                config.overlay,
+                config.query
+            ),
+            (
+                defaults.service_url,
+                defaults.upload_interval_seconds,
+                defaults.overlay,
+                defaults.query
+            )
+        );
     }
 
     #[test]

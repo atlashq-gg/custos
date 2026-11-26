@@ -40,9 +40,8 @@ Each [release](https://github.com/atlashq-gg/custos/releases/latest) has the App
 
 1. Download `install.sh` from the release.
 2. Run `sh install.sh`. The script downloads the AppImage of the same release, and makes sure that its SHA-256 digest is correct. It installs the AppImage as `~/.local/bin/custos`, and adds Custos to the launcher. It needs no root rights.
-3. Start Custos from the launcher. Custos writes a template to `~/.config/custos/config.toml` and shows a notification.
-4. Set `service_url` in the file, and save it. Custos applies the file at once.
-5. Use **Sign in** in the tray menu.
+3. Start Custos from the launcher. At the first start, Custos writes the configuration file `~/.config/custos/config.toml` with the default values and the paths of the user.
+4. Use **Sign in** in the tray menu.
 
 To update Custos, run the `install.sh` of the new release. If Custos runs, quit it and start it again. To remove Custos, run `sh install.sh --uninstall`. The configuration and the tokens stay. To install an AppImage that you downloaded, run `sh install.sh <AppImage>`.
 
@@ -53,16 +52,17 @@ The AppImage also runs without the script: make it executable with `chmod +x`, a
 1. Download `Custos_<version>_x64-setup.exe` from the release.
 2. Start the installer. It is not signed, so Windows shows "Windows protected your PC". Select **More info**, then **Run anyway**. If Smart App Control is on, Windows blocks the installer.
 3. The installer installs Custos for the current user, with no administrator rights. If the computer has no WebView2 runtime, the installer downloads it.
-4. Start Custos from the Start menu. Custos writes a template to `%APPDATA%\custos\config.toml` and shows a notification.
-5. Set `service_url` in the file, save it, and use **Sign in** in the tray menu.
+4. Start Custos from the Start menu. At the first start, Custos writes the configuration file `%APPDATA%\custos\config.toml` with the default values and the paths of the user.
+5. Use **Sign in** in the tray menu.
 
 ## Configuration
 
-The file is `~/.config/custos/config.toml` on Linux, and `%APPDATA%\custos\config.toml` on Windows. Custos applies each change of the file at once, without a restart. If the file is not valid, Custos shows the error and keeps the last valid configuration. A new `service_url` starts the engine again, because the tokens belong to the service. On Linux:
+The file is `~/.config/custos/config.toml` on Linux, and `%APPDATA%\custos\config.toml` on Windows. Custos applies each change of the file at once, without a restart. If the file is not valid, Custos shows the error and keeps the last valid configuration. A new `service_url` starts the engine again, because the tokens belong to the service. Each key is optional. On Linux:
 
 ```toml
 # The URL of the service. Custos gets all other settings from its discovery document.
-service_url = "https://example.com"
+# Default: "https://optio.atlashq.gg".
+service_url = "https://optio.atlashq.gg"
 
 # The shortest time between two uploads, in seconds. Default: 300.
 upload_interval_seconds = 300
@@ -94,7 +94,7 @@ key = "Ctrl+Alt+K"
 answer_seconds = 180
 ```
 
-On Windows, the template has no `steam_root`, and the default `save_dir` is `%LOCALAPPDATA%\Foxhole\Saved\SaveGames`. Write a Windows path in single quotes, so that TOML reads the backslashes as text:
+The file that Custos writes at the first start has each value in a comment. Its example paths are the paths of the user: on Linux below `$HOME`, and on Windows below `%LOCALAPPDATA%`. On Windows, the file has no `steam_root`, and the default `save_dir` is `%LOCALAPPDATA%\Foxhole\Saved\SaveGames`. Write a Windows path in single quotes, so that TOML reads the backslashes as text:
 
 ```toml
 save_dir = 'D:\Games\Foxhole\SaveGames'
