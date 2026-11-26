@@ -23,8 +23,13 @@ internal static class DiscordSetup
             commands
         ));
         builder.Services.AddHostedService(services =>
-            services.GetRequiredService<DiscordGateway>()
-        );
+        {
+            // The member directory of the stream follows the gateway from READY on. The host
+            // resolves each hosted service before it starts the first, so the directory exists
+            // before the gateway connects.
+            services.GetService<IMemberDirectory>();
+            return services.GetRequiredService<DiscordGateway>();
+        });
         return builder;
     }
 }
