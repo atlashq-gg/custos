@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix: on Linux, the key of the query did nothing with the installed AppImage. The portal refused the application ID `gg.atlashq.custos`, because the launcher entry had the name `custos.desktop`. `install.sh` now installs the entry as `gg.atlashq.custos.desktop`, and removes the old entry. Run the `install.sh` of the new release, and start Custos again.
+
 ## 0.3.0-alpha.2
 
 The query: a question to the service in plain language. A pre-release.
