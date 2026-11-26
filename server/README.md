@@ -23,7 +23,7 @@ dotnet user-secrets set Parameters:discord-user-id <your Discord user ID> --proj
 
 The server needs a bot token in the correct format: it stops at the start with a token that is not valid. With the bot token, the server connects to Discord, and the MCP endpoint is at `http://localhost:5080/mcp`. The Discord user ID is the user of a token without the claim `discord_id`. The realm gives the user `dev` no Discord user ID.
 
-Keycloak imports [the realm](keycloak/custos-realm.json) on each start. Changes in the Keycloak console last for one run. The realm declares the user attribute `discord_id`, and its default client scopes `basic` and `custos-discord` put the claims `sub` and `discord_id` into each access token. A realm file that lists client scopes replaces all built-in scopes of Keycloak, so the file holds `basic` too.
+Keycloak imports [the realm](../deploy/keycloak/custos-realm.json) on each start. Changes in the Keycloak console last for one run. The realm declares the user attribute `discord_id`, and its default client scopes `basic` and `custos-discord` put the claims `sub` and `discord_id` into each access token. A realm file that lists client scopes replaces all built-in scopes of Keycloak, so the file holds `basic` too.
 
 The realm also holds the confidential client `optio` with the standard token exchange, and the optional scope `custos:client`. That scope adds the audience `optio` to the token of Custos, so that Optio can exchange the token for a token of this server. The AppHost makes a new secret for Optio on each start.
 
@@ -61,11 +61,11 @@ The section `Custos` in `appsettings.json` or environment variables (`Custos__Au
 
 The server is multi-tenant. A tenant is a Discord guild. The access token names the guild of the user in the claim `active_guild`, as the guild ID in a string. A custom authenticator in Keycloak lets the user choose the guild and sets the claim. That authenticator is not part of this repository.
 
-An upload without a valid `active_guild` gets `403`. In the environment `Development`, `DevelopmentGuildId` supplies the guild when the claim is absent. For production, see [The claim `active_guild`](../docs/deploy.md#the-claim-active_guild).
+An upload without a valid `active_guild` gets `403`. In the environment `Development`, `DevelopmentGuildId` supplies the guild when the claim is absent. For production, see [The claim `active_guild`](../deploy/README.md#the-claim-active_guild).
 
 ### Access for uploads
 
-With the [Discord connection](#discord) on, an upload needs a member of the guild with the access `report` ([Guild settings](#guild-settings)). The access token names the Discord user in the claim `discord_id` ([The claim `discord_id`](../docs/deploy.md#the-claim-discord_id)).
+With the [Discord connection](#discord) on, an upload needs a member of the guild with the access `report` ([Guild settings](#guild-settings)). The access token names the Discord user in the claim `discord_id` ([The claim `discord_id`](../deploy/README.md#the-claim-discord_id)).
 
 | Case | Answer |
 |---|---|
@@ -90,7 +90,7 @@ The server connects to Discord as a bot when the configuration has `Discord:Toke
 
 1. In the [Discord Developer Portal](https://discord.com/developers/applications), create an application.
 2. On the page **Bot**, reset the token, and copy it. Keep the three privileged intents off.
-3. Give the token to the server as `Discord:Token` ([Deploy](../docs/deploy.md#5-write-the-compose-file)).
+3. Give the token to the Server as `Discord:Token` ([Deploy](../deploy/README.md#5-write-the-compose-file)).
 4. Invite the bot to each guild with this link. Replace `<application ID>` with the ID on the page **General Information**:
 
    ```text
@@ -334,4 +334,4 @@ docker run -p 8080:8080 -e Custos__Resource=https://records.example.com/mcp -e C
 
 ## Deploy
 
-[docs/deploy.md](../docs/deploy.md) deploys the full system: Keycloak, PostgreSQL, the broker, this server, and Optio. Only `/mcp` and its metadata document need a public route.
+[deploy/README.md](../deploy/README.md) deploys the full system: Keycloak, PostgreSQL, the broker, this server, and Optio. Only `/mcp` and its metadata document need a public route.

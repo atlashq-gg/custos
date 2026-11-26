@@ -4,7 +4,7 @@ using Optio.Tests.Infrastructure;
 
 namespace Optio.Tests;
 
-/// <summary>The permissions of <c>optio/nats/nats.conf</c> (optio/docs/producers.md). The
+/// <summary>The permissions of <c>deploy/nats/nats.conf</c> (optio/docs/producers.md). The
 /// feasibility tests of M38 hold more cases. Needs Docker.</summary>
 public sealed class NatsConfigTests
 {

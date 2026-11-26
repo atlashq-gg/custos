@@ -8,8 +8,8 @@ name: server
 #   push of server-X.Y.Z-<pre> -> push the tag X.Y.Z-<pre> only, and make a GitHub pre-release
 #
 # GitHub does not apply the paths filter to a tag push, so each server-* tag runs this workflow.
-# The tests read the producer schemas and the NATS configuration of optio/, so a change in them
-# runs this workflow too.
+# The tests read the producer schemas of optio/, and the realm and the NATS configuration of
+# deploy/, so a change in them runs this workflow too.
 on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
@@ -17,7 +17,8 @@ on:
       - "server/**"
       - "spec/**"
       - "optio/schemas/**"
-      - "optio/nats/**"
+      - "deploy/keycloak/**"
+      - "deploy/nats/**"
       - ".github/workflows/server.yml"
   push:
     branches: [main]
@@ -26,7 +27,8 @@ on:
       - "server/**"
       - "spec/**"
       - "optio/schemas/**"
-      - "optio/nats/**"
+      - "deploy/keycloak/**"
+      - "deploy/nats/**"
       - ".github/workflows/server.yml"
 
 # One run for each ref at a time, so two pushes to main cannot race on the tag unstable. A new

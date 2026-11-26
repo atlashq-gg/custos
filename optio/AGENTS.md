@@ -7,7 +7,7 @@
 - Run `dotnet test` before a commit. Tests that start containers need Docker.
 - Optio holds no database and no records of a domain service. It calls a domain service only with a token of the user for that service ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)).
 - A domain service controls the access to its own APIs. Optio controls the access to the stream: it applies the policy of each event ([ADR 0007](../docs/adr/0007-a-broker-carries-domain-events.md), [docs/producers.md](docs/producers.md)).
-- Keep `nats/nats.conf` in step with [docs/producers.md](docs/producers.md). The tests use the same file.
+- Keep [deploy/nats/nats.conf](../deploy/nats/nats.conf) in step with [docs/producers.md](docs/producers.md). The tests use the same file.
 - Optio has its own Discord bot token. It uses the bot only to read the roles of the users of the stream, until a Discord front end comes.
 - Never write a token, a client secret, or a model key to a log.
 - Read a secret from the environment or from a file in `/run/secrets`. Examine the options when the host starts.

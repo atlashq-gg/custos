@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The development realm moves to [deploy/keycloak/custos-realm.json](../deploy/keycloak/custos-realm.json), and the deployment guide to [deploy/README.md](../deploy/README.md). The tests read the realm and the NATS configuration from `deploy/`.
+
 ## 0.3.0-alpha.1
 
 A pre-release.

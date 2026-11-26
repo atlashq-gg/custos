@@ -42,7 +42,7 @@ Discussions happen in GitHub issues and pull requests. A decision that does not 
 
 ## Licenses
 
-The content of this repository is under the MIT license, except `optio/` and `server/`, which are under the AGPL-3.0-or-later license, except `server/catalog/catalog.json`, which is under CC BY-NC-SA 4.0 ([server/catalog/LICENSE.md](server/catalog/LICENSE.md)). Each project folder holds the `LICENSE` file of its license ([ADR 0005](docs/adr/0005-license-by-project.md)).
+The content of this repository is under the MIT license, except `optio/` and `server/`, which are under the AGPL-3.0-or-later license, except `server/catalog/catalog.json`, which is under CC BY-NC-SA 4.0 ([server/catalog/LICENSE.md](server/catalog/LICENSE.md)). Each project folder holds the `LICENSE` file of its license ([ADR 0005](docs/adr/0005-license-by-project.md)). The license of `deploy/` is various: each file keeps the license of the project that it came from ([deploy/README.md](deploy/README.md#license)).
 
 ## Documents
 

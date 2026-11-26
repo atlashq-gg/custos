@@ -129,7 +129,7 @@ When a guild shares its records with other guilds, the producer MUST publish one
 
 ## Broker
 
-Optio makes the stream when it starts, and sets its settings again at each start. The operator configures only the NATS users and their permissions, for example in [nats/nats.conf](../nats/nats.conf). A producer makes nothing on the broker.
+Optio makes the stream when it starts, and sets its settings again at each start. The operator configures only the NATS users and their permissions, for example in [deploy/nats/nats.conf](../../deploy/nats/nats.conf). A producer makes nothing on the broker.
 
 | Setting | Value | Content |
 |---|---|---|
@@ -145,7 +145,7 @@ Optio makes the stream when it starts, and sets its settings again at each start
 | User | Publish | Subscribe |
 |---|---|---|
 | The producer | `events.<source>.>` | `_INBOX.<user>.>` |
-| `optio` | The JetStream API subjects of the stream `OPTIO` in [nats/nats.conf](../nats/nats.conf) | `_INBOX.optio.>` |
+| `optio` | The JetStream API subjects of the stream `OPTIO` in [deploy/nats/nats.conf](../../deploy/nats/nats.conf) | `_INBOX.optio.>` |
 
 Each client sets the inbox prefix `_INBOX.<user>`, so that it gets the replies of the broker on its own subjects. Thus a producer can publish only below its own source. It cannot read, and it cannot change the stream. No user reads the replies of another user. Optio does not publish events.
 

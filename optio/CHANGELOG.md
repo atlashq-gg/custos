@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The NATS configuration moves to [deploy/nats/nats.conf](../deploy/nats/nats.conf), and the deployment guide to [deploy/README.md](../deploy/README.md), with the files `compose.yaml` and `.env.example`. The tests and the AppHost read the realm and the NATS configuration from `deploy/`.
+
 ## 0.1.0-alpha.1
 
 The first pre-release.

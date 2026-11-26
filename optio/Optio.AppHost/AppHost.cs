@@ -42,7 +42,7 @@ var keycloak = builder
             builder.AppHostDirectory,
             "..",
             "..",
-            "server",
+            "deploy",
             "keycloak",
             "custos-realm.json"
         )
@@ -53,7 +53,7 @@ var keycloak = builder
 // data lasts one run. The database name is CustosDbContext.ConnectionName of the server.
 var database = builder.AddPostgres("postgres").WithImageTag("18").AddDatabase("custos");
 
-// The event broker: NATS with JetStream and the users of optio/nats/nats.conf. A plain container,
+// The event broker: NATS with JetStream and the users of deploy/nats/nats.conf. A plain container,
 // because AddNats adds a single user, which NATS refuses together with a list of users. No volume:
 // the events last one run. Aspire makes a new password for each user on each start.
 string[] brokerUsers = ["custos", "optio"];
@@ -69,7 +69,7 @@ var brokerPasswords = brokerUsers.ToDictionary(
 var events = builder
     .AddContainer("events", "nats", "2.15.3-alpine")
     .WithBindMount(
-        Path.Combine(builder.AppHostDirectory, "..", "nats", "nats.conf"),
+        Path.Combine(builder.AppHostDirectory, "..", "..", "deploy", "nats", "nats.conf"),
         "/etc/nats/nats.conf",
         isReadOnly: true
     )

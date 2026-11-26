@@ -1,6 +1,7 @@
 # Secrets
 .env
 .env.*
+!.env.example
 
 # Local agent and editor state
 .claude/settings.local.json

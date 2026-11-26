@@ -1,0 +1,83 @@
+services:
+  events:
+    image: nats:2.15.3-alpine
+    restart: unless-stopped
+    command: ["-c", "/etc/nats/nats.conf"]
+    environment:
+      CUSTOS_PASSWORD: ${CUSTOS_BROKER_PASSWORD}
+      OPTIO_PASSWORD: ${OPTIO_BROKER_PASSWORD}
+    volumes:
+      - ./nats/nats.conf:/etc/nats/nats.conf:ro
+      - events-data:/data
+
+  server:
+    image: ghcr.io/atlashq-gg/custos-server:0.3.0
+    restart: unless-stopped
+    environment:
+      ConnectionStrings__custos: >-
+        Host=postgres;Port=5432;Database=custos;Username=custos;Password=${CUSTOS_DB_PASSWORD}
+      ConnectionStrings__events: nats://custos:${CUSTOS_BROKER_PASSWORD}@events:4222
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    configs:
+      - source: server-settings
+        target: /app/appsettings.Production.json
+    secrets:
+      - Discord__Token
+    ports:
+      - "127.0.0.1:8081:8080"
+    networks:
+      - default
+      - postgres
+
+  optio:
+    image: ghcr.io/atlashq-gg/custos-optio:0.1.0
+    restart: unless-stopped
+    environment:
+      ConnectionStrings__events: nats://optio:${OPTIO_BROKER_PASSWORD}@events:4222
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    configs:
+      - source: optio-settings
+        target: /app/appsettings.Production.json
+    secrets:
+      - Optio__OptioClientSecret
+      - Optio__DiscordToken
+    ports:
+      - "127.0.0.1:8080:8080"
+
+configs:
+  server-settings:
+    content: |
+      {
+        "Custos": {
+          "Authority": "https://id.example.com/realms/custos",
+          "Resource": "https://records.example.com/mcp"
+        },
+        "Mcp": {
+          "Enabled": true
+        }
+      }
+  optio-settings:
+    content: |
+      {
+        "Optio": {
+          "PublicBaseUrl": "https://custos.example.com",
+          "Authority": "https://id.example.com/realms/custos",
+          "UploadApiUrl": "http://server:8080/api/v1/uploads"
+        }
+      }
+
+secrets:
+  Discord__Token:
+    environment: SERVER_DISCORD_TOKEN
+  Optio__OptioClientSecret:
+    environment: OPTIO_CLIENT_SECRET
+  Optio__DiscordToken:
+    environment: OPTIO_DISCORD_TOKEN
+
+volumes:
+  events-data:
+
+networks:
+  postgres:
+    external: true
+    name: postgres_default

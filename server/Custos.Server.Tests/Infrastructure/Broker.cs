@@ -10,7 +10,7 @@ using NATS.Client.JetStream.Models;
 namespace Custos.Server.Tests.Infrastructure;
 
 /// <summary>
-/// NATS with the configuration of development (optio/nats/nats.conf): the producer user
+/// NATS with the configuration of development (deploy/nats/nats.conf): the producer user
 /// <c>custos</c> and the reader user <c>optio</c>. The password of each user is its name. The
 /// stream is the one that Optio makes, with the settings of optio/docs/producers.md.
 /// </summary>
