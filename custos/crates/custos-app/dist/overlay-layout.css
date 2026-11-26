@@ -6,6 +6,9 @@ body { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
 body.bottom { justify-content: flex-end; }
 body.right { align-items: flex-end; }
 #lines { display: contents; }
+/* The area of the query is at the edge of the anchor, so that the lines of the events do not move it. */
+#query { display: flex; flex-direction: column; align-items: inherit; gap: 2px; order: -1; }
+body.bottom #query { order: 1; }
 label { max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; user-select: none; }
 /* The text that did not type yet holds its place, so that the line does not move or wrap again. */
 .rest { visibility: hidden; }
@@ -14,4 +17,6 @@ label { max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; user-se
 #prompt .cursor {
     animation: custos-cursor calc(var(--cursor-period, 2s) / 2) steps(8, jump-none) infinite alternate;
 }
+/* While the user types, the cursor does not fade. */
+body.typing #prompt .cursor { animation: none; opacity: 1; }
 @keyframes custos-cursor { from { opacity: 0; } to { opacity: 1; } }

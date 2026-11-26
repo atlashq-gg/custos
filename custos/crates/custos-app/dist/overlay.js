@@ -11,6 +11,9 @@ let shown = [];
 let rendered = 0;
 let rate = 60;
 let frame = 0;
+// The line that the user types at the prompt, or null while the game has the keyboard. Custos keeps
+// the line (overlay.rs) and calls renderInput() after each key.
+let input = null;
 
 // Shows the lines. Custos calls it (overlay.rs).
 function render(page) {
@@ -56,6 +59,39 @@ function type(now) {
             line.cursor.hidden = count === line.text.length;
         }
     }
-    prompt.hidden = typing;
+    prompt.hidden = typing && input === null;
     frame = typing || waiting ? requestAnimationFrame(type) : 0;
 }
+
+// Shows the lines of the query in their area. They do not type. Custos calls it (overlay.rs).
+function renderQuery(rows) {
+    document.getElementById("query").replaceChildren(
+        ...rows.map((row) => {
+            const label = document.createElement("label");
+            label.className = row.class;
+            label.textContent = row.prompt + row.text;
+            return label;
+        }),
+    );
+}
+
+const typedNode = document.createElement("span");
+prompt.insertBefore(typedNode, prompt.querySelector(".cursor"));
+
+function renderInput(text) {
+    input = text;
+    typedNode.textContent = text ?? "";
+    document.body.classList.toggle("typing", text !== null);
+    if (text !== null) {
+        prompt.hidden = false;
+    }
+}
+
+// While the overlay has the keyboard, each key goes to Custos.
+document.addEventListener("keydown", (event) => {
+    if (input === null) {
+        return;
+    }
+    event.preventDefault();
+    window.__TAURI__.core.invoke("overlay_key", { key: event.key });
+});

@@ -121,7 +121,7 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 | `OptioClientSecret` | (required) | The secret of the client `optio`. |
 | `UploadApiUrl` | (required) | The upload API of the server, for example `http://server:8080/api/v1/uploads`. |
 | `UploadScope` | `custos:write` | The scope of the token for the upload API. |
-| `ServiceName` | `optio` | The name that Custos shows. |
+| `ServiceName` | `Optio` | The name that Custos shows. |
 | `ServiceDocumentation` | (none) | A page for humans about the service. |
 | `Scopes` | `["openid", "custos:client"]` | The scopes that Custos requests. |
 | `UploadMaxBytes` | `4194304` | The largest upload body. It must be equal to the value of the server. |

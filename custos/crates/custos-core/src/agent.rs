@@ -17,6 +17,7 @@ use crate::discovery::{self, Service};
 use crate::lines::{Kind, Notification, Reference};
 use crate::locate;
 use crate::process;
+use crate::query::{self, Input, Query, Response, State as QueryState, Update};
 use crate::root_cause;
 use crate::schedule::Schedule;
 use crate::stream::{self, Action, Backoff, End, Signal};
@@ -47,6 +48,8 @@ pub enum Command {
     /// A new configuration with the same service URL. A new service URL needs a new agent, because
     /// the tokens belong to the service.
     Reconfigure(Box<Config>),
+    /// A question or an action that the user typed at the prompt of the overlay.
+    Query(Input),
     Shutdown,
 }
 
@@ -86,6 +89,8 @@ pub enum Event {
     Expire(Reference),
     /// Open this URL in the browser.
     OpenUrl(url::Url),
+    /// The open query of this client, or its last query, changed.
+    Query(Box<Query>),
 }
 
 /// What the agent needs from its environment. Tests replace the process check, the paths, and the store.
@@ -160,6 +165,8 @@ pub struct Agent {
     /// The HTTP client of the stream. It has no total timeout.
     stream_http: reqwest::Client,
     stream: StreamState,
+    /// The open query of this client, or its last query.
+    query: Option<Query>,
 }
 
 /// The state of the stream of spec/05-stream.md.
@@ -224,6 +231,7 @@ impl Agent {
             refresh_after: None,
             stream_http: stream::client(CONNECT_TIMEOUT),
             stream: StreamState::default(),
+            query: None,
         }
     }
 
@@ -255,6 +263,7 @@ impl Agent {
             Command::SignOut => self.sign_out().await,
             Command::Link(link) => self.complete_sign_in(&link).await,
             Command::Reconfigure(config) => self.reconfigure(*config),
+            Command::Query(input) => self.on_input(input).await,
             Command::Shutdown => {}
         }
         self.update_state();
@@ -592,6 +601,9 @@ impl Agent {
             Signal::Position(position) => self.stream.position = Some(position),
             Signal::Message(message) => {
                 self.stream.backoff.reset();
+                if let Some(update) = message.query_update() {
+                    return self.on_query_update(update);
+                }
                 match message.action(&self.service_name()) {
                     Some(Action::Show(notification)) => self.notify(notification),
                     Some(Action::Remove(reference)) => self.emit(Event::Expire(reference)),
@@ -671,6 +683,133 @@ impl Agent {
                     self.service_name()
                 ),
             );
+        }
+    }
+
+    /// Sends a question or an action that the user typed.
+    async fn on_input(&mut self, input: Input) {
+        let Some(service) = self.service.clone() else {
+            return self.notify_error(
+                Kind::Query,
+                "The service is not available. Custos cannot send the question.",
+            );
+        };
+        let name = service.discovery.service_name.clone();
+        let Some(endpoint) = service.discovery.query_endpoint().cloned() else {
+            return self.notify_error(Kind::Query, &format!("{name} answers no questions."));
+        };
+        let (reference, before) = match &input {
+            Input::Ask { text, .. } => {
+                let reference = query::new_reference();
+                self.set_query(Query::sending(reference.clone(), name.clone(), text.clone()));
+                (reference, QueryState::Sending)
+            }
+            Input::Act(action) => match &self.query {
+                Some(query) if action.permitted(query.state) => (query.reference.clone(), query.state),
+                _ => return tracing::debug!("ignored the action {action:?}: no query permits it"),
+            },
+        };
+        let is_question = matches!(input, Input::Ask { .. });
+
+        let mut result = self.send_input(&service, &endpoint, &reference, &input).await;
+        if matches!(result, Some(Ok(Response::Unauthorized))) {
+            // The token stopped working before its expiry. Refresh one time and send again.
+            result = if self.refresh_tokens(&service).await == Refresh::Done {
+                self.send_input(&service, &endpoint, &reference, &input).await
+            } else {
+                None
+            };
+            if matches!(result, Some(Ok(Response::Unauthorized))) {
+                self.forget_tokens().await;
+            }
+        }
+
+        let error = match result {
+            None | Some(Ok(Response::Unauthorized)) => Response::Unauthorized.error_text(&name),
+            Some(Err(e)) => format!("Cannot reach {name}: {}. Try again.", root_cause(&e)),
+            Some(Ok(Response::Accepted(document))) => {
+                if let Some(update) = Option::<Update>::from(document) {
+                    self.on_query_response(update, before);
+                }
+                return;
+            }
+            Some(Ok(Response::NotFound)) if is_question => {
+                self.service = None;
+                self.last_discovery_attempt = None;
+                Response::NotFound.error_text(&name)
+            }
+            // The service does not know the query, so it is not open.
+            Some(Ok(Response::NotFound)) => {
+                return self.close_query(&reference, format!("{name} does not know this question."));
+            }
+            Some(Ok(response)) => response.error_text(&name),
+        };
+        if is_question {
+            self.close_query(&reference, error);
+        } else {
+            self.notify_error(Kind::Query, &error);
+        }
+    }
+
+    /// Sends the input with a fresh token. `None` when Custos has no valid token.
+    async fn send_input(
+        &mut self,
+        service: &Service,
+        endpoint: &url::Url,
+        reference: &str,
+        input: &Input,
+    ) -> Option<Result<Response, reqwest::Error>> {
+        if !self.ensure_fresh_token(service).await {
+            return None;
+        }
+        let token = self.tokens.as_ref()?.access_token.clone();
+        Some(match input {
+            Input::Ask { text, new_conversation } => {
+                query::ask(&self.http, endpoint, &token, reference, text, *new_conversation).await
+            }
+            Input::Act(action) => query::act(&self.http, endpoint, &token, reference, *action).await,
+        })
+    }
+
+    /// Applies the state document of a response, when the state of the query did not change since the
+    /// request. A message of the stream can be newer than the response.
+    fn on_query_response(&mut self, update: Update, before: QueryState) {
+        let Some(mut query) = self.query.clone() else { return };
+        if query.reference == update.reference && query.state == before && update.state != before {
+            query.apply(update, Instant::now());
+            self.set_query(query);
+        }
+    }
+
+    /// Applies a query message of the stream. A message of another query of this client changes
+    /// nothing while a query is open. Custos learns an open query that it did not send, for example
+    /// after a restart.
+    fn on_query_update(&mut self, update: Update) {
+        let now = Instant::now();
+        let query = match self.query.clone() {
+            Some(mut query) if query.reference == update.reference => {
+                query.apply(update, now);
+                query
+            }
+            Some(query) if query.is_open() => return,
+            _ if update.state == QueryState::Closed => return,
+            _ => Query::learned(update, self.service_name(), now),
+        };
+        self.set_query(query);
+    }
+
+    fn close_query(&mut self, reference: &str, text: String) {
+        if let Some(mut query) = self.query.clone().filter(|q| q.reference == reference) {
+            tracing::info!("the question failed: {text}");
+            query.fail(text, Instant::now());
+            self.set_query(query);
+        }
+    }
+
+    fn set_query(&mut self, query: Query) {
+        if self.query.as_ref() != Some(&query) {
+            self.emit(Event::Query(Box::new(query.clone())));
+            self.query = Some(query);
         }
     }
 
@@ -878,6 +1017,7 @@ mod tests {
                     if stream {
                         let upload = d["upload_endpoint"].as_str().unwrap().to_owned();
                         d["stream_endpoint"] = upload.replace("/uploads", "/stream").into();
+                        d["query_endpoint"] = upload.replace("/uploads", "/query").into();
                     }
                 },
                 |_| {},
@@ -1427,5 +1567,119 @@ mod tests {
         };
         assert!(n.body.starts_with("Cannot get a new access token"), "{}", n.body);
         assert_eq!(f.store.load().unwrap().unwrap().refresh_token.as_deref(), Some("r1"));
+    }
+
+    const QUERY: &str = "/api/v1/query";
+
+    /// The query of the next event.
+    async fn next_query(f: &mut Fixture) -> Query {
+        let Event::Query(query) = f.next(|e| matches!(e, Event::Query(_))).await else {
+            unreachable!()
+        };
+        *query
+    }
+
+    /// Sends a question after the agent knows the service.
+    async fn ask(f: &mut Fixture, text: &str) {
+        f.next(is_state(State::Watching)).await;
+        let input = Input::Ask {
+            text: text.into(),
+            new_conversation: false,
+        };
+        f.commands.send(Command::Query(input)).unwrap();
+    }
+
+    #[tokio::test]
+    async fn question_is_sent_and_the_response_gives_its_state() {
+        let mut f = Fixture::start_streaming(Some(tokens("a1"))).await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .respond_with(event_stream("id: 1-1\n\n"))
+            .mount(&f.server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path(QUERY))
+            .and(header("authorization", "Bearer a1"))
+            .respond_with(|request: &wiremock::Request| {
+                let body: serde_json::Value = serde_json::from_slice(&request.body).unwrap();
+                assert_eq!(body["text"], "How many rifles?");
+                ResponseTemplate::new(202).set_body_json(serde_json::json!({
+                    "reference": body["reference"],
+                    "state": "working",
+                    "deadline": "2099-01-01T00:00:00Z"
+                }))
+            })
+            .mount(&f.server)
+            .await;
+
+        ask(&mut f, "How many rifles?").await;
+        let sending = next_query(&mut f).await;
+        assert_eq!(sending.state, QueryState::Sending);
+        assert_eq!(sending.question.as_deref(), Some("How many rifles?"));
+        let working = next_query(&mut f).await;
+        assert_eq!(working.reference, sending.reference);
+        assert_eq!(working.state, QueryState::Working);
+        assert!(working.deadline.is_some());
+    }
+
+    #[tokio::test]
+    async fn refused_question_closes_with_the_cause_of_the_service() {
+        let mut f = Fixture::start_streaming(Some(tokens("a1"))).await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .respond_with(event_stream("id: 1-1\n\n"))
+            .mount(&f.server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path(QUERY))
+            .respond_with(
+                ResponseTemplate::new(409).set_body_json(
+                    serde_json::json!({"title": "Conflict", "detail": "Another client has an open query."}),
+                ),
+            )
+            .mount(&f.server)
+            .await;
+
+        ask(&mut f, "Hi").await;
+        next_query(&mut f).await;
+        let closed = next_query(&mut f).await;
+        assert_eq!(closed.state, QueryState::Closed);
+        assert!(closed.local_error);
+        assert_eq!(closed.text.as_deref(), Some("Another client has an open query."));
+    }
+
+    #[tokio::test]
+    async fn stream_gives_the_open_query_and_ignores_the_messages_of_another_query() {
+        let mut f = Fixture::start_streaming(Some(tokens("a1"))).await;
+        let message = |reference: &str, state: &str, extra: &str| {
+            format!("data: {{\"kind\":\"query\",\"reference\":\"{reference}\",\"state\":\"{state}\"{extra}}}\n\n")
+        };
+        let body = [
+            "id: 1-1\n\n".to_owned(),
+            message("q1", "working", r#","deadline":"2099-01-01T00:00:00Z""#),
+            message("q2", "working", r#","deadline":"2099-01-01T00:00:00Z""#),
+            message("q1", "closed", r#","cause":"answer","text":"Done.""#),
+        ]
+        .concat();
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .respond_with(event_stream(&body))
+            .up_to_n_times(1)
+            .with_priority(1)
+            .mount(&f.server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(STREAM))
+            .respond_with(event_stream("id: 1-2\n\n"))
+            .mount(&f.server)
+            .await;
+
+        let learned = next_query(&mut f).await;
+        assert_eq!((learned.reference.as_str(), learned.state), ("q1", QueryState::Working));
+        assert_eq!(learned.question, None);
+        let closed = next_query(&mut f).await;
+        assert_eq!((closed.reference.as_str(), closed.state), ("q1", QueryState::Closed));
+        assert_eq!(closed.text.as_deref(), Some("Done."));
+        assert_eq!(closed.cause, Some(query::Cause::Answer));
     }
 }
