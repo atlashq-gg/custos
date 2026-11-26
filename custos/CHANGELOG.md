@@ -1,42 +1,26 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
-- Fix: on Linux, when the typed question wrapped, the `>` of the prompt and the cursor moved to the middle line, and the cursor was not after the last character. The prompt is now one line of text that wraps, as on Windows.
+The stream of the service, and the query: a question to the service in plain language.
 
-## 0.3.0-alpha.3
-
-A pre-release that fixes the key of the query on Linux.
-
-- At the level `debug`, the log shows each change of the map data file, and each file that Custos does not send because the service already accepted or refused it.
-- Fix: on Linux, the key of the query did nothing with the installed AppImage. The portal refused the application ID `gg.atlashq.custos`, because the launcher entry had the name `custos.desktop`. `install.sh` now installs the entry as `gg.atlashq.custos.desktop`, and removes the old entry. Run the `install.sh` of the new release, and start Custos again.
-
-## 0.3.0-alpha.2
-
-The query: a question to the service in plain language. A pre-release.
-
-- Custos reads `features_supported` of the discovery document, and uses the stream and the query only when the list names them. It refuses a document without `upload`, or with a listed feature without its members.
-- Custos implements the query of `spec/06-query.md`, with `query_endpoint` of the discovery document.
-- A key starts a question at the prompt of the overlay: `Ctrl+Alt+K` by default, `key` in the new table `[query]`. On Linux, Custos asks the desktop for the key through the `GlobalShortcuts` portal. KDE Plasma 6 and GNOME 48 or later have the portal, and Sway does not. On Windows, the key is a hot key. The tray menu item **Ask a question** also starts a question. The key and the menu item work only while the overlay is open.
-- While the user types, the overlay takes the keyboard and holds the new messages. Enter sends the question, gives the keyboard back to the game, and shows the held messages. Escape cancels. `/new <question>` starts a new conversation, `/stop` stops the open question, and `/help` shows the commands. The amber line `> Awaiting input...` shows while the overlay has the keyboard. A question of the service ends with `[Y/N]` and the remaining time. While it waits and the line is empty, `Y` accepts the change and `N` refuses it.
-- The overlay shows the question and its state in its own area, at the edge of the anchor. The events do not move it. After the deadline of a state, Custos shows that the service is not in contact.
-- The answer stays in the overlay until the next question, for `answer_seconds` at most (default 180). While the user types, the overlay shows the last answer in full.
-- Without the overlay, a question of the service and the end of a query show as desktop notifications.
-- While the service has a query, the overlay shows the key in amber: `> [Ctrl+Alt+K] for input. See /help.` Set `hint = false` in `[query]` to remove the line.
-- The message of an accepted upload is short: `Uploaded 120kB`, with 1 kB = 1,000 bytes.
-- The default `service_url` is `https://optio.atlashq.gg`. Each key of the configuration is now optional. At the first start, Custos writes the configuration file with the defaults and starts at once.
-- The example paths in a new configuration file are the paths of the user: below `$HOME` on Linux, and below `%LOCALAPPDATA%` on Windows.
-
-## 0.3.0-alpha.1
-
-The stream of the service, and messages with more than one line. A pre-release.
-
-- Custos reads `stream_endpoint` of the discovery document, and keeps the stream of `spec/05-stream.md` open while Foxhole runs and the user is signed in. Each message shows in the overlay, or as a desktop notification when the overlay is not open.
-- When Custos connects again, it sends its position. It keeps the position in memory only. After a failure, it waits 1 second, doubled after each failure, to 60 seconds at most, with a random part.
+- Custos reads `features_supported` of the discovery document, and uses the stream and the query only when the list names them. It refuses a document without `upload`, or with a listed feature without its members. Thus Custos 0.3.0 needs a service such as Optio 0.1.0 or later.
+- The default `service_url` is `https://optio.atlashq.gg`. Each key of the configuration is now optional. At the first start, Custos writes the configuration file with the defaults and starts at once. Its example paths are the paths of the user: below `$HOME` on Linux, and below `%LOCALAPPDATA%` on Windows.
+- Stream: Custos reads `stream_endpoint` of the discovery document, and keeps the stream of `spec/05-stream.md` open while Foxhole runs and the user is signed in. Each message shows in the overlay, or as a desktop notification when the overlay is not open.
+- When Custos connects to the stream again, it sends its position. It keeps the position in memory only. After a failure, it waits 1 second, doubled after each failure, to 60 seconds at most, with a random part.
 - Custos gets a new access token before the old one expires. A network error or an error of the token endpoint no longer signs the user out. Only a refused refresh token does. A token request waits 15 seconds at most.
-- A message with the reference of a kept message replaces it in place, and its text types again.
-- A line break in a message starts a new line. Each next line of a message starts with two spaces.
+- Overlay: a message with the reference of a kept message replaces it in place, and its text types again. A line break in a message starts a new line, and each next line of a message starts with two spaces.
 - New keys `messages` (default 6) and `lines` (default 12) in `[overlay]`. A line above the limits is hidden, and it comes back when a newer message goes.
+- The message of an accepted upload is short: `Uploaded 120kB`, with 1 kB = 1,000 bytes.
+- Query: Custos implements the query of `spec/06-query.md`, with `query_endpoint` of the discovery document.
+- A key starts a question at the prompt of the overlay: `Ctrl+Alt+K` by default, `key` in the new table `[query]`. On Linux, Custos asks the desktop for the key through the `GlobalShortcuts` portal. KDE Plasma 6 and GNOME 48 or later have the portal, and Sway does not. On Windows, the key is a hot key. The tray menu item **Ask a question** also starts a question. The key and the menu item work only while the overlay is open.
+- While the user types, the overlay takes the keyboard and holds the new messages. Enter sends the question, gives the keyboard back to the game, and shows the held messages. Escape cancels. `/new <question>` starts a new conversation, `/stop` stops the open question, and `/help` shows the commands. The amber line `> Awaiting input...` shows while the overlay has the keyboard. A long question wraps, with the cursor after its last character.
+- A question of the service ends with `[Y/N]` and the remaining time. While it waits and the line is empty, `Y` accepts the change and `N` refuses it.
+- The overlay shows the question and its state in its own area, at the edge of the anchor. The events do not move it. After the deadline of a state, Custos shows that the service is not in contact.
+- The answer stays in the overlay until the next question, for `answer_seconds` at most (default 180). While the user types, the overlay shows the last answer in full. Without the overlay, a question of the service and the end of a query show as desktop notifications.
+- While the service has a query, the overlay shows the key in amber: `> [Ctrl+Alt+K] for input. See /help.` Set `hint = false` in `[query]` to remove the line.
+- `install.sh` installs the launcher entry as `gg.atlashq.custos.desktop`, the application ID that the portal needs, and removes the entry `custos.desktop` of 0.2.0. Run the `install.sh` of this release to update.
+- At the level `debug`, the log shows each change of the map data file, and each file that Custos does not send because the service already accepted or refused it.
 
 ## 0.2.0
 
