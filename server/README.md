@@ -4,7 +4,7 @@ Contract version `v0`. License: AGPL-3.0-or-later ([LICENSE](LICENSE)), except t
 
 The domain service of the guild records, behind [optio](../optio/README.md) ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). Custos calls Optio, and Optio relays the upload to the upload API of this server with a token of the user. The server parses the map data file and keeps the parsed data in PostgreSQL, for each Discord guild. It does not keep the file.
 
-The server also runs as a Discord bot. The roles of a member in Discord give the access to the records of a guild. An MCP endpoint lets a user search the records through an LLM harness.
+The server also runs as a Discord bot. The roles of a member in Discord give the access to the records of a guild. An MCP endpoint lets a user search the records and change the labels through an LLM harness, for example the query of Optio.
 
 ## Run
 
@@ -175,9 +175,10 @@ A user label has 1 to 64 characters: letters, digits, spaces, and `-` `'` `.` `,
 - A request without a valid token gets `401` with `WWW-Authenticate: Bearer resource_metadata="...", scope="custos:read custos:write"`.
 - The token needs the audience `Custos:Resource`, the claim `discord_id`, and the scope of the tool. A token of Optio from a token exchange has the same form.
 - The upload API accepts a token with the audience `Custos:Resource` and the scope `custos:write`. The Discord roles of the member decide the rest. Thus an MCP harness with `custos:write` can also call the upload API.
-- A tool without the scope of the token is not in the list of tools. A call without the scope gets `403` with `error="insufficient_scope"`.
+- A token with the read scope lists each tool, also the write tools, so that a harness knows them before the user accepts a change. A token without the read scope lists only the tools of its scope. A call without the scope of the tool gets `403` with `error="insufficient_scope"`.
 - A refusal for access is a tool result with `isError` and a problem body: `urn:custos:mcp:forbidden`, `urn:custos:mcp:not-visible`, or `urn:custos:mcp:discord-unavailable`. A missing guild, a guild without the bot, and a guild where the caller is not a member get the same `not-visible` answer.
 - The server writes one audit line to the log for each tool call.
+- The member `instructions` of the MCP initialize result holds the card of the server: the records that the server holds, and the records that it does not hold. A harness with more than one service gives the card to the model, so that the model selects the correct service. The evaluation set of Optio ([optio/evaluation/custos.json](../optio/evaluation/custos.json)) holds the same card and tools, and a test makes sure that they are equal.
 - The SDK serves the metadata document only to a request whose scheme and host are equal to `Custos:Resource`. Behind a reverse proxy, set `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`, so that the server applies `X-Forwarded-Proto` and `X-Forwarded-For`.
 
 | Tool | Scope | Access | Result |
@@ -196,7 +197,7 @@ The search tools take the argument `guild_id`, and the filters `items`, `stockpi
 - `limit` is 50 by default and 200 at most. `total` gives the number of all rows, and `next_cursor` gets the next page.
 - `applied` gives the war, the access of the caller, and the code names that each item filter matched.
 - A search for guild B reads the records of B and of each guild that lists B in `Sharing.ReadGuildIds`. A row from another guild names it in `origin_guild`. For a stockpile that two guilds know, the row comes from the record with the latest sighting. A structure shows the label of B when B has its own record of it, else the label of the guild of the record.
-- `set_structure_label` changes only a record of the guild of `guild_id`. It applies the rules of a user label ([Structure labels](#structure-labels)). Its audit line names MCP as the origin. A token without the write scope does not list it.
+- `set_structure_label` changes only a record of the guild of `guild_id`. It applies the rules of a user label ([Structure labels](#structure-labels)). Its audit line names MCP as the origin. A token with only the read scope lists it, but cannot call it.
 - An item shows `crate_size` and `pallet_size` when the [catalog](catalog/README.md) has them. A row or an entry with `crated` true counts crates, so the number of units is `quantity` times `crate_size`. `crate_size` is the number in an item crate, or in a shippable crate for a vehicle or a structure. `pallet_size` is the number of items in a pallet.
 - The names of reserve stockpiles and the labels are text from players. The results give them as values of JSON members only.
 

@@ -1,6 +1,6 @@
 # Custos
 
-Custos is a tray application for Foxhole. It watches the map data save file of the game for changes and sends it to a remote server that conforms to the Custos specification. Custos gets its configuration and authentication context from a compliant service through a discovery mechanism.
+Custos is a tray application for Foxhole. It watches the map data save file of the game for changes and sends it to a service that conforms to the Custos specification. It shows the events of the service in an overlay above the game, and the user can ask the service a question in plain language. Custos gets its configuration and authentication context from the service through a discovery mechanism.
 
 This repository holds Custos, the specification, Optio (the service that Custos calls), and the server of the guild records.
 
@@ -10,10 +10,11 @@ Each project is a folder at the root ([ADR 0002](docs/adr/0002-monorepo-with-pro
 
 | Folder | Purpose | Stack | License |
 |---|---|---|---|
-| `spec/` | The contract between Custos and a server, including discovery and authentication. | Language-neutral | MIT |
+| `spec/` | The contract between Custos and a service: discovery, authentication, upload, stream, and query. | Language-neutral | MIT |
 | `custos/` | The tray application. | Rust, Tauri | MIT |
 | `optio/` | The service that Custos calls. It implements the specification and relays to the domain services. | .NET 10 | AGPL-3.0-or-later |
 | `server/` | The domain service of the guild records, behind Optio. | .NET 10 | AGPL-3.0-or-later |
+| `deploy/` | The deployment of the full system with Docker Compose, and the setup of Keycloak. It is not a project. | Docker Compose | Various ([deploy/README.md](deploy/README.md#license)) |
 | `docs/` | Documents and decisions that cross project lines. | | MIT |
 
 Each project folder has a `README.md`, an `AGENTS.md`, a `CHANGELOG.md`, and a `LICENSE`.

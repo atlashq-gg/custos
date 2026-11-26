@@ -1,8 +1,8 @@
 # Optio
 
-Optio is the service that Custos calls ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). It implements the contract of [spec/](../spec/README.md): the discovery document, the upload, and the stream. It calls the domain services, for example the [server](../server/README.md), with a token of the user for each service.
+Optio is the service that Custos calls ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). It implements the contract of [spec/](../spec/README.md): the discovery document, the upload, the stream, and the query. It calls the domain services, for example the [server](../server/README.md), with a token of the user for each service.
 
-Optio serves the discovery document and the Client ID Metadata Document of Custos, relays the upload, and sends the events of the domain services on the stream. The query of the user comes later. The roadmap is [#48](https://github.com/atlashq-gg/custos/issues/48).
+Optio serves the discovery document and the Client ID Metadata Document of Custos, and relays the upload. It sends the events of the domain services on the stream. It answers the questions of the user with a model and the MCP tools of the domain services.
 
 ## Run
 
@@ -18,12 +18,20 @@ The AppHost starts the full system:
 |---|---|---|
 | Optio | `http://localhost:5090` | The service URL for Custos. |
 | server | `http://localhost:5080` | The domain service of the guild records ([server/README.md](../server/README.md)). |
-| PostgreSQL 18 | (dashboard) | The database of the server. The data lasts for one run. |
+| PostgreSQL 18 | (dashboard) | The databases of the server and of Optio. The data lasts for one run. |
 | NATS | (dashboard) | The event broker with JetStream, with the users of [deploy/nats/nats.conf](../deploy/nats/nats.conf). The Server publishes its events to it, and Optio makes the stream. The events last for one run. |
 | Keycloak | `http://localhost:8180` | The realm `custos` from [deploy/keycloak/custos-realm.json](../deploy/keycloak/custos-realm.json), with the user `dev`, password `dev`. |
 | Dashboard | `http://localhost:15180` | The Aspire dashboard. The login URL is in the console output. |
 
 The server needs a Discord bot token in the user secrets of the AppHost ([server/README.md](../server/README.md#run)). Optio needs a Discord bot token for the stream, in the parameter `optio-discord-token`. In development, it can be the token of the bot of the server. The AppHost makes a new secret for the client `optio` and a new password for each broker user on each start.
+
+For the query, set the parameter `claude-api-key` to a key of the Claude API:
+
+```sh
+dotnet user-secrets set Parameters:claude-api-key <key> --project Optio.AppHost
+```
+
+The AppHost then gives Optio the example system prompt, and the server as the MCP service `custos` with its read scope and its write scope. Without the key, Optio has no query.
 
 ## Endpoints
 
@@ -33,6 +41,7 @@ The server needs a Discord bot token in the user secrets of the AppHost ([server
 | `GET /.well-known/custos-client` | The Client ID Metadata Document (CIMD) of Custos. Its URL is the client ID. |
 | `POST /api/v1/uploads` | The upload ([spec](../spec/03-upload.md)), relayed to the upload API of the server. |
 | `GET /api/v1/stream` | The stream ([spec](../spec/05-stream.md)). Only when the stream is configured. |
+| `POST /api/v1/query` | The query ([spec](../spec/06-query.md)). Only when the query is configured. |
 | `GET /health/alive`, `GET /health/ready` | The health checks. |
 
 ## Upload
@@ -156,7 +165,7 @@ The connection string of the broker is `ConnectionStrings:events` (`ConnectionSt
 | Endpoint | Content |
 |---|---|
 | `GET /health/alive` | `Healthy` while the process runs. |
-| `GET /health/ready` | `Healthy` when Optio can serve requests. |
+| `GET /health/ready` | `Healthy` when Optio can serve requests. With a database, Optio also checks it. |
 
 - `optio --version` prints the version.
 - `optio --healthcheck` asks `/health/alive` on this machine. The exit code is 0 for a healthy service. The `HEALTHCHECK` of the image uses it.
@@ -167,6 +176,8 @@ The connection string of the broker is `ConnectionStrings:events` (`ConnectionSt
 | `optio.events` | The events that the reader of each open stream got, by `outcome`: `sent`, `denied` (the policy does not permit it), `no_bot` (the bot is not in the guild), or `invalid` (not valid, or an unknown policy version). |
 | `optio.events.age` | The age of each event when Optio sends it, by `source`. A high age in normal operation shows that a client or Optio is slow. |
 | `optio.streams` | The open streams. |
+| `optio.queries` | The queries that closed, by `cause` of [spec/06-query.md](../spec/06-query.md), for example `answer`, `failed`, or `interrupted`. |
+| `optio.tool.calls` | The tool calls of the queries, by `service`, `tool`, and `outcome`: `ok`, `error` (the tool gave an error), or `failed` (no result from the service). |
 
 ## Format
 

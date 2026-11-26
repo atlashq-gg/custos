@@ -241,6 +241,8 @@ Run Custos against a local service. [Optio](../optio/README.md) is the service o
    | Keycloak | `http://localhost:8180` |
    | Aspire dashboard | `http://localhost:15180` |
 
+   For the query, also set the parameter `claude-api-key` to a key of the Claude API. Without it, the service has no query.
+
 3. Set the service URL in `~/.config/custos/config.toml`: `service_url = "http://localhost:5090"`. Custos accepts HTTP only for `localhost`.
 4. Start Custos from the `custos/` folder: `RUST_LOG=debug cargo run -p custos-app`.
 5. Use **Sign in** in the tray menu. The user is `dev` and the password is `dev`. Keycloak shows a consent page at the first login.
@@ -256,6 +258,6 @@ Notes:
 
 | Folder | Content |
 |---|---|
-| [crates/custos-core](crates/custos-core) | The engine: configuration, discovery, login, save-file location, process detection, upload, the interval rule, the stream of the service, and the lines of the overlay. |
-| [crates/custos-app](crates/custos-app) | The Tauri tray application: menu, overlay window, notifications, and the deep link. |
+| [crates/custos-core](crates/custos-core) | The engine: configuration, discovery, login, save-file location, process detection, upload, the interval rule, the stream of the service, the query, the key of the query, and the lines of the overlay. |
+| [crates/custos-app](crates/custos-app) | The Tauri tray application: menu, overlay window, the input of a question, notifications, and the deep link. |
 | [packaging](packaging) | The installer script for Linux, and its test. |
