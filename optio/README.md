@@ -91,6 +91,7 @@ The query answers a question of the user in plain language, on the stream ([spec
 - A new query of a client closes its open query with the cause `replaced`. `stop` closes it with `stopped`.
 - A stream that opens sends the state of the open query of its client after the position.
 - Optio keeps the card and the tool list of each service for `CatalogMinutes`, and gets them again with the token of a query. It gets a token of the user for the read scope of each service by exchange.
+- When a new tool list has a tool that the earlier list did not have, Optio uses the tool at once and writes a warning: the [evaluation set](#evaluation) did not run with it.
 - At its start, Optio closes each query that an earlier instance left open, with the cause `interrupted`. At a normal stop, it closes its running queries the same way.
 - The limit of queries in each hour is in memory. A restart of Optio resets it.
 - Each tool call writes an audit line to the log.
@@ -135,7 +136,7 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 | `ModelId` | `claude-haiku-5-5` | The model of the query. |
 | `ModelEffort` | `medium` | The effort of the model: `low`, `medium`, `high`, `xhigh`, or `max`. |
 | `SystemPrompt` | (none) | The system prompt. [docs/system-prompt.example.txt](docs/system-prompt.example.txt) is an example. Without it, Optio answers no query. |
-| `OperatorText` | (none) | The text about the services together: the words that they share, and how their records relate. |
+| `OperatorText` | (none) | The text about the services together: the words that they share, and how their records relate. [docs/operator-text.example.txt](docs/operator-text.example.txt) is an example. |
 | `McpServices` | `[]` | The MCP services of the query. Each item has `Name` (lowercase letters and digits, at most 16), `Url`, `ReadScope`, and optionally `WriteScope`, `Title`, and `Card`. Without `WriteScope`, the query uses no write tool of the service. `Card` replaces the card that the service gives. |
 | `HiddenTools` | `[]` | The tools that the model does not get, as `{service}_{tool}`. |
 | `MaxQueriesPerHour` | `20` | The queries of one user in one hour. |
@@ -181,6 +182,27 @@ CSharpier does not wrap comments and strings. CI fails on a line of more than 10
 ```sh
 dotnet test Optio.slnx
 ```
+
+## Evaluation
+
+The evaluation set examines whether the model selects the correct service and tool for a question. Run it when a card, the system prompt, the operator text, the tool list of a service, or the model changes. Each case is one call of the real model. CI does not run it, because each run costs money.
+
+```sh
+export Optio__ClaudeApiKey=...                  # required, else the tests skip
+export Optio__EvaluationSet=/path/to/set.json   # optional: a set of the operator
+dotnet test Optio.Tests --filter TestCategory=Evaluation
+```
+
+The repository holds the set of the server: [evaluation/custos.json](evaluation/custos.json). A test of the server makes sure that its card and its tools are equal to those of the server. A set with other services stays with the operator.
+
+The model gets the system prompt and the tools as in a query. The system prompt is the example [docs/system-prompt.example.txt](docs/system-prompt.example.txt), or `Optio__SystemPrompt`. The other options also come from the environment, for example `Optio__ModelId` and `Optio__ModelEffort`.
+
+| Member | Content |
+|---|---|
+| `services` | Each service: `name` and `title` as in the configuration, `card`, `write` (true when the configuration gives a `WriteScope`), and `tools` as the service gives them, each with `name`, `title`, `description`, `read_only`, and `input_schema`. |
+| `hidden_tools` | As `HiddenTools` in the configuration. |
+| `operator_text` | As `OperatorText` in the configuration. Optional. |
+| `cases` | Each case: `question`, and `tools`, the tools that the model can call first, as `{service}_{tool}`. A case passes when the first turn of the model calls one tool or more, and only tools of the list. With an empty list, the model must answer with no tool call. |
 
 ## Container
 

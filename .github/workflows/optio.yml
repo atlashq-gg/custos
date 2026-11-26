@@ -58,10 +58,10 @@ jobs:
       - run: dotnet build Optio.slnx --configuration Release --no-restore
       # The tests in the category Discord connect to Discord with a bot token. CI has no token.
       # The tests in the category Feasibility examine the broker for about 2 minutes. Run them when
-      # the broker or its client changes.
+      # the broker or its client changes. The tests in the category Evaluation call the model.
       - run: >
           dotnet test Optio.slnx --configuration Release --no-build
-          --filter "TestCategory!=Discord&TestCategory!=Feasibility"
+          --filter "TestCategory!=Discord&TestCategory!=Feasibility&TestCategory!=Evaluation"
           --logger "trx;LogFileName=results.trx" --results-directory TestResults
 
       - name: Upload test results
