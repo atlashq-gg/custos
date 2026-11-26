@@ -92,6 +92,8 @@ lines = 12
 key = "Ctrl+Alt+K"
 # The time that the answer stays in the overlay, in seconds, from 1 to 3600. Default: 180.
 answer_seconds = 180
+# Show the key and /help in the overlay, in amber. Default: true.
+hint = true
 ```
 
 The file that Custos writes at the first start has each value in a comment. Its example paths are the paths of the user: on Linux below `$HOME`, and on Windows below `%LOCALAPPDATA%`. On Windows, the file has no `steam_root`, and the default `save_dir` is `%LOCALAPPDATA%\Foxhole\Saved\SaveGames`. Write a Windows path in single quotes, so that TOML reads the backslashes as text:
@@ -136,6 +138,8 @@ On Windows, the overlay is a transparent webview window above the other windows,
 
 If the discovery document of the service has `query_endpoint`, the user can ask the service a question in plain language ([spec/06-query.md](../spec/06-query.md)). The service answers on its stream. Thus the query needs the stream: Custos shows the answer only while Foxhole runs, the user is signed in, and Custos is not paused.
 
+The overlay shows the key in amber, for example `> [Ctrl+Alt+K] for input. See /help.`, while the service has a query. On Linux, it shows the key that the desktop bound. Set `hint = false` in `[query]` to remove the line.
+
 1. Push the key, `Ctrl+Alt+K` by default. The overlay takes the keyboard, and you type at its prompt. While you type, the overlay holds the new messages, so that no line moves.
 2. Type the question, and push Enter. The game gets the keyboard back, and the held messages show.
 3. Read the progress and the answer in the overlay.
@@ -177,7 +181,7 @@ Custos shows these messages in the overlay while it is open, and as desktop noti
 
 | Notification | Meaning |
 |---|---|
-| Stockpile data sent | The service accepted the file. The text shows the size and the war. |
+| Uploaded 120kB | The service accepted the file. The text shows its size in kilobytes (1,000 bytes). |
 | Signed in | The login is complete. |
 | Sign in to send stockpile data | Custos has no valid token. Use **Sign in**. |
 | The service at … is not available | Custos cannot reach the service URL, or the service gave an error. The text gives the cause, for example `Connection refused`. Custos tries again each minute. When the service is available again, the message goes. |

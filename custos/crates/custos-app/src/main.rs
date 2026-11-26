@@ -341,6 +341,7 @@ fn on_agent_event(app: &AppHandle, event: Event) -> tauri::Result<()> {
         Event::Expire(reference) => app.run_on_main_thread(move || overlay::expire(&reference))?,
         // The query shows in the overlay. When it is not open, a question or an end shows as a
         // desktop notification.
+        Event::QueryAvailable(available) => app.run_on_main_thread(move || ask::set_available(available))?,
         Event::Query(query) => {
             let app = app.clone();
             let title = query.question.clone().unwrap_or_else(|| "Custos".into());

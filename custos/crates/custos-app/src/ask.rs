@@ -6,7 +6,8 @@
 use std::cell::RefCell;
 use std::time::{Duration, Instant, SystemTime};
 
-use custos_core::query::{Line, Query, State};
+use custos_core::lines::PROMPT;
+use custos_core::query::{self, Line, Query, State, Tone};
 use custos_core::shortcut::Shortcut;
 use tauri::AppHandle;
 
@@ -17,6 +18,10 @@ struct Shown {
     key: String,
     /// The time that the answer stays in the overlay.
     lifetime: Duration,
+    /// True when the overlay shows the key and `/help`.
+    hint: bool,
+    /// True when the service has a query.
+    available: bool,
 }
 
 thread_local! {
@@ -24,6 +29,8 @@ thread_local! {
         query: None,
         key: custos_core::config::Query::default().key,
         lifetime: custos_core::config::Query::default().answer_lifetime(),
+        hint: true,
+        available: false,
     });
 }
 
@@ -32,7 +39,34 @@ pub fn configure(settings: &custos_core::config::Query) {
     SHOWN.with_borrow_mut(|shown| {
         shown.key = settings.shortcut().to_string();
         shown.lifetime = settings.answer_lifetime();
+        shown.hint = settings.hint;
     });
+    crate::overlay::render_query();
+}
+
+/// Sets the key that the desktop bound, which can differ from the key of the configuration.
+#[cfg(target_os = "linux")]
+fn set_key(key: String) {
+    SHOWN.with_borrow_mut(|shown| shown.key = key);
+    crate::overlay::render_query();
+}
+
+/// Sets whether the service has a query.
+pub fn set_available(available: bool) {
+    SHOWN.with_borrow_mut(|shown| shown.available = available);
+    crate::overlay::render_query();
+}
+
+/// The amber line with the key and `/help`, while the service has a query and the configuration
+/// shows it.
+pub fn key_hint() -> Option<Line> {
+    SHOWN.with_borrow(|shown| {
+        (shown.available && shown.hint).then(|| Line {
+            prompt: PROMPT,
+            text: query::key_hint(&shown.key),
+            tone: Tone::Input,
+        })
+    })
 }
 
 /// Shows the new state of the query. Returns the text for a desktop notification when the overlay is
@@ -134,7 +168,11 @@ mod portal {
             .await?
             .response()?;
         for shortcut in bound.shortcuts() {
-            tracing::info!("the key {} starts a question", shortcut.trigger_description());
+            let key = shortcut.trigger_description().to_owned();
+            tracing::info!("the key {key} starts a question");
+            if shortcut.id() == ASK && !key.is_empty() {
+                let _ = app.run_on_main_thread(move || super::set_key(key));
+            }
         }
         let mut activated = portal.receive_activated().await?;
         while let Some(activation) = activated.next().await {
