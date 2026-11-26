@@ -87,7 +87,7 @@ internal sealed class QueryHarness(
         try
         {
             await using var session = await tools.OpenAsync(user, limit.Token);
-            var system = SystemPrompt(o, session.Services, query, guildPrompt);
+            var system = SystemPrompt(o, session.Services, query.Guild, guildPrompt);
             List<ModelMessage> messages = resume is null
                 ? [.. history, new UserMessage(query.Question)]
                 : [.. history, .. resume.Messages];
@@ -256,7 +256,7 @@ internal sealed class QueryHarness(
     internal static string SystemPrompt(
         OptioOptions options,
         IReadOnlyList<ServiceCard> services,
-        QueryRecord query,
+        ulong guild,
         string? guildPrompt
     )
     {
@@ -280,7 +280,7 @@ internal sealed class QueryHarness(
             text.Append("\n\n").Append(options.OperatorText.Trim());
         text.Append(
             CultureInfo.InvariantCulture,
-            $"\n\nThe guild of the user has the ID {query.Guild}. Each tool reads this guild."
+            $"\n\nThe guild of the user has the ID {guild}. Each tool reads this guild."
         );
         text.Append("\n\nWrite the answer as plain text with no markup.");
         if (!string.IsNullOrWhiteSpace(guildPrompt))

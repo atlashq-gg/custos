@@ -24,6 +24,17 @@
       Link="keycloak\custos-realm.json"
       CopyToOutputDirectory="PreserveNewest"
     />
+    <!-- The evaluation set of the Custos server, and the example system prompt. -->
+    <None
+      Include="..\evaluation\*.json"
+      LinkBase="evaluation"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <None
+      Include="..\docs\system-prompt.example.txt"
+      Link="docs\system-prompt.example.txt"
+      CopyToOutputDirectory="PreserveNewest"
+    />
     <None
       Include="..\..\deploy\nats\nats.conf"
       Link="nats\nats.conf"

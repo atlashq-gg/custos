@@ -13,6 +13,6 @@
 - Optio has its own Discord bot token. It uses the bot to read the roles of the users of the stream, and for `/optioadmin`. Each command handler needs a check of the permission of the user.
 - Never write a token, a client secret, or a model key to a log.
 - Read a secret from the environment or from a file in `/run/secrets`. Examine the options when the host starts.
-- No automated test calls a model provider.
+- Only the tests in the category `Evaluation` call a model provider, with the key in `Optio__ClaudeApiKey`. Without it, they skip. CI does not run them. Run them by hand when a card, the system prompt, the operator text, the tool list of a service, or the model changes.
 - The tests in the categories `Feasibility` and `Discord` do not run in CI. Run them by hand when the broker, its client, or the Discord client changes.
 - The content of this folder is under AGPL-3.0-or-later.
