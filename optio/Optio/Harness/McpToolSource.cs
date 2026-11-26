@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
@@ -67,11 +66,10 @@ internal interface IToolSource
 /// <summary>
 /// The tools of the MCP services of the configuration. Optio keeps the card and the tool list of
 /// each service for <see cref="OptioOptions.CatalogMinutes"/>. It gets them again with the token
-/// of a query, because Optio has no account of its own at a service. The model gets each tool as
-/// <c>{service}_{tool}</c>, without the hidden tools. A tool that the service does not mark
-/// read-only is a write tool, and only a service with a write scope gives its write tools. Code
-/// sets the argument <c>guild_id</c> to the guild of the query, and <c>confirm</c> of a write tool
-/// to true. The model does not see them. Each call writes an audit line.
+/// of a query, because Optio has no account of its own at a service. A new catalog with a tool that
+/// the earlier catalog did not have writes a warning. <see cref="McpCatalog"/> makes the tools for
+/// the model. Code sets the argument <c>guild_id</c> to the guild of the query, and
+/// <c>confirm</c> of a write tool to true. Each call writes an audit line.
 /// </summary>
 internal sealed partial class McpToolSource(
     TokenExchange tokens,
@@ -83,8 +81,6 @@ internal sealed partial class McpToolSource(
 ) : IToolSource
 {
     public const string HttpClientName = "mcp";
-    public const string GuildArgument = "guild_id";
-    public const string ConfirmArgument = "confirm";
 
     private readonly ConcurrentDictionary<string, Catalog> _catalogs = new();
 
@@ -145,6 +141,11 @@ internal sealed partial class McpToolSource(
                 ],
                 now
             );
+            if (kept is not null)
+            {
+                foreach (var tool in McpCatalog.NewTools(kept, catalog))
+                    LogNewTool(logger, service.Name, tool);
+            }
             _catalogs[service.Name] = catalog;
             return catalog;
         }
@@ -229,35 +230,6 @@ internal sealed partial class McpToolSource(
     private static string Text(CallToolResult result) =>
         string.Join("\n", result.Content.OfType<TextContentBlock>().Select(c => c.Text));
 
-    /// <summary>True when the JSON Schema of an argument allows the type.</summary>
-    private static bool HasType(JsonElement schema, string type) =>
-        schema.TryGetProperty("type", out var t)
-        && (
-            t.ValueKind == JsonValueKind.String
-                ? t.GetString() == type
-                : t.ValueKind == JsonValueKind.Array
-                    && t.EnumerateArray().Any(i => i.GetString() == type)
-        );
-
-    /// <summary>The JSON Schema of a tool without the arguments that code sets.</summary>
-    internal static JsonElement Without(JsonElement schema, IReadOnlyCollection<string> names)
-    {
-        var node = JsonNode.Parse(schema.GetRawText())!.AsObject();
-        if (node["properties"] is JsonObject properties)
-        {
-            foreach (var name in names)
-                properties.Remove(name);
-        }
-        if (node["required"] is JsonArray required)
-        {
-            foreach (
-                var item in required.Where(r => names.Contains(r?.GetValue<string>())).ToList()
-            )
-                required.Remove(item);
-        }
-        return JsonSerializer.SerializeToElement(node);
-    }
-
     private void LogCallFailed(Exception e, string service, string tool) =>
         LogCallFailed(logger, e, service, tool);
 
@@ -267,42 +239,12 @@ internal sealed partial class McpToolSource(
         metrics.ToolCall(service, tool, outcome);
     }
 
-    /// <summary>The card and the tools of a service, as the service gave them at
-    /// <paramref name="Made"/>.</summary>
-    private sealed record Catalog(
-        string Title,
-        string? Card,
-        IReadOnlyList<CatalogTool> Tools,
-        DateTimeOffset Made
-    );
-
-    private sealed record CatalogTool(
-        string Name,
-        string Title,
-        string Description,
-        JsonElement Schema,
-        bool ReadOnly
-    );
-
-    /// <summary>The route of a tool name of the model to its service. A write tool has
-    /// <paramref name="Shown"/>, its text arguments with no <c>_id</c> at the end, and
-    /// <paramref name="Confirm"/> when it has the boolean argument <c>confirm</c>.</summary>
-    private sealed record Route(
-        McpServiceOptions Service,
-        CatalogTool Tool,
-        string Status,
-        bool HasGuild,
-        bool Write,
-        bool Confirm,
-        string[] Shown
-    );
-
     private sealed class TokenRefusedException()
         : Exception("The authorization server refused the token.");
 
     private sealed class Session(McpToolSource source, ToolUser user) : IToolSession
     {
-        private readonly Dictionary<string, Route> _routes = [];
+        private readonly Dictionary<string, ToolRoute> _routes = [];
         private readonly List<ModelTool> _tools = [];
         private readonly List<ServiceCard> _services = [];
 
@@ -322,50 +264,12 @@ internal sealed partial class McpToolSource(
                     catalog is not null
                 )
             );
-            foreach (var tool in catalog?.Tools ?? [])
+            if (catalog is null)
+                return;
+            foreach (var (tool, route) in McpCatalog.Tools(service, catalog, hidden))
             {
-                var name = $"{service.Name}_{tool.Name}";
-                var write = !tool.ReadOnly;
-                if (hidden.Contains(name) || (write && string.IsNullOrEmpty(service.WriteScope)))
-                    continue;
-                var properties = tool.Schema.TryGetProperty("properties", out var p)
-                    ? p.EnumerateObject().ToList()
-                    : [];
-                var confirm =
-                    write
-                    && properties.Any(a =>
-                        a.Name == ConfirmArgument && HasType(a.Value, "boolean")
-                    );
-                string[] codeSet = confirm ? [GuildArgument, ConfirmArgument] : [GuildArgument];
-                var status = $"{catalog!.Title}: {tool.Title}";
-                _routes[name] = new Route(
-                    service,
-                    tool,
-                    status,
-                    properties.Any(a => a.Name == GuildArgument),
-                    write,
-                    confirm,
-                    [
-                        .. properties
-                            .Where(a =>
-                                write
-                                && !a.Name.EndsWith("_id", StringComparison.Ordinal)
-                                && !codeSet.Contains(a.Name)
-                                && HasType(a.Value, "string")
-                            )
-                            .Select(a => a.Name),
-                    ]
-                );
-                var schema = Without(tool.Schema, codeSet);
-                _tools.Add(
-                    new ModelTool(
-                        name,
-                        status,
-                        tool.Description,
-                        write ? Questions.WithTextArgument(schema) : schema,
-                        write
-                    )
-                );
+                _routes[tool.Name] = route;
+                _tools.Add(tool);
             }
         }
 
@@ -377,7 +281,9 @@ internal sealed partial class McpToolSource(
             var service = route.Service.Name;
             var arguments = call.Arguments.ToDictionary(a => a.Key, a => (object?)a.Value);
             if (route.HasGuild)
-                arguments[GuildArgument] = user.Guild.ToString(CultureInfo.InvariantCulture);
+                arguments[McpCatalog.GuildArgument] = user.Guild.ToString(
+                    CultureInfo.InvariantCulture
+                );
             try
             {
                 if (!Clients.TryGetValue(service, out var client))
@@ -419,12 +325,12 @@ internal sealed partial class McpToolSource(
             arguments.Remove(Questions.TextArgument);
             if (route.HasGuild)
             {
-                arguments[GuildArgument] = JsonSerializer.SerializeToElement(
+                arguments[McpCatalog.GuildArgument] = JsonSerializer.SerializeToElement(
                     user.Guild.ToString(CultureInfo.InvariantCulture)
                 );
             }
             if (route.Confirm)
-                arguments[ConfirmArgument] = JsonSerializer.SerializeToElement(true);
+                arguments[McpCatalog.ConfirmArgument] = JsonSerializer.SerializeToElement(true);
             return new WriteCall(
                 route.Service.Name,
                 route.Tool.Title,
@@ -438,7 +344,7 @@ internal sealed partial class McpToolSource(
                 [
                     .. arguments
                         .Where(a =>
-                            a.Key != GuildArgument
+                            a.Key != McpCatalog.GuildArgument
                             && a.Key.EndsWith("_id", StringComparison.Ordinal)
                             && a.Value.ValueKind == JsonValueKind.String
                         )
@@ -475,6 +381,13 @@ internal sealed partial class McpToolSource(
         Exception exception,
         string service
     );
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The MCP service {Service} has the new tool {Tool}. The query uses it, but the "
+            + "evaluation set did not run with it"
+    )]
+    private static partial void LogNewTool(ILogger logger, string service, string tool);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The tool {Tool} of {Service} failed")]
     private static partial void LogCallFailed(

@@ -1,0 +1,10 @@
+Custos and the task service serve the same Foxhole guild. Each tool reads the guild of the player.
+
+Custos holds the stockpiles, the items in them, and the structures that hold them. The task service
+holds the tasks that players ask the guild to do, and the players who do them.
+
+A label is the name of a structure in Custos. A status is the state of a task in the task service.
+
+Ask Custos about the quantity or the place of an item, and about a structure. Ask the task service
+about a task and about who does it. A question about the supplies of a task can need both: get the
+task first, then the items from Custos.

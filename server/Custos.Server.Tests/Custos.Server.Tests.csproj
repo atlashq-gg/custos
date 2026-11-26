@@ -38,6 +38,11 @@
     />
     <None Include="Mcp\McpTools.txt" CopyToOutputDirectory="PreserveNewest" />
     <None
+      Include="..\..\optio\evaluation\custos.json"
+      Link="evaluation\custos.json"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+    <None
       Include="..\..\deploy\keycloak\custos-realm.json"
       Link="keycloak\custos-realm.json"
       CopyToOutputDirectory="PreserveNewest"
