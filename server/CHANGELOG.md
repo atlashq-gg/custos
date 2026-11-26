@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- At the level `debug`, the log shows each saved upload: its pinned items, the items of the current war, and the number of changed stockpiles. A change of a stockpile gives an event, so an upload with no change gives none. Turn it on with `Logging__LogLevel__Custos.Server.Storage.UploadStore=Debug`.
+
 ## 0.3.0-alpha.2
 
 A pre-release, with the parts of the Server for the query.

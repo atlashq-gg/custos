@@ -15,10 +15,11 @@ namespace Custos.Server.Storage;
 /// <c>last_seen_at</c>. After the commit, it gives the stockpile changes to
 /// <paramref name="events"/>, when the server has a broker.
 /// </summary>
-internal sealed class UploadStore(
+internal sealed partial class UploadStore(
     CustosDbContext db,
     StructureLabels labels,
     IOptions<CustosOptions> options,
+    ILogger<UploadStore> logger,
     StockpileEvents? events = null
 )
 {
@@ -138,6 +139,7 @@ internal sealed class UploadStore(
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        LogSaved(logger, upload.UploadId, guildId, items.Count, observed.Count, diffs.Count);
 
         if (events is not null && diffs.Count > 0)
             await events.PublishAsync(upload, diffs, cancellationToken);
@@ -359,4 +361,20 @@ internal sealed class UploadStore(
     /// <summary>PostgreSQL keeps microseconds. The file has ticks of 100 ns.</summary>
     private static DateTimeOffset Microseconds(DateTimeOffset value) =>
         value.AddTicks(-(value.Ticks % 10));
+
+    // A stockpile change gives an event. With no change, the upload gives no event.
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        Message = "The upload {UploadId} of guild {GuildId} has {PinnedItems} pinned items, "
+            + "{CurrentItems} of them of the current war, "
+            + "and changes {ChangedStockpiles} stockpiles"
+    )]
+    private static partial void LogSaved(
+        ILogger logger,
+        Guid uploadId,
+        long guildId,
+        int pinnedItems,
+        int currentItems,
+        int changedStockpiles
+    );
 }
