@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-alpha.3
+
+A pre-release with the log of the Discord gateway.
 
 - The log of Optio holds the log of the Discord gateway: the connection, a close with its code, for example `4014` without the Server Members Intent, and a reconnection. A gateway request that Discord rate limits gives a warning.
 
