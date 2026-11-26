@@ -264,11 +264,13 @@ mod platform {
         lines: gtk::Box,
         /// The area of the query, at the edge of the anchor.
         query: gtk::Box,
-        /// The prompt, the typed line, and the cursor, which fades in and out while no line types.
-        /// One label, so that the cursor follows the last character when the line wraps.
-        prompt: gtk::Label,
-        /// The line that the user types, between the prompt and the cursor.
-        typed: String,
+        /// The prompt with the cursor that fades in and out while no line types.
+        prompt: gtk::Box,
+        /// The prompt and the line that the user types. While the user types, the cursor is the last
+        /// character of this label, so that it follows the line when the line wraps.
+        typed: gtk::Label,
+        /// The cursor while the user does not type.
+        cursor: gtk::Label,
         /// True while the overlay has the keyboard.
         input: bool,
         opened: Instant,
@@ -341,7 +343,7 @@ mod platform {
             let terminal = gtk::Box::new(gtk::Orientation::Vertical, 2);
             let lines = gtk::Box::new(gtk::Orientation::Vertical, 2);
             let query = gtk::Box::new(gtk::Orientation::Vertical, 2);
-            let prompt = prompt(align);
+            let (prompt, typed, cursor) = prompt(align);
             window.connect_key_press_event(|_, event| {
                 if let Some(key) = key_of(event) {
                     super::key(key);
@@ -370,7 +372,8 @@ mod platform {
                 lines,
                 query,
                 prompt,
-                typed: String::new(),
+                typed,
+                cursor,
                 input: false,
                 opened: Instant::now(),
                 style,
@@ -430,8 +433,12 @@ mod platform {
         /// Shows the typed line at the prompt, or no line when `None`.
         pub fn render_input(&mut self, text: Option<&str>) {
             self.input = text.is_some();
-            self.prompt.set_max_width_chars(self.max_chars);
-            text.unwrap_or_default().clone_into(&mut self.typed);
+            self.typed.set_max_width_chars(self.max_chars);
+            self.typed.set_text(&match text {
+                Some(text) => format!("{}{text}{CURSOR}", lines::PROMPT),
+                None => lines::PROMPT.to_owned(),
+            });
+            self.cursor.set_visible(!self.input);
             self.animate();
             self.window.resize(1, 1);
         }
@@ -528,22 +535,8 @@ mod platform {
             if resized {
                 self.window.resize(1, 1);
             }
-            let opacity = if self.input {
-                1.0
-            } else if !typing {
-                lines::cursor_opacity(self.opened.elapsed())
-            } else {
-                return;
-            };
-            // Pango reads an alpha of 0 as no alpha, thus the lowest alpha is 1 of 65535.
-            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-            let alpha = ((opacity * 65535.0).round() as u16).max(1);
-            let markup = format!(
-                "{}<span alpha=\"{alpha}\">{CURSOR}</span>",
-                glib::markup_escape_text(&format!("{}{}", lines::PROMPT, self.typed))
-            );
-            if self.prompt.label() != markup {
-                self.prompt.set_markup(&markup);
+            if !self.input && !typing {
+                self.cursor.set_opacity(lines::cursor_opacity(self.opened.elapsed()));
             }
         }
 
@@ -615,14 +608,18 @@ mod platform {
         }
     }
 
-    /// The label of the prompt. [`View::animate`] sets its text.
-    fn prompt(align: gtk::Align) -> gtk::Label {
-        let prompt = gtk::Label::new(None);
+    /// The prompt: its box, the label of the typed line, and the label of the cursor.
+    fn prompt(align: gtk::Align) -> (gtk::Box, gtk::Label, gtk::Label) {
+        let prompt = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         prompt.set_halign(align);
-        prompt.set_xalign(0.0);
-        prompt.set_line_wrap(true);
-        prompt.set_line_wrap_mode(pango::WrapMode::WordChar);
-        prompt
+        let typed = gtk::Label::new(Some(lines::PROMPT));
+        typed.set_xalign(0.0);
+        typed.set_line_wrap(true);
+        typed.set_line_wrap_mode(pango::WrapMode::WordChar);
+        let cursor = gtk::Label::new(Some(&CURSOR.to_string()));
+        prompt.add(&typed);
+        prompt.add(&cursor);
+        (prompt, typed, cursor)
     }
 
     /// The key of the typed line, or `None` for a key that the line does not use.
