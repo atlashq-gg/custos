@@ -65,24 +65,19 @@ fn from_x_server() -> Result<(Option<Rect>, Vec<Rect>), Box<dyn std::error::Erro
     let (conn, screen) = RustConnection::connect(None)?;
     let root = conn.setup().roots[screen].root;
 
-    let client_list = conn.intern_atom(true, b"_NET_CLIENT_LIST")?.reply()?.atom;
-    let windows = conn
-        .get_property(false, root, client_list, AtomEnum::WINDOW, 0, u32::MAX)?
-        .reply()?;
-    let mut game = None;
-    for window in windows.value32().into_iter().flatten() {
-        if is_game(&conn, window)? {
+    let game = match game_window(&conn, root)? {
+        Some(window) => {
             let geometry = conn.get_geometry(window)?.reply()?;
             let origin = conn.translate_coordinates(window, root, 0, 0)?.reply()?;
-            game = Some(Rect {
+            Some(Rect {
                 x: origin.dst_x.into(),
                 y: origin.dst_y.into(),
                 width: geometry.width.into(),
                 height: geometry.height.into(),
-            });
-            break;
+            })
         }
-    }
+        None => None,
+    };
 
     let monitors = conn
         .randr_get_monitors(root, true)?
@@ -101,6 +96,46 @@ fn from_x_server() -> Result<(Option<Rect>, Vec<Rect>), Box<dyn std::error::Erro
 
 /// True when the class of the window is the class that Proton gives to Foxhole, or the name of the
 /// executable.
+/// The X11 window of Foxhole in the window list of the window manager.
+fn game_window(conn: &RustConnection, root: Window) -> Result<Option<Window>, Box<dyn std::error::Error>> {
+    let client_list = conn.intern_atom(true, b"_NET_CLIENT_LIST")?.reply()?.atom;
+    let windows = conn
+        .get_property(false, root, client_list, AtomEnum::WINDOW, 0, u32::MAX)?
+        .reply()?;
+    for window in windows.value32().into_iter().flatten() {
+        if is_game(conn, window)? {
+            return Ok(Some(window));
+        }
+    }
+    Ok(None)
+}
+
+/// Asks the window manager to give the keyboard to the window of Foxhole, after the overlay gave the
+/// keyboard back. A compositor does not always give it back to the window that had it. The request
+/// says that it comes from a pager, so that the prevention of focus stealing does not refuse it.
+/// Returns false when Custos cannot find the window.
+pub fn activate_game() -> Result<bool, Box<dyn std::error::Error>> {
+    use x11rb::protocol::xproto::{ClientMessageEvent, EventMask};
+
+    /// The source indication of a pager in `_NET_ACTIVE_WINDOW` (EWMH).
+    const PAGER: u32 = 2;
+    let (conn, screen) = RustConnection::connect(None)?;
+    let root = conn.setup().roots[screen].root;
+    let Some(window) = game_window(&conn, root)? else {
+        return Ok(false);
+    };
+    let active = conn.intern_atom(false, b"_NET_ACTIVE_WINDOW")?.reply()?.atom;
+    let event = ClientMessageEvent::new(32, window, active, [PAGER, x11rb::CURRENT_TIME, 0, 0, 0]);
+    conn.send_event(
+        false,
+        root,
+        EventMask::SUBSTRUCTURE_REDIRECT | EventMask::SUBSTRUCTURE_NOTIFY,
+        event,
+    )?;
+    conn.flush()?;
+    Ok(true)
+}
+
 fn is_game(conn: &RustConnection, window: Window) -> Result<bool, Box<dyn std::error::Error>> {
     let class = conn
         .get_property(false, window, AtomEnum::WM_CLASS, AtomEnum::STRING, 0, 256)?

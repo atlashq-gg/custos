@@ -250,6 +250,8 @@ mod platform {
     const CSS: &str = include_str!("../dist/overlay.css");
     /// The block cursor at the end of a line that types, and at the prompt while no line types.
     const CURSOR: char = '\u{2588}';
+    /// The wait before Custos gives the keyboard back to the game, after the overlay released it.
+    const GIVE_BACK: std::time::Duration = std::time::Duration::from_millis(50);
 
     pub struct View {
         window: gtk::Window,
@@ -410,6 +412,15 @@ mod platform {
                 if take {
                     self.window.present_with_time(gtk::current_event_time());
                 }
+            }
+            if !take {
+                // The compositor applies the new mode at the next commit of the surface. After it,
+                // the game gets the keyboard again.
+                glib::timeout_add_local_once(GIVE_BACK, || match screen::activate_game() {
+                    Ok(true) => tracing::debug!("gave the keyboard back to Foxhole"),
+                    Ok(false) => tracing::debug!("cannot find the window of Foxhole to give it the keyboard"),
+                    Err(e) => tracing::debug!("cannot give the keyboard back to Foxhole: {e}"),
+                });
             }
         }
 
