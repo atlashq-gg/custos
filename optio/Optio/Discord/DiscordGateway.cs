@@ -35,8 +35,10 @@ internal sealed partial class DiscordGateway : IHostedService, IDisposable
             new GatewayClientConfiguration
             {
                 Intents = GatewayIntents.Guilds | GatewayIntents.GuildUsers,
+                Logger = new GatewayLogger(logger),
             }
         );
+        Client.RateLimited += OnRateLimited;
         if (!commands)
             return;
 
@@ -92,6 +94,19 @@ internal sealed partial class DiscordGateway : IHostedService, IDisposable
         }
     }
 
+    /// <summary>Discord answers a rate-limited request with this event only. For a member request,
+    /// a stream then waits until its timeout.</summary>
+    private ValueTask OnRateLimited(RateLimitedEventArgs args)
+    {
+        LogRateLimited(
+            _logger,
+            args.Opcode,
+            (args.Metadata as RequestGuildUsersRateLimitMetadata)?.GuildId,
+            args.RetryAfter
+        );
+        return default;
+    }
+
     private async ValueTask HandleAsync(Interaction interaction)
     {
         await using var scope = _scopes.CreateAsyncScope();
@@ -135,6 +150,18 @@ internal sealed partial class DiscordGateway : IHostedService, IDisposable
 
     [LoggerMessage(Level = LogLevel.Error, Message = "The commands of Optio were not registered")]
     private static partial void LogRegisterFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Discord rate limited the gateway request {Opcode} of guild {GuildId}. "
+            + "Retry after {RetryAfter} s"
+    )]
+    private static partial void LogRateLimited(
+        ILogger logger,
+        GatewayOpcode opcode,
+        ulong? guildId,
+        double retryAfter
+    );
 
     [LoggerMessage(Level = LogLevel.Error, Message = "A command of Optio failed")]
     private static partial void LogCommandFailed(ILogger logger, Exception exception);
