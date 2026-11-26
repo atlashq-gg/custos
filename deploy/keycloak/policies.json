@@ -2,18 +2,30 @@
   "policies": [
     {
       "name": "custos-cimd",
-      "description": "Clients whose ID is the URL of the metadata document on Optio.",
+      "description": "Clients whose ID is the URL of a metadata document on the host of Optio or of a harness.",
       "enabled": true,
       "conditions": [
         {
           "condition": "client-id-uri",
           "configuration": {
             "client-id-uri-scheme": ["https"],
-            "client-id-uri-allow-permitted-domains": ["custos.example.com"]
+            "client-id-uri-allow-permitted-domains": ["custos.example.com", "claude.ai"]
           }
         }
       ],
       "profiles": ["custos-cimd"]
+    },
+    {
+      "name": "custos-pkce",
+      "description": "Each client uses PKCE with S256, also a client that a harness registers.",
+      "enabled": true,
+      "conditions": [
+        {
+          "condition": "any-client",
+          "configuration": {}
+        }
+      ],
+      "profiles": ["custos-pkce"]
     }
   ]
 }
