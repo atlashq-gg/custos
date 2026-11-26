@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+The query: a question to the service in plain language.
+
+- Custos reads `query_endpoint` of the discovery document, and implements the query of `spec/06-query.md`. It ignores the query of a service without a stream.
+- A key opens the input window: `Ctrl+Alt+K` by default, `key` in the new table `[query]`. On Linux, Custos asks the desktop for the key through the `GlobalShortcuts` portal. KDE Plasma 6 and GNOME 48 or later have the portal, and Sway does not. On Windows, the key is a hot key. The tray menu item **Ask a question** also opens the window.
+- In the input window, Enter sends the question and gives the keyboard back to the game. `/new <question>` starts a new conversation, and `/stop` stops the open question. While a question of the service waits and the entry is empty, `Y` accepts the change and `N` refuses it.
+- The overlay shows the question and its state in its own area, at the edge of the anchor. The events do not move it. After the deadline of a state, Custos shows that the service is not in contact.
+- The answer stays in the overlay until the next question, for `answer_seconds` at most (default 180). The input window shows the last answer in full.
+- Without the overlay and the input window, a question of the service and the end of a query show as desktop notifications.
+
 ## 0.3.0-alpha.1
 
 The stream of the service, and messages with more than one line. A pre-release.

@@ -14,6 +14,8 @@ use crate::sse;
 
 /// The most characters of a text that Custos shows.
 pub const MAX_TEXT: usize = 500;
+/// The most characters of the text of a query message (spec/06-query.md).
+pub const MAX_QUERY_TEXT: usize = 2000;
 /// The longest time with no byte from the service. The service sends a comment at least each 30
 /// seconds, so a connection that is silent for longer is dead.
 pub const READ_TIMEOUT: Duration = Duration::from_secs(45);
@@ -24,7 +26,14 @@ pub struct Message {
     pub kind: String,
     pub text: Option<String>,
     pub reference: Option<String>,
+    /// The state of a query message.
+    pub state: Option<String>,
+    pub deadline: Option<String>,
+    pub cause: Option<String>,
 }
+
+/// The kind of a message of a query.
+pub const QUERY: &str = "query";
 
 /// What a message does to the lines of the overlay.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,10 +45,29 @@ pub enum Action {
 }
 
 impl Message {
+    /// The update of a query message. `None` for another kind, and for a query message that is not
+    /// valid or that has a state that Custos does not know.
+    #[must_use]
+    pub fn query_update(&self) -> Option<crate::query::Update> {
+        if self.kind != QUERY {
+            return None;
+        }
+        crate::query::Update::new(
+            self.reference.clone()?,
+            self.state.as_deref()?,
+            self.text.clone(),
+            self.deadline.as_deref(),
+            self.cause.as_deref(),
+        )
+    }
+
     /// The action of the message. A message of a kind that Custos does not know is an event. A
-    /// message with no text and no reference does nothing.
+    /// message with no text and no reference does nothing, and a query message is not a line.
     #[must_use]
     pub fn action(self, service_name: &str) -> Option<Action> {
+        if self.kind == QUERY {
+            return None;
+        }
         let reference = self.reference.map(Reference::Service);
         match self.text {
             Some(text) => Some(Action::Show(Notification {

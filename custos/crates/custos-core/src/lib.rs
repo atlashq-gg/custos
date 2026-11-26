@@ -11,9 +11,11 @@ pub mod layout;
 pub mod lines;
 pub mod locate;
 pub mod process;
+pub mod query;
 pub mod schedule;
 #[cfg(target_os = "linux")]
 pub mod screen;
+pub mod shortcut;
 pub mod sse;
 pub mod stream;
 pub mod upload;

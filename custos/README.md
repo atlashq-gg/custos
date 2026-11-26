@@ -14,6 +14,7 @@ Custos is a tray application for Linux and Windows. It watches the map data file
 - If the service has a stream, Custos keeps it open while Foxhole runs, the user is signed in, and Custos is not paused. The stream gives the events of the service, for example a change of a stockpile. Custos shows each event in the overlay.
 - Custos keeps the position of the stream in memory. When it connects again, the service sends the events that Custos did not get. After a restart of Custos, the stream starts from now.
 - Custos gets a new access token before the old one expires. A network error does not sign the user out.
+- If the service has a query, a key opens an input window. The user asks a question in plain language, and the overlay shows the progress and the answer. Before the service changes data, the user must accept the change.
 
 ## Requirements
 
@@ -21,6 +22,7 @@ Custos is a tray application for Linux and Windows. It watches the map data file
 - A Secret Service for the tokens, for example GNOME Keyring or KWallet.
 - Foxhole in Steam with Proton.
 - For the overlay: a Wayland desktop with the layer-shell protocol, for example KDE Plasma 6 or Sway, or GNOME through XWayland.
+- For the key of the query: a desktop with the `GlobalShortcuts` portal, for example KDE Plasma 6 or GNOME 48 or later. Sway does not have it. Without it, use **Ask a question** in the tray menu.
 
 On Windows:
 
@@ -83,6 +85,13 @@ offset = 28
 messages = 6
 # The most lines of text that the overlay shows, from 1 to 30. Default: 12.
 lines = 12
+
+# Optional. The query, if the service has one.
+[query]
+# The key that opens the input window. It needs Ctrl, Alt, or Super. Default: "Ctrl+Alt+K".
+key = "Ctrl+Alt+K"
+# The time that the answer stays in the overlay, in seconds, from 1 to 3600. Default: 180.
+answer_seconds = 180
 ```
 
 On Windows, the template has no `steam_root`, and the default `save_dir` is `%LOCALAPPDATA%\Foxhole\Saved\SaveGames`. Write a Windows path in single quotes, so that TOML reads the backslashes as text:
@@ -123,6 +132,43 @@ The overlay needs the layer-shell protocol of Wayland. GNOME does not have it. T
 
 On Windows, the overlay is a transparent webview window above the other windows, with the page in `crates/custos-app/dist/overlay.html`. In Foxhole, select the mode "Windowed Fullscreen" or a windowed mode. A window cannot show above a game in exclusive fullscreen. Nobody tested the overlay on Windows with the game.
 
+## Query
+
+If the discovery document of the service has `query_endpoint`, the user can ask the service a question in plain language ([spec/06-query.md](../spec/06-query.md)). The service answers on its stream. Thus the query needs the stream: Custos shows the answer only while Foxhole runs, the user is signed in, and Custos is not paused.
+
+1. Push the key, `Ctrl+Alt+K` by default. The input window opens above the game, and takes the keyboard.
+2. Type the question, and push Enter. The window closes, and the game gets the keyboard back.
+3. Read the progress and the answer in the overlay.
+
+In the input window:
+
+| Input | Result |
+|---|---|
+| Enter | Sends the question. A new question replaces the open question. |
+| `/new <question>` | Sends the question with no context from the earlier questions. |
+| `/stop` | Stops the open question. |
+| `Y`, with an empty entry | Accepts the change that the service asks about. |
+| `N`, with an empty entry | Refuses the change. |
+| Escape, or a click outside the window | Closes the window. |
+
+The window also shows the last question and its full answer, and a help line.
+
+The overlay shows the question and its state in its own area, at the edge of the anchor. The lines of the events do not move it. The states are:
+
+- `Sent`: Custos sent the question, and waits for the response.
+- `Working`: the service works on the question. The line names the current step.
+- A question of the service, for example `Set Label? "Main Depot"`, with the remaining time. Open the input window, and push `Y` or `N`. With no decision, the question expires.
+- `Applying the change`: the service changes the data. The user cannot stop it.
+- The answer, or the cause of the end. An end with an error is red.
+
+Each state has a deadline. If the service sends nothing before it, the overlay shows `No contact with the service`.
+
+The answer stays in the overlay until the next question, for `answer_seconds` at most. The overlay shows at most `lines` lines of it, and then tells the user to open the input window for the full text. Without the overlay and the input window, a question of the service and the end of a query show as desktop notifications.
+
+On Linux, Custos asks the desktop for the key through the `GlobalShortcuts` portal when it starts. The desktop can ask the user to confirm the key. The desktop keeps the key, so a later change of `key` has no effect: change the key in the settings of the desktop. On KDE Plasma, it is in **System Settings**, **Keyboard**, **Shortcuts**. On Windows, Custos uses `key` as a hot key of Windows, and applies a change at once. If another application has the key, Custos writes a warning to the log.
+
+On KDE Plasma and Sway, the input window is on the overlay layer of the layer-shell protocol. On GNOME, it is an X11 window above the other windows. Nobody tested the input window with the game yet.
+
 ## Notifications
 
 Custos shows these messages in the overlay while it is open, and as desktop notifications at other times.
@@ -137,6 +183,7 @@ Custos shows these messages in the overlay while it is open, and as desktop noti
 | An event of the service | A message on the stream of the service, for example a change of a stockpile. The title is the name of the service. A message of the kind `error` shows as an error. |
 | The events of … are not available | Custos cannot open the stream two times in a row. The text gives the cause. Custos tries again after a wait of 1 second, doubled after each failure, to 60 seconds at most. When the stream opens, the message goes. |
 | … sends no events to this user | The service refused the stream for this user. Custos tries again after the next sign-in. |
+| A question or an answer | A question of the service that waits for a decision, or the end of a query. Only while the overlay and the input window are not open. The title is the question of the user. |
 
 Custos shows the same error at most one time in 15 minutes.
 

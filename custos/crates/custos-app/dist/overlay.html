@@ -1,5 +1,6 @@
 <!doctype html>
-<!-- The overlay on Windows. Custos calls render() in overlay.js with the lines of the stream. -->
+<!-- The overlay on Windows. Custos calls render() in overlay.js with the lines of the stream, and
+     renderQuery() with the lines of the query. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -9,6 +10,7 @@
 <script src="overlay.js" defer></script>
 </head>
 <body id="custos-overlay">
+<div id="query"></div>
 <div id="lines"></div>
 <label id="prompt">&gt; <span class="cursor">&#x2588;</span></label>
 </body>

@@ -46,6 +46,8 @@ pub enum Kind {
     TokenStore,
     /// Custos cannot get the stream of the service.
     Stream,
+    /// Custos cannot send a question or an action of the query.
+    Query,
 }
 
 /// The reference of a message. A message with the reference of a kept message replaces it.

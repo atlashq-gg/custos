@@ -6,6 +6,9 @@
 //! Windows, the window is a transparent webview with the page `dist/overlay.html`. The two use the
 //! style in `dist/overlay.css`.
 //!
+//! The lines of the query (see [`crate::ask`]) have their own area at the edge of the anchor, so that
+//! the lines of the events do not move them.
+//!
 //! Call each function on the main thread.
 
 use std::cell::RefCell;
@@ -13,6 +16,7 @@ use std::time::Instant;
 
 use custos_core::config::Overlay as Settings;
 use custos_core::lines::{Lines, Notification, Reference};
+use custos_core::query::Line;
 use tauri::AppHandle;
 
 /// The number of seconds between two searches for the monitor of the game.
@@ -21,6 +25,9 @@ const PLACE_INTERVAL: u32 = 5;
 struct Overlay {
     view: platform::View,
     lines: Lines,
+    /// The lines of the query that show.
+    query: Vec<Line>,
+    settings: Settings,
     /// The number of seconds since the overlay opened.
     seconds: u32,
 }
@@ -37,9 +44,12 @@ pub fn open(app: &AppHandle, settings: Settings) -> Result<(), String> {
         *overlay = Some(Overlay {
             view,
             lines: Lines::new(settings.into()),
+            query: Vec::new(),
+            settings,
             seconds: 0,
         });
     });
+    render_query();
     Ok(())
 }
 
@@ -71,8 +81,23 @@ pub fn expire(reference: &Reference) {
     });
 }
 
-/// Call once each second: removes the stale messages, and searches for the monitor of the game.
+/// Shows the current lines of the query. Returns false when the overlay is not open.
+pub fn render_query() -> bool {
+    OVERLAY.with_borrow_mut(|overlay| {
+        let Some(overlay) = overlay else { return false };
+        let query = crate::ask::overlay_lines(usize::from(overlay.settings.lines));
+        if query != overlay.query {
+            overlay.view.render_query(&query);
+            overlay.query = query;
+        }
+        true
+    })
+}
+
+/// Call once each second: removes the stale messages, searches for the monitor of the game, and
+/// updates the remaining time of the query.
 fn tick() {
+    render_query();
     with(|overlay| {
         overlay.seconds += 1;
         let moved = overlay.seconds % PLACE_INTERVAL == 0 && overlay.view.place();
@@ -96,6 +121,7 @@ mod platform {
 
     use custos_core::layout::{self, MARGIN, Rect, SIDE_MARGIN};
     use custos_core::lines::{self, Lines, Row};
+    use custos_core::query::Line;
     use custos_core::screen;
     use gtk::prelude::*;
     use gtk::{cairo, gdk, glib, pango};
@@ -116,6 +142,8 @@ mod platform {
         /// True for a layer surface, false for an X11 window.
         layer_shell: bool,
         lines: gtk::Box,
+        /// The area of the query, at the edge of the anchor.
+        query: gtk::Box,
         /// The prompt with the cursor that fades in and out while no line types.
         prompt: gtk::Box,
         cursor: gtk::Label,
@@ -188,13 +216,20 @@ mod platform {
             };
             let terminal = gtk::Box::new(gtk::Orientation::Vertical, 2);
             let lines = gtk::Box::new(gtk::Orientation::Vertical, 2);
+            let query = gtk::Box::new(gtk::Orientation::Vertical, 2);
             let prompt = gtk::Box::new(gtk::Orientation::Horizontal, 0);
             prompt.set_halign(align);
             let cursor = gtk::Label::new(Some(&CURSOR.to_string()));
             prompt.add(&gtk::Label::new(Some(lines::PROMPT)));
             prompt.add(&cursor);
+            if anchor.is_top() {
+                terminal.add(&query);
+            }
             terminal.add(&lines);
             terminal.add(&prompt);
+            if !anchor.is_top() {
+                terminal.add(&query);
+            }
             window.add(&terminal);
 
             let ticker = glib::timeout_add_seconds_local(1, || {
@@ -207,6 +242,7 @@ mod platform {
                 window,
                 layer_shell,
                 lines,
+                query,
                 prompt,
                 cursor,
                 opened: Instant::now(),
@@ -238,32 +274,52 @@ mod platform {
             self.window.close();
         }
 
+        /// Shows the lines of the query in their area. They do not type.
+        pub fn render_query(&mut self, lines: &[Line]) {
+            for child in self.query.children() {
+                self.query.remove(&child);
+            }
+            for line in lines {
+                let text = format!("{}{}", line.prompt, line.text);
+                let label = self.label(text.chars().count(), line.is_error);
+                label.set_text(&text);
+                self.query.add(&label);
+            }
+            self.query.show_all();
+            self.window.resize(1, 1);
+        }
+
+        /// A label for a line of `chars` characters, with the alignment and the wrap of the overlay.
+        fn label(&self, chars: usize, is_error: bool) -> gtk::Label {
+            let label = gtk::Label::new(None);
+            label.set_halign(if self.settings.anchor.is_left() {
+                gtk::Align::Start
+            } else {
+                gtk::Align::End
+            });
+            label.set_xalign(0.0);
+            label.set_line_wrap(true);
+            // The window gets its minimum size, and the minimum width of a wrapping label is its
+            // longest word. Thus the minimum width is the full line with the cursor, up to the limit.
+            // The width does not change while the line types.
+            let chars = i32::try_from(chars + 1).unwrap_or(i32::MAX);
+            label.set_width_chars(chars.min(self.max_chars));
+            label.set_max_width_chars(self.max_chars);
+            if is_error {
+                // Not the class "error": a GTK theme can give it a background.
+                label.style_context().add_class("custos-error");
+            }
+            label
+        }
+
         /// Shows the lines above the prompt.
         pub fn render(&mut self, lines: &Lines) {
             for child in self.lines.children() {
                 self.lines.remove(&child);
             }
-            let align = if self.settings.anchor.is_left() {
-                gtk::Align::Start
-            } else {
-                gtk::Align::End
-            };
             self.labels.clear();
             for row in lines.rows(Instant::now()) {
-                let label = gtk::Label::new(None);
-                label.set_halign(align);
-                label.set_xalign(0.0);
-                label.set_line_wrap(true);
-                // The window gets its minimum size, and the minimum width of a wrapping label is its
-                // longest word. Thus the minimum width is the full line with the cursor, up to the limit.
-                // The width does not change while the line types.
-                let chars = i32::try_from(row.prompt.len() + row.text.chars().count() + 1).unwrap_or(i32::MAX);
-                label.set_width_chars(chars.min(self.max_chars));
-                label.set_max_width_chars(self.max_chars);
-                if row.is_error {
-                    // Not the class "error": a GTK theme can give it a background.
-                    label.style_context().add_class("custos-error");
-                }
+                let label = self.label(row.prompt.len() + row.text.chars().count(), row.is_error);
                 // The line shows from its start (see `animate`).
                 label.set_visible(false);
                 self.lines.add(&label);
@@ -409,6 +465,7 @@ mod platform {
 
     use custos_core::layout::{self, Rect};
     use custos_core::lines::{self, Lines};
+    use custos_core::query::Line;
     use serde_json::json;
     use tauri::webview::PageLoadEvent;
     use tauri::{AppHandle, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
@@ -519,6 +576,17 @@ mod platform {
             }
         }
 
+        /// Gives the lines of the query to the page, which shows them in their area.
+        pub fn render_query(&mut self, lines: &[Line]) {
+            let rows: Vec<_> = lines
+                .iter()
+                .map(|line| json!({"prompt": line.prompt, "text": line.text, "error": line.is_error}))
+                .collect();
+            if let Err(e) = self.window.eval(format!("renderQuery({})", json!(rows))) {
+                tracing::warn!("cannot show the query in the overlay: {e}");
+            }
+        }
+
         /// Puts the window on the primary monitor. Custos cannot find the game window on Windows with a
         /// safe API. Returns true when the monitor changed.
         pub fn place(&mut self) -> bool {
@@ -558,6 +626,7 @@ mod platform {
     fn show() {
         super::with(|overlay| {
             overlay.view.render(&overlay.lines);
+            overlay.view.render_query(&overlay.query);
             if let Err(e) = overlay.view.window.show() {
                 tracing::warn!("cannot show the overlay: {e}");
             }

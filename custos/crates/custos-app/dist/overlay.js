@@ -59,3 +59,17 @@ function type(now) {
     prompt.hidden = typing;
     frame = typing || waiting ? requestAnimationFrame(type) : 0;
 }
+
+// Shows the lines of the query in their area. They do not type. Custos calls it (overlay.rs).
+function renderQuery(rows) {
+    document.getElementById("query").replaceChildren(
+        ...rows.map((row) => {
+            const label = document.createElement("label");
+            if (row.error) {
+                label.className = "custos-error";
+            }
+            label.textContent = row.prompt + row.text;
+            return label;
+        }),
+    );
+}

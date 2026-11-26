@@ -60,6 +60,15 @@ pub const TEMPLATE: &str = concat!(
 # limit applies. An older line is hidden, and it comes back when a newer message goes.
 # messages = 6
 # lines = 12
+
+# The query: a question to the service in plain language, if the service has a query.
+# [query]
+# The key that opens the input window. The desktop can ask you to confirm it, and its settings can
+# change it later.
+# key = "Ctrl+Alt+K"
+# The time that the answer stays in the overlay, in seconds, from 1 to 3600. A new question replaces
+# it before that time.
+# answer_seconds = 180
 "#
 );
 
@@ -74,6 +83,43 @@ pub struct Config {
     pub steam_root: Option<PathBuf>,
     #[serde(default)]
     pub overlay: Overlay,
+    #[serde(default)]
+    pub query: Query,
+}
+
+/// The `[query]` table.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Query {
+    /// The key that opens the input window, for example `Ctrl+Alt+K`.
+    pub key: String,
+    /// The time that the answer stays in the overlay, in seconds.
+    pub answer_seconds: u16,
+}
+
+/// The largest value of [`Query::answer_seconds`].
+pub const MAX_ANSWER_SECONDS: u16 = 3600;
+
+impl Default for Query {
+    fn default() -> Self {
+        Self {
+            key: "Ctrl+Alt+K".into(),
+            answer_seconds: 180,
+        }
+    }
+}
+
+impl Query {
+    /// The key. [`load`] makes sure that it is valid.
+    #[must_use]
+    pub fn shortcut(&self) -> crate::shortcut::Shortcut {
+        crate::shortcut::Shortcut::parse(&self.key).unwrap_or_default()
+    }
+
+    #[must_use]
+    pub fn answer_lifetime(&self) -> Duration {
+        Duration::from_secs(u64::from(self.answer_seconds))
+    }
 }
 
 /// The `[overlay]` table.
@@ -151,6 +197,10 @@ pub enum ConfigError {
     OverlayOffset(u8),
     #[error("overlay.{0} must be from 1 to {MAX_OVERLAY_LIMIT}: {1}")]
     OverlayLimit(&'static str, u8),
+    #[error("query.key is {0}")]
+    QueryKey(String),
+    #[error("query.answer_seconds must be from 1 to {MAX_ANSWER_SECONDS}: {0}")]
+    AnswerSeconds(u16),
     #[error("cannot find the configuration folder of this user")]
     NoConfigDir,
 }
@@ -242,6 +292,15 @@ fn parse(text: &str) -> Result<Config, ParseError> {
         if !(1..=MAX_OVERLAY_LIMIT).contains(&value) {
             return Err(ParseError::Rule(ConfigError::OverlayLimit(name, value)));
         }
+    }
+
+    if let Err(e) = crate::shortcut::Shortcut::parse(&config.query.key) {
+        return Err(ParseError::Rule(ConfigError::QueryKey(e)));
+    }
+    if !(1..=MAX_ANSWER_SECONDS).contains(&config.query.answer_seconds) {
+        return Err(ParseError::Rule(ConfigError::AnswerSeconds(
+            config.query.answer_seconds,
+        )));
     }
 
     Ok(config)
@@ -377,6 +436,23 @@ mod tests {
             })
             .collect();
         assert!(parse(&text.join("\n")).is_ok());
+    }
+
+    #[test]
+    fn query_table_is_read_and_checked() {
+        let Ok(config) = parse("service_url = \"https://example.com\"\n[query]\nkey = \"alt+super+q\"") else {
+            panic!()
+        };
+        assert_eq!(config.query.shortcut().to_string(), "Alt+Super+Q");
+        assert_eq!(config.query.answer_lifetime(), Duration::from_secs(180));
+        assert!(matches!(
+            parse("service_url = \"https://example.com\"\n[query]\nkey = \"Q\""),
+            Err(ParseError::Rule(ConfigError::QueryKey(_)))
+        ));
+        assert!(matches!(
+            parse("service_url = \"https://example.com\"\n[query]\nanswer_seconds = 0"),
+            Err(ParseError::Rule(ConfigError::AnswerSeconds(0)))
+        ));
     }
 
     #[test]

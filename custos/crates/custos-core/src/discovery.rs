@@ -22,6 +22,9 @@ pub struct Discovery {
     pub scopes: Vec<String>,
     /// The stream of spec/05-stream.md. A service without it has no stream.
     pub stream_endpoint: Option<Url>,
+    /// The query of spec/06-query.md. Use [`Discovery::query_endpoint`].
+    #[serde(rename = "query_endpoint")]
+    query: Option<Url>,
 }
 
 /// The members of the metadata of the authorization server that Custos uses.
@@ -64,6 +67,12 @@ impl Discovery {
             .copied()
     }
 
+    /// The endpoint of the query. A service without a stream has no query.
+    #[must_use]
+    pub fn query_endpoint(&self) -> Option<&Url> {
+        self.stream_endpoint.as_ref().and(self.query.as_ref())
+    }
+
     fn validate(self) -> Result<Self, DiscoveryError> {
         if self.selected_version().is_none() {
             return Err(DiscoveryError::NoCommonVersion {
@@ -73,7 +82,8 @@ impl Discovery {
         require_allowed(
             [&self.upload_endpoint, &self.openid_configuration]
                 .into_iter()
-                .chain(self.stream_endpoint.as_ref()),
+                .chain(self.stream_endpoint.as_ref())
+                .chain(self.query.as_ref()),
         )?;
         Ok(self)
     }
@@ -284,6 +294,27 @@ pub(crate) mod tests {
             |_| {},
         )
         .await;
+        assert!(matches!(fetch_from(&server).await, Err(DiscoveryError::Insecure(_))));
+    }
+
+    #[tokio::test]
+    async fn query_endpoint_needs_the_stream_and_must_be_secure() {
+        let query = "https://example.com/api/v1/query";
+        let server = mock_service(|d| d["query_endpoint"] = query.into(), |_| {}).await;
+        assert_eq!(fetch_from(&server).await.unwrap().discovery.query_endpoint(), None);
+
+        let server = mock_service(
+            |d| {
+                d["stream_endpoint"] = "https://example.com/api/v1/stream".into();
+                d["query_endpoint"] = query.into();
+            },
+            |_| {},
+        )
+        .await;
+        let service = fetch_from(&server).await.unwrap();
+        assert_eq!(service.discovery.query_endpoint().unwrap().as_str(), query);
+
+        let server = mock_service(|d| d["query_endpoint"] = "http://example.com/q".into(), |_| {}).await;
         assert!(matches!(fetch_from(&server).await, Err(DiscoveryError::Insecure(_))));
     }
 

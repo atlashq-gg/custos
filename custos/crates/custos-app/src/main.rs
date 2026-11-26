@@ -1,10 +1,12 @@
 //! The tray application of Custos: a tray menu, the overlay while Foxhole runs, desktop notifications,
-//! and the deep link `custos://oauth2callback` for the login. The work happens in
+//! the input window of the query, and the deep link `custos://oauth2callback` for the login. The work happens in
 //! [`custos_core::agent::Agent`].
 
 // A release build on Windows opens no console window.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod ask;
+mod input;
 mod overlay;
 
 use std::sync::Mutex;
@@ -32,6 +34,8 @@ struct Tray {
     agent: Mutex<Option<(mpsc::UnboundedSender<Command>, config::Config)>>,
     state: Mutex<Option<State>>,
     game_running: AtomicBool,
+    /// The key that opens the input window, after Custos asked the desktop for it.
+    key: Mutex<Option<String>>,
 }
 
 impl Tray {
@@ -66,11 +70,19 @@ fn main() {
 
     // The single-instance plugin is first: a second start, for example from the login link, gives its
     // arguments to the first instance, and the deep-link plugin reads the link from them.
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|_app, _argv, _cwd| {}))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_opener::init());
+    #[cfg(windows)]
+    let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
+    let app = builder
+        .invoke_handler(tauri::generate_handler![
+            input::commands::query_submit,
+            input::commands::query_decide,
+            input::commands::query_close
+        ])
         .setup(|app| {
             setup(app.handle(), loaded)?;
             Ok(())
@@ -126,6 +138,7 @@ fn setup(app: &AppHandle, loaded: Result<config::Config, config::ConfigError>) -
     let status = MenuItem::with_id(app, "status", "Starting", false, None::<&str>)?;
     let pause = MenuItem::with_id(app, "pause", "Pause", false, None::<&str>)?;
     let sign = MenuItem::with_id(app, "sign", "Sign in", false, None::<&str>)?;
+    let ask_item = MenuItem::with_id(app, "ask", "Ask a question", true, None::<&str>)?;
     let config_item = MenuItem::with_id(app, "config", "Open configuration", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(
@@ -135,6 +148,7 @@ fn setup(app: &AppHandle, loaded: Result<config::Config, config::ConfigError>) -
             &PredefinedMenuItem::separator(app)?,
             &pause,
             &sign,
+            &ask_item,
             &config_item,
             &PredefinedMenuItem::separator(app)?,
             &quit,
@@ -156,6 +170,7 @@ fn setup(app: &AppHandle, loaded: Result<config::Config, config::ConfigError>) -
         agent: Mutex::new(None),
         state: Mutex::new(None),
         game_running: AtomicBool::new(false),
+        key: Mutex::new(None),
     });
 
     match loaded {
@@ -225,11 +240,36 @@ fn apply(app: &AppHandle, config: config::Config) {
         }
     };
     tracing::info!("applied the configuration");
+    let query = config.query.clone();
     *agent = Some((commands, config));
     drop(agent);
 
+    apply_query(app, &query);
+
     if overlay_changed && let Err(e) = update_overlay(app, tray.game_running.load(Ordering::Relaxed)) {
         tracing::warn!("cannot update the overlay: {e}");
+    }
+}
+
+/// Applies the `[query]` table. Custos asks the desktop for the key one time: the desktop keeps the
+/// key, and its settings change it. On Windows, a new key replaces the old one at once.
+fn apply_query(app: &AppHandle, query: &config::Query) {
+    let key = query.shortcut();
+    let mut listening = app
+        .state::<Tray>()
+        .key
+        .lock()
+        .expect("the key lock is not poisoned")
+        .clone();
+    let changed = listening.as_deref() != Some(key.to_string().as_str());
+    if listening.is_none() || (cfg!(windows) && changed) {
+        ask::listen(app, &key);
+        listening = Some(key.to_string());
+        *app.state::<Tray>().key.lock().expect("the key lock is not poisoned") = listening;
+    }
+    let query = query.clone();
+    if let Err(e) = app.run_on_main_thread(move || ask::configure(&query)) {
+        tracing::warn!("cannot apply the query settings: {e}");
     }
 }
 
@@ -298,6 +338,17 @@ fn on_agent_event(app: &AppHandle, event: Event) -> tauri::Result<()> {
             })?;
         }
         Event::Expire(reference) => app.run_on_main_thread(move || overlay::expire(&reference))?,
+        // The query shows in the overlay and in the input window. When neither is open, a question or
+        // an end shows as a desktop notification.
+        Event::Query(query) => {
+            let app = app.clone();
+            let title = query.question.clone().unwrap_or_else(|| "Custos".into());
+            app.clone().run_on_main_thread(move || {
+                if let Some(body) = ask::set(&query) {
+                    notify(&app, &title, &body);
+                }
+            })?;
+        }
         Event::OpenUrl(url) => {
             if let Err(e) = app.opener().open_url(url.as_str(), None::<&str>) {
                 notify(
@@ -320,6 +371,7 @@ fn on_menu_event(app: &AppHandle, event: &tauri::menu::MenuEvent) {
         "pause" => tray.send(Command::Pause),
         "sign" if state == Some(State::SignedOut) => tray.send(Command::SignIn),
         "sign" => tray.send(Command::SignOut),
+        "ask" => input::open(app),
         "config" => match config::default_path() {
             Ok(path) => {
                 if let Err(e) = app.opener().open_path(path.to_string_lossy(), None::<&str>) {
