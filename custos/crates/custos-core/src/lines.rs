@@ -90,14 +90,17 @@ impl Notification {
         if self.is_error { ERROR_PROMPT } else { PROMPT }
     }
 
-    /// The text of the overlay: "title. body" for a message of Custos. The title of an error says
-    /// nothing, and a message of the service has only its text, so these show the body only.
+    /// The text of the overlay: "title. body" for a message of Custos, or the title alone when the
+    /// body is empty. The title of an error says nothing, and a message of the service has only its
+    /// text, so these show the body only.
     #[must_use]
     pub fn text(&self) -> String {
-        if !self.is_error && matches!(self.reference, Some(Reference::Local(_))) {
-            format!("{}. {}", self.title, self.body)
-        } else {
+        if self.is_error || !matches!(self.reference, Some(Reference::Local(_))) {
             self.body.clone()
+        } else if self.body.is_empty() {
+            self.title.clone()
+        } else {
+            format!("{}. {}", self.title, self.body)
         }
     }
 
@@ -419,6 +422,8 @@ mod tests {
         n.is_error = true;
         assert_eq!(n.text(), "Sent 8 KB.");
         assert_eq!(service(Some("s:1"), "Depot").text(), "Depot");
+        let short = local(Kind::Upload, "", false);
+        assert_eq!(short.text(), short.title);
     }
 
     #[test]

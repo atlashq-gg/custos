@@ -95,6 +95,8 @@ const REST_OF_TEMPLATE: &str = r#"
 # The time that the answer stays in the overlay, in seconds, from 1 to 3600. A new question replaces
 # it before that time.
 # answer_seconds = 180
+# Show the key and /help in the overlay, in amber.
+# hint = true
 "#;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -121,6 +123,8 @@ pub struct Query {
     pub key: String,
     /// The time that the answer stays in the overlay, in seconds.
     pub answer_seconds: u16,
+    /// True when the overlay shows the key and `/help`.
+    pub hint: bool,
 }
 
 /// The largest value of [`Query::answer_seconds`].
@@ -131,6 +135,7 @@ impl Default for Query {
         Self {
             key: "Ctrl+Alt+K".into(),
             answer_seconds: 180,
+            hint: true,
         }
     }
 }
