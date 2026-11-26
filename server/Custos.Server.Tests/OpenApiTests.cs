@@ -49,6 +49,24 @@ public sealed class OpenApiTests
         );
     }
 
+    [Test]
+    public async Task Reference_page_shows_the_OpenApi_document()
+    {
+        using var client = _factory.CreateClient();
+
+        using var response = await client.GetAsync("/docs");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.IsSuccessStatusCode, Is.True);
+            Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
+            Assert.That(
+                await response.Content.ReadAsStringAsync(),
+                Does.Contain("\"url\":\"openapi/v1.json\"")
+            );
+        }
+    }
+
     private async Task<JsonElement> GetJsonAsync(string path)
     {
         using var client = _factory.CreateClient();
