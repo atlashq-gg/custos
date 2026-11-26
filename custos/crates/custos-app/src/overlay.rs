@@ -266,8 +266,10 @@ mod platform {
         query: gtk::Box,
         /// The prompt with the cursor that fades in and out while no line types.
         prompt: gtk::Box,
-        /// The line that the user types, between the prompt and the cursor.
+        /// The prompt and the line that the user types. While the user types, the cursor is the last
+        /// character of this label, so that it follows the line when the line wraps.
         typed: gtk::Label,
+        /// The cursor while the user does not type.
         cursor: gtk::Label,
         /// True while the overlay has the keyboard.
         input: bool,
@@ -432,7 +434,11 @@ mod platform {
         pub fn render_input(&mut self, text: Option<&str>) {
             self.input = text.is_some();
             self.typed.set_max_width_chars(self.max_chars);
-            self.typed.set_text(text.unwrap_or_default());
+            self.typed.set_text(&match text {
+                Some(text) => format!("{}{text}{CURSOR}", lines::PROMPT),
+                None => lines::PROMPT.to_owned(),
+            });
+            self.cursor.set_visible(!self.input);
             self.animate();
             self.window.resize(1, 1);
         }
@@ -529,9 +535,7 @@ mod platform {
             if resized {
                 self.window.resize(1, 1);
             }
-            if self.input {
-                self.cursor.set_opacity(1.0);
-            } else if !typing {
+            if !self.input && !typing {
                 self.cursor.set_opacity(lines::cursor_opacity(self.opened.elapsed()));
             }
         }
@@ -608,12 +612,11 @@ mod platform {
     fn prompt(align: gtk::Align) -> (gtk::Box, gtk::Label, gtk::Label) {
         let prompt = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         prompt.set_halign(align);
-        let typed = gtk::Label::new(None);
+        let typed = gtk::Label::new(Some(lines::PROMPT));
         typed.set_xalign(0.0);
         typed.set_line_wrap(true);
         typed.set_line_wrap_mode(pango::WrapMode::WordChar);
         let cursor = gtk::Label::new(Some(&CURSOR.to_string()));
-        prompt.add(&gtk::Label::new(Some(lines::PROMPT)));
         prompt.add(&typed);
         prompt.add(&cursor);
         (prompt, typed, cursor)
