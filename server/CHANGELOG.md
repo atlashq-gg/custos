@@ -1,37 +1,25 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
-- At the level `debug`, the log shows each saved upload: its pinned items, the items of the current war, and the number of changed stockpiles. A change of a stockpile gives an event, so an upload with no change gives none. Turn it on with `Logging__LogLevel__Custos.Server.Storage.UploadStore=Debug`.
-
-## 0.3.0-alpha.2
-
-A pre-release, with the parts of the Server for the query.
-
-- The development realm moves to [deploy/keycloak/custos-realm.json](../deploy/keycloak/custos-realm.json), and the deployment guide to [deploy/README.md](../deploy/README.md). The tests read the realm and the NATS configuration from `deploy/`.
-- The options `Custos:ChangeTextMaxChanges` (default `5`) and `Custos:ChangeTextMaxLength` (default `500`, the largest permitted value) set the limits of the text of a stockpile event.
-- The MCP endpoint gives the card of the Server in `instructions`, and the title `Custos`. A harness with more than one service gives the card to its model.
-- A token with the read scope lists `set_structure_label` too, with its annotation `readOnlyHint` false. Its call still needs `custos:write`. Thus a harness knows the write tool before the user accepts a change.
-
-## 0.3.0-alpha.1
-
-A pre-release.
-
-The server is a domain service behind Optio ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). It publishes its stockpile changes to the event broker ([ADR 0007](../docs/adr/0007-a-broker-carries-domain-events.md)).
+The Server is a domain service behind Optio ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). It publishes its stockpile changes to the event broker ([ADR 0007](../docs/adr/0007-a-broker-carries-domain-events.md)), and serves the query of Optio through its MCP endpoint.
 
 - Removed: the discovery document, the Client ID Metadata Document of Custos, and the options `PublicBaseUrl`, `ServiceName`, `Scopes`, `OpenIdConfiguration`, and `ClientId`. Optio serves them now.
 - `Custos:Resource` replaces `Mcp:Resource`. The upload API and `/mcp` accept a token only with this audience. The upload API needs the scope `custos:write`, with no check of `azp`.
-- Events: after the commit of an upload, the server publishes one event `stockpile.changed` for each changed stockpile and each guild that can read it. It publishes to NATS JetStream with `ConnectionStrings:events`, below the subject `events.custos.`, as `optio/docs/producers.md` describes. The event holds the text for a person and the access policy of the guild. An upload does not wait for the broker. The counter `custos.events` counts the events by outcome.
-- The text of an event: the place, then at most 5 changes as the signed difference and the new total, for example `Rifle crates +20 (40)`, then `+N more`.
+- Events: after the commit of an upload, the Server publishes one event `stockpile.changed` for each changed stockpile and each guild that can read it. It publishes to NATS JetStream with `ConnectionStrings:events`, below the subject `events.custos.`, as `optio/docs/producers.md` describes. The event holds the text for a person and the access policy of the guild. An upload does not wait for the broker. The counter `custos.events` counts the events by outcome.
+- The text of an event: the place, then the changes as the signed difference and the new total, for example `Rifle crates +20 (40)`, then `+N more`. The options `Custos:ChangeTextMaxChanges` (default `5`) and `Custos:ChangeTextMaxLength` (default `500`, the largest permitted value) set its limits.
+- The MCP endpoint gives the card of the Server in `instructions`, and the title `Custos`. A harness with more than one service gives the card to its model.
+- A token with the read scope lists `set_structure_label` too, with its annotation `readOnlyHint` false. Its call still needs `custos:write`. Thus a harness knows the write tool before the user accepts a change.
+- At the level `debug`, the log shows each saved upload: its pinned items, the items of the current war, and the number of changed stockpiles. A change of a stockpile gives an event, so an upload with no change gives none. Turn it on with `Logging__LogLevel__Custos.Server.Storage.UploadStore=Debug`.
 - The OpenTelemetry service name is `Custos` when `OTEL_SERVICE_NAME` does not set one.
-- The realm file moves to `server/keycloak/custos-realm.json`. It has the client `optio` with the standard token exchange, and the optional scope `custos:client`. This change removes the AppHost of the server. The AppHost of Optio starts the full system.
+- The realm is [deploy/keycloak/custos-realm.json](../deploy/keycloak/custos-realm.json). It has the client `optio` with the standard token exchange, and the optional scope `custos:client`. The AppHost of the Server is gone. The AppHost of Optio starts the full system.
 
 For operators:
 
 - The client ID of Custos is now a URL of Optio, so each user logs in again.
 - `Custos__PublicBaseUrl` is gone. `Mcp__Resource` is now `Custos__Resource`.
 - The scope `custos-guild` must also be a default scope of the client `optio`.
-- [docs/deploy.md](../docs/deploy.md) deploys the full system, with the NATS broker.
+- [deploy/README.md](../deploy/README.md) deploys the full system with Docker Compose, with the NATS broker and Optio.
 
 ## 0.2.0
 
