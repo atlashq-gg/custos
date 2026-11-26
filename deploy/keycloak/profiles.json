@@ -2,13 +2,32 @@
   "profiles": [
     {
       "name": "custos-cimd",
-      "description": "Accepts the metadata document of Custos.",
+      "description": "Accepts the metadata document of Custos, and of a harness for the MCP endpoint of the Server.",
       "executors": [
         {
           "executor": "client-id-metadata-document",
           "configuration": {
             "cimd-allow-http-scheme": "false",
-            "cimd-allow-permitted-domains": ["custos.example.com", "oauth2callback"]
+            "cimd-allow-permitted-domains": [
+              "custos.example.com",
+              "oauth2callback",
+              "claude.ai",
+              "localhost",
+              "127.0.0.1"
+            ],
+            "cimd-resource-indicator-allow-list": ["https://records.example.com/mcp"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "custos-pkce",
+      "description": "PKCE with S256 for each client.",
+      "executors": [
+        {
+          "executor": "pkce-enforcer",
+          "configuration": {
+            "auto-configure": "true"
           }
         }
       ]

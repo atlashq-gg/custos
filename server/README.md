@@ -63,11 +63,11 @@ The section `Custos` in `appsettings.json` or environment variables (`Custos__Au
 
 The server is multi-tenant. A tenant is a Discord guild. The access token names the guild of the user in the claim `active_guild`, as the guild ID in a string. A custom authenticator in Keycloak lets the user choose the guild and sets the claim. That authenticator is not part of this repository.
 
-An upload without a valid `active_guild` gets `403`. In the environment `Development`, `DevelopmentGuildId` supplies the guild when the claim is absent. For production, see [The claim `active_guild`](../deploy/README.md#the-claim-active_guild).
+An upload without a valid `active_guild` gets `403`. In the environment `Development`, `DevelopmentGuildId` supplies the guild when the claim is absent. For production, see [The claim `active_guild`](../deploy/keycloak/README.md#42-custos-guild).
 
 ### Access for uploads
 
-With the [Discord connection](#discord) on, an upload needs a member of the guild with the access `report` ([Guild settings](#guild-settings)). The access token names the Discord user in the claim `discord_id` ([The claim `discord_id`](../deploy/README.md#the-claim-discord_id)).
+With the [Discord connection](#discord) on, an upload needs a member of the guild with the access `report` ([Guild settings](#guild-settings)). The access token names the Discord user in the claim `discord_id` ([The claim `discord_id`](../deploy/keycloak/README.md#3-user-attribute-discord_id)).
 
 | Case | Answer |
 |---|---|

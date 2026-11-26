@@ -2,7 +2,7 @@
 
 This guide deploys the services of the system with Docker Compose: Optio, the Server, and the NATS broker. It uses an existing PostgreSQL and an existing Keycloak. Custos calls only Optio ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). Optio calls the Server with a token of the user, and reads the events of the Server from the broker ([ADR 0007](../docs/adr/0007-a-broker-carries-domain-events.md)).
 
-This folder holds the files of the deployment: the Compose file, the configuration of NATS, and the files of Keycloak. The tests and the AppHost use the same configuration of NATS and the same development realm.
+This folder holds the files of the deployment: the Compose file, the configuration of NATS, and the setup of Keycloak with its files. The tests and the AppHost use the same configuration of NATS and the same development realm.
 
 The options of each service are in [optio/README.md](../optio/README.md#configuration) and [server/README.md](../server/README.md#configuration). The examples use these values. Replace them with your own.
 
@@ -36,99 +36,22 @@ The roles need no other privilege. Make sure that the containers can reach Postg
 
 ## 2. Prepare Keycloak
 
-1. Start Keycloak with the features `cimd` and `resource-indicators`: the option `--features=cimd,resource-indicators`, or the environment variable `KC_FEATURES`. Keep other features that you already enable in the same list.
-2. Select a realm for Custos, or create one. The issuer of the realm is the value of `Authority` in the settings of each service (step 5).
-3. Set the session lifetime of the realm. Custos does not request `offline_access`, so the SSO session sets how long a login of Custos lasts. The development realm uses 7 days idle (`ssoSessionIdleTimeout` 604800) and 30 days at most (`ssoSessionMaxLifespan` 2592000).
-4. Add the client profile and the client policy of Custos.
-5. Add the claims `discord_id` and `active_guild`.
-6. Add the scopes of the Server and the scope `custos:client`.
-7. Add the client `optio`.
-8. For the MCP endpoint of the Server, add the registration policies of a harness.
+Do each step of [keycloak/README.md](keycloak/README.md). It sets up each part of the realm that Custos, Optio, and the Server need:
 
-The [development realm](keycloak/custos-realm.json) holds each of these settings. Use it as a reference.
+1. The features `cimd` and `resource-indicators` of Keycloak 26.8 or later.
+2. The session lifetime of the realm.
+3. The user attribute `discord_id`.
+4. The client scopes `custos-discord`, `custos-guild`, `custos:client`, `custos:read`, and `custos:write`.
+5. The client `optio`. Copy its secret to `OPTIO_CLIENT_SECRET` in the file `.env` (step 5).
+6. The client policies for the Client ID Metadata Document of Custos and of a harness, and PKCE.
+7. The registration policy of a harness.
+8. The values of each user.
+9. The scopes of each other MCP service of Optio.
+10. The checks.
 
-### Client profile and client policy
+The issuer of the realm is the value of `Authority` in the settings of each service (step 5).
 
-Keycloak gets the registration of Custos from the Client ID Metadata Document of Optio, at `https://custos.example.com/.well-known/custos-client`. The profile accepts that document. The policy applies the profile to a client ID on the host of Optio. Put the host of Optio in both files. The domain `oauth2callback` permits the redirect URI `custos://oauth2callback`.
-
-[keycloak/profiles.json](keycloak/profiles.json) holds the profile, and [keycloak/policies.json](keycloak/policies.json) holds the policy. Copy the two files, and replace `custos.example.com` with the host of Optio.
-
-CAUTION: Each command replaces all client profiles or all client policies of the realm. If the realm already has profiles or policies, get them first, and add the entries of Custos to the lists.
-
-```sh
-kcadm.sh config credentials --server https://id.example.com --realm master --user admin
-kcadm.sh get realms/custos/client-policies/profiles
-kcadm.sh get realms/custos/client-policies/policies
-kcadm.sh update realms/custos/client-policies/profiles -f keycloak/profiles.json
-kcadm.sh update realms/custos/client-policies/policies -f keycloak/policies.json
-```
-
-The admin console has the same settings in **Realm settings**, on the tab **Client policies**.
-
-### The claim `discord_id`
-
-The Server and Optio need the Discord user ID in the claim `discord_id` of the access token. The development realm shows one method: a user attribute and a default client scope.
-
-1. In **Realm settings**, on the tab **User profile**, create the attribute `discord_id`. Let only an administrator edit it. Keycloak removes a user attribute that the user profile does not declare.
-2. In **Client scopes**, create the scope `custos-discord` with the protocol `OpenID Connect`. Set **Include in token scope** to off.
-3. In the tab **Mappers** of the scope, configure a new mapper of the type **User Attribute**: **User Attribute** `discord_id`, **Token Claim Name** `discord_id`, **Claim JSON Type** `String`, **Add to access token** on.
-4. In the list **Client scopes**, set the assigned type of `custos-discord` to **Default**.
-5. Set the attribute `discord_id` of each user to the Discord user ID.
-
-### The claim `active_guild`
-
-Outside the environment `Development`, the services ignore `DevelopmentGuildId`. A request whose token has no claim `active_guild` gets `403`. The authenticator that lets a user choose a guild is not built yet ([#1](https://github.com/atlashq-gg/custos/issues/1)).
-
-For one guild, a hardcoded claim gives each token of the realm the same guild:
-
-1. In **Client scopes**, create the scope `custos-guild` with the protocol `OpenID Connect`. Set **Include in token scope** to off.
-2. In the tab **Mappers** of the scope, configure a new mapper of the type **Hardcoded claim** with these values:
-   - **Token Claim Name**: `active_guild`
-   - **Claim value**: the guild ID
-   - **Claim JSON Type**: `String`
-   - **Add to access token**: on
-3. In the list **Client scopes**, set the assigned type of `custos-guild` to **Default**. Keycloak then adds the scope to each new client, also to the client that it registers through CIMD.
-
-If Keycloak registered the client of Custos before step 3, add the scope to that client in **Clients**, on the tab **Client scopes**. Remove the scope when the authenticator sets the claim.
-
-### The scopes
-
-| Scope | Assigned type | Mappers | Use |
-|---|---|---|---|
-| `custos:client` | Optional | **Audience**: **Included Client Audience** `optio` | Custos requests it. The token of Custos then has the audience `optio`, so that Optio can exchange it. |
-| `custos:read` | Optional | **Audience**: **Included Custom Audience** `https://records.example.com/mcp`. **User Attribute** `discord_id` as above. | The read tools of the Server. |
-| `custos:write` | Optional | The same as `custos:read`. | The upload API and the write tools of the Server. |
-
-Create each scope in **Client scopes** with the protocol `OpenID Connect`. Set **Include in token scope** to on for `custos:read` and `custos:write`. Keep the three scopes optional. A default scope goes to each client, and each token then gets its audience.
-
-### The client `optio`
-
-Optio exchanges the token of Custos for a token of the Server (RFC 8693). It has no login of its own.
-
-1. In **Clients**, create the client `optio` with the protocol `OpenID Connect`.
-2. Set **Client authentication** to on. Set **Standard flow** and **Direct access grants** to off. Set **Standard Token Exchange** to on.
-3. Copy the secret from the tab **Credentials**. It is the value of `OPTIO_CLIENT_SECRET` in the file `.env` (step 5).
-4. On the tab **Client scopes**, set `custos-discord` and `custos-guild` as **Default**, and `custos:read` and `custos:write` as **Optional**.
-
-An exchanged token gets only the claims of the scopes of the client `optio`. Thus Optio needs `custos-guild` too, or the token of the Server has no `active_guild`.
-
-### The MCP endpoint of the Server
-
-An LLM harness reads the metadata document of `/mcp`, gets its own client in the realm, and asks the user to log in. A harness gets a client in one of two ways. It sends a registration request, or it uses the URL of its Client ID Metadata Document as the client ID. Keycloak with the feature `cimd` states that it supports the second way, so a harness such as Claude Code uses it.
-
-1. In **Clients**, on the tab **Client registration**, open the anonymous policy **Trusted Hosts**. Add the hosts of the redirect URIs of the harnesses that you permit, for example `localhost` and `127.0.0.1` for a harness on a computer. Set **Host Sending Client Registration Request Must Match** to off, and keep **Client URIs Must Match** on.
-2. In **Realm settings**, on the tab **Client policies**, add a profile with the executor `pkce-enforcer` (**Auto-configure** on), and a policy with the condition `any-client` for that profile. Each client then uses PKCE with S256.
-3. For a harness that uses a Client ID Metadata Document, such as Claude Code, extend the profile and the policy `custos-cimd`. Without this step, Keycloak shows `Client not found`, because the policy accepts only the host of Optio. In the profile, add to the executor `client-id-metadata-document`:
-
-   ```json
-   "cimd-allow-permitted-domains": ["custos.example.com", "oauth2callback", "claude.ai", "localhost", "127.0.0.1"],
-   "cimd-resource-indicator-allow-list": ["https://records.example.com/mcp"]
-   ```
-
-   `claude.ai` is the host of the client ID. `localhost` and `127.0.0.1` are the hosts of the redirect URIs. Without the allow list of resources, Keycloak refuses the parameter `resource` with `invalid_target`. In the policy, add `claude.ai` to `client-id-uri-allow-permitted-domains` of the condition. For another harness, add the host of its metadata document and the hosts of its redirect URIs.
-4. Claude Code requests the scope `offline_access`. A user needs the realm role `offline_access`. Without it, Keycloak answers the token request with `Offline tokens not allowed for the user or client`. A new realm gives this role to each user in its default roles, so this step is for a realm that removed it.
-
-To add the endpoint to a harness, give it the URL of the endpoint as a remote MCP server with the HTTP transport. For example, in Claude Code:
+To add the MCP endpoint of the Server to a harness, give it the URL of the endpoint as a remote MCP server with the HTTP transport. For example, in Claude Code:
 
 ```sh
 claude mcp add --transport http custos https://records.example.com/mcp
