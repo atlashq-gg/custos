@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix: each stream failed with `503` and the log line `Discord did not answer in time`. The member directory came into existence at the first stream, after the gateway was ready, so it never saw `READY`. Optio now makes it before the gateway connects. The error started in `0.1.0-alpha.2`.
+
 ## 0.1.0-alpha.3
 
 A pre-release with the log of the Discord gateway.
