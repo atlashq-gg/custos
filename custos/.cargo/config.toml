@@ -1,4 +1,0 @@
-[env]
-# tauri-build 2.6.3 links the Visual C++ runtime statically only when this variable is "true". The
-# user then needs no Visual C++ Redistributable. Linux ignores the variable.
-STATIC_VCRUNTIME = "true"

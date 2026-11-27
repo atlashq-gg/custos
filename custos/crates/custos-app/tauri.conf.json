@@ -4,7 +4,10 @@
   "mainBinaryName": "custos",
   "identifier": "gg.atlashq.custos",
   "build": {
-    "frontendDist": "dist"
+    "frontendDist": "dist",
+    "windows": {
+      "staticVCRuntime": true
+    }
   },
   "app": {
     "windows": [],

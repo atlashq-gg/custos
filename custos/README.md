@@ -216,7 +216,7 @@ Custos shows the same error at most one time in 15 minutes.
 
 ## Build
 
-Requirements: Rust 1.88 or later, and the system packages for your distribution.
+Requirements: Rust 1.95 or later, and the system packages for your distribution.
 
 Ubuntu or Debian:
 
@@ -231,7 +231,7 @@ sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel o
 sudo dnf group install c-development
 ```
 
-Windows: the Visual Studio Build Tools with the workload "Desktop development with C++". This gives the MSVC toolchain, which is the default of `rustup` on Windows. The build links the Visual C++ runtime statically (`.cargo/config.toml`), so the user does not need the Visual C++ Redistributable.
+Windows: the Visual Studio Build Tools with the workload "Desktop development with C++". This gives the MSVC toolchain, which is the default of `rustup` on Windows. The build links the Visual C++ runtime statically (`build.windows.staticVCRuntime` in `tauri.conf.json`), so the user does not need the Visual C++ Redistributable.
 
 Then install the Tauri command line tool:
 
