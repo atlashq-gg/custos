@@ -479,6 +479,7 @@ mod platform {
             };
             view.place();
             view.window.show_all();
+            view.render_input(None);
             view.render(&Lines::new(settings.into()));
             // The window draws a frame only when the text or the opacity of the cursor changes.
             view.window.add_tick_callback(|_, _| {
@@ -529,11 +530,16 @@ mod platform {
         /// Shows the typed line at the prompt, or no line when `None`.
         pub fn render_input(&mut self, text: Option<&str>) {
             self.input = text.is_some();
-            self.typed.set_max_width_chars(self.max_chars);
-            self.typed.set_text(&match text {
+            let text = match text {
                 Some(text) => format!("{}{text}{CURSOR}", lines::PROMPT),
                 None => lines::PROMPT.to_owned(),
-            });
+            };
+            // As in `label`: the minimum width is the full line, up to the limit. Else the window at
+            // its minimum size wraps the prompt, and the cursor is lower than the prompt.
+            let chars = i32::try_from(text.chars().count()).unwrap_or(i32::MAX);
+            self.typed.set_width_chars(chars.min(self.max_chars));
+            self.typed.set_max_width_chars(self.max_chars);
+            self.typed.set_text(&text);
             self.cursor.set_visible(!self.input);
             self.animate();
             self.window.resize(1, 1);
@@ -713,7 +719,7 @@ mod platform {
     fn prompt(align: gtk::Align) -> (gtk::Box, gtk::Label, gtk::Label) {
         let prompt = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         prompt.set_halign(align);
-        let typed = gtk::Label::new(Some(lines::PROMPT));
+        let typed = gtk::Label::new(None);
         typed.set_xalign(0.0);
         typed.set_line_wrap(true);
         typed.set_line_wrap_mode(pango::WrapMode::WordChar);
