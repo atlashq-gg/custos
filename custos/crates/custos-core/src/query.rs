@@ -12,6 +12,8 @@ use crate::upload::Problem;
 
 /// The most characters of a question.
 pub const MAX_TEXT: usize = 500;
+/// The time with no key after which the prompt closes and gives the keyboard back to the game.
+pub const INPUT_TIMEOUT: Duration = Duration::from_secs(60);
 /// The time after a deadline before Custos shows that the service is not in contact. The clocks of
 /// Custos and of the service can differ by a few seconds.
 pub const DEADLINE_GRACE: Duration = Duration::from_secs(5);
@@ -101,19 +103,39 @@ pub enum Outcome {
 }
 
 /// The line that the user types at the prompt of the overlay.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     pub text: String,
     /// The error of the last Enter, until the next change of the text.
     pub error: Option<String>,
     /// True after [`HELP`], until the next change of the text.
     pub help: bool,
+    /// The time of the start of the prompt, or of the last key.
+    last_key: Instant,
 }
 
 impl Entry {
+    /// An empty line, at the start of the prompt.
+    #[must_use]
+    pub fn new(now: Instant) -> Self {
+        Self {
+            text: String::new(),
+            error: None,
+            help: false,
+            last_key: now,
+        }
+    }
+
+    /// True when the user pushed no key for [`INPUT_TIMEOUT`].
+    #[must_use]
+    pub fn is_idle(&self, now: Instant) -> bool {
+        now >= self.last_key + INPUT_TIMEOUT
+    }
+
     /// Applies a key. `waiting` is true while a question of the service waits for a decision: then
     /// `Y` and `N` on an empty line decide it.
-    pub fn key(&mut self, key: Key, waiting: bool) -> Outcome {
+    pub fn key(&mut self, key: Key, waiting: bool, now: Instant) -> Outcome {
+        self.last_key = now;
         match key {
             Key::Escape => return Outcome::Close,
             Key::Enter if self.text.trim() == HELP => {
@@ -638,34 +660,48 @@ mod tests {
 
     #[test]
     fn entry_types_sends_and_decides() {
-        let mut entry = Entry::default();
+        let now = Instant::now();
+        let mut entry = Entry::new(now);
         for c in "Hi!".chars() {
-            assert_eq!(entry.key(Key::Char(c), false), Outcome::Continue);
+            assert_eq!(entry.key(Key::Char(c), false, now), Outcome::Continue);
         }
-        entry.key(Key::Backspace, false);
+        entry.key(Key::Backspace, false, now);
         assert_eq!(entry.text, "Hi");
         assert_eq!(
-            entry.key(Key::Enter, false),
+            entry.key(Key::Enter, false, now),
             Outcome::Send(Input::Ask {
                 text: "Hi".into(),
                 new_conversation: false
             })
         );
 
-        let mut entry = Entry::default();
+        let mut entry = Entry::new(now);
         assert_eq!(
-            entry.key(Key::Char('Y'), true),
+            entry.key(Key::Char('Y'), true, now),
             Outcome::Send(Input::Act(Action::Accept))
         );
         assert_eq!(
-            entry.key(Key::Char('n'), true),
+            entry.key(Key::Char('n'), true, now),
             Outcome::Send(Input::Act(Action::Refuse))
         );
-        assert_eq!(entry.key(Key::Char('n'), false), Outcome::Continue);
-        assert_eq!(entry.key(Key::Char('y'), true), Outcome::Continue);
+        assert_eq!(entry.key(Key::Char('n'), false, now), Outcome::Continue);
+        assert_eq!(entry.key(Key::Char('y'), true, now), Outcome::Continue);
         assert_eq!(entry.text, "ny");
-        assert_eq!(Entry::default().key(Key::Enter, false), Outcome::Close);
-        assert_eq!(entry.key(Key::Escape, false), Outcome::Close);
+        assert_eq!(Entry::new(now).key(Key::Enter, false, now), Outcome::Close);
+        assert_eq!(entry.key(Key::Escape, false, now), Outcome::Close);
+    }
+
+    #[test]
+    fn prompt_is_idle_after_the_timeout_and_each_key_starts_it_again() {
+        let start = Instant::now();
+        let mut entry = Entry::new(start);
+        assert!(!entry.is_idle(start + Duration::from_secs(59)));
+        assert!(entry.is_idle(start + INPUT_TIMEOUT));
+
+        let typed = start + Duration::from_secs(50);
+        entry.key(Key::Char('a'), false, typed);
+        assert!(!entry.is_idle(start + INPUT_TIMEOUT));
+        assert!(entry.is_idle(typed + INPUT_TIMEOUT));
     }
 
     #[test]
@@ -675,34 +711,36 @@ mod tests {
 
     #[test]
     fn help_shows_until_the_next_change() {
-        let mut entry = Entry::default();
+        let now = Instant::now();
+        let mut entry = Entry::new(now);
         for c in " /help".chars() {
-            entry.key(Key::Char(c), false);
+            entry.key(Key::Char(c), false, now);
         }
-        assert_eq!(entry.key(Key::Enter, false), Outcome::Continue);
+        assert_eq!(entry.key(Key::Enter, false, now), Outcome::Continue);
         assert!(entry.help);
         assert_eq!(entry.text, "");
-        entry.key(Key::Char('a'), false);
+        entry.key(Key::Char('a'), false, now);
         assert!(!entry.help);
         assert!(help().iter().any(|line| line.contains(HELP)));
     }
 
     #[test]
     fn entry_shows_an_error_until_the_next_change_and_has_a_limit() {
-        let mut entry = Entry::default();
+        let now = Instant::now();
+        let mut entry = Entry::new(now);
         for c in "/hepl".chars() {
-            entry.key(Key::Char(c), false);
+            entry.key(Key::Char(c), false, now);
         }
-        assert_eq!(entry.key(Key::Enter, false), Outcome::Continue);
+        assert_eq!(entry.key(Key::Enter, false, now), Outcome::Continue);
         assert!(entry.error.is_some());
-        entry.key(Key::Backspace, false);
+        entry.key(Key::Backspace, false, now);
         assert_eq!(entry.error, None);
 
         let mut entry = Entry {
             text: "a".repeat(MAX_TEXT),
-            ..Entry::default()
+            ..Entry::new(now)
         };
-        entry.key(Key::Char('b'), false);
+        entry.key(Key::Char('b'), false, now);
         assert_eq!(entry.text.len(), MAX_TEXT);
     }
 
