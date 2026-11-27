@@ -14,12 +14,18 @@ let frame = 0;
 // The line that the user types at the prompt, or null while the game has the keyboard. Custos keeps
 // the line (overlay.rs) and calls renderInput() after each key.
 let input = null;
+// The colors of the configuration (style() in layout.rs of custos-core), after overlay.css.
+const colors = document.createElement("style");
+document.head.append(colors);
 
 // Shows the lines. Custos calls it (overlay.rs).
 function render(page) {
     document.body.classList.toggle("bottom", !page.top);
     document.body.classList.toggle("right", !page.left);
     document.body.style.setProperty("--cursor-period", `${page.period}s`);
+    if (colors.textContent !== page.style) {
+        colors.textContent = page.style;
+    }
     rate = page.rate;
     shown = page.rows.map((row) => {
         const label = document.createElement("label");

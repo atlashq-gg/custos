@@ -1,8 +1,8 @@
-/* The look of the overlay: the green text of an old terminal, with a glow, and no background. A dark
-   shadow keeps the text readable on a light scene. The GTK window on Linux and the page on Windows
-   (overlay.html) use this file. On Linux, the name of the window limits the style to the overlay. Use
-   only properties that GTK knows, because GTK refuses a file with an unknown property. The layout of
-   the page is in overlay-layout.css. */
+/* The look of the overlay: the text of an old terminal, with a glow, and no background. The colors
+   come from the configuration (style() in layout.rs of custos-core), after this file. The GTK window
+   on Linux and the page on Windows (overlay.html) use this file. On Linux, the name of the window
+   limits the style to the overlay. Use only properties that GTK knows, because GTK refuses a file with
+   an unknown property. The layout of the page is in overlay-layout.css. */
 #custos-overlay { background-color: transparent; }
 #custos-overlay label {
     font-family: "JetBrains Mono", "Cascadia Mono", "Fira Code", "Source Code Pro", "Hack",
@@ -12,15 +12,4 @@
     background: none;
     border: none;
     box-shadow: none;
-    color: #00ff41;
-    text-shadow: 0 0 4px rgba(0, 255, 65, 0.7), 1px 1px 2px rgba(0, 0, 0, 0.9);
-}
-#custos-overlay label.custos-error {
-    color: #ff4141;
-    text-shadow: 0 0 4px rgba(255, 65, 65, 0.7), 1px 1px 2px rgba(0, 0, 0, 0.9);
-}
-/* The line that tells the user that the overlay has the keyboard: amber, as an old terminal. */
-#custos-overlay label.custos-input {
-    color: #ffb000;
-    text-shadow: 0 0 4px rgba(255, 176, 0, 0.7), 1px 1px 2px rgba(0, 0, 0, 0.9);
 }

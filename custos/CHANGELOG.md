@@ -7,6 +7,7 @@
 - The prompt of the overlay no longer locks when the user selects another window while typing a question. The prompt closes when another window takes the keyboard, for example on Alt+Tab, a mouse click that goes through the overlay, or a push-to-talk key, and that window keeps the keyboard. It also closes after 60 seconds with no key. In both conditions, the typed text stays, and the next prompt starts with it. While the prompt is open, the key takes the keyboard again (#111).
 - The overlay counts the lines on the screen. A line that wraps counts as more lines, so the overlay is never higher than `lines` of `[overlay]`. Custos wraps each line at the width of the overlay. The question and its answer use at most half of `lines`, and all of it while the user types; the messages use the rest. A longer answer is cut, and its last line tells the user that the key shows more (#112).
 - The default of `lines` in `[overlay]` is 20, because a line that wraps now counts as more lines.
+- New keys `text_color`, `error_color`, and `input_color` in `[overlay]` set the colors of the overlay as `"#rrggbb"`. The defaults are the colors of before: green, red, and amber. The glow of the text has the color of the text.
 
 ## 0.3.0
 
