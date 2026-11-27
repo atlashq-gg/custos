@@ -12,4 +12,5 @@ First version. It has no minor or patch versions.
 - The example `client_id` in `01-discovery.md` uses the path of the reference server, `/.well-known/custos-client`.
 - Optional stream in `05-stream.md`, marked unstable: the discovery member `stream_endpoint`, the message, the position of the stream, and a random part of the wait before Custos connects again.
 - The required discovery member `features_supported` lists the features `upload`, `stream`, and `query`. In `v0`, it contains `upload`. Custos uses a feature only when the list names it.
+- Upload interval: Custos ignores the changes of the map data file during a start delay after it starts to watch the file, and sends a change only after a delay with no further change.
 - Optional query in `06-query.md`, marked unstable: the discovery member `query_endpoint`, the query with a reference from the client, the actions `accept`, `refuse`, and `stop`, the states of a query, and the stream message of the kind `query`.

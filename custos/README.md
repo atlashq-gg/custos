@@ -7,7 +7,8 @@ Custos is a tray application for Linux and Windows. It watches the map data file
 ## Behavior
 
 - Custos is idle while Foxhole does not run. It does not watch the file, and it does not send data.
-- While Foxhole runs, Custos watches the save folder. When the map data file changes, Custos sends the full file at the next interval.
+- While Foxhole runs, Custos watches the save folder. The map data file is old when the game starts, so Custos ignores its changes for `upload_start_delay_seconds`. Then the overlay shows `Watching the map for changes`.
+- When the map data file changes after that time, Custos waits until the file did not change for `upload_delay_seconds`. Each change starts this time again, so that a set of map refreshes goes in one upload. Then Custos sends the full file at the next interval.
 - Custos does not send a file that the service already accepted, or a file that the service refused.
 - The interval is the larger of `upload_interval_seconds` and the minimum of the service. A `429` response makes Custos wait longer.
 - Custos only reads the save files. It sends no file name and no other data. The file name holds the Steam ID of the player.
@@ -66,6 +67,13 @@ service_url = "https://optio.atlashq.gg"
 
 # The shortest time between two uploads, in seconds. Default: 300.
 upload_interval_seconds = 300
+
+# The time with no change of the map data file before an upload, in seconds. Default: 10.
+upload_delay_seconds = 10
+
+# The time after the start of Foxhole when Custos ignores the changes of the map data file, in
+# seconds. Default: 60.
+upload_start_delay_seconds = 60
 
 # Optional. The folder that holds the save files of Foxhole.
 # save_dir = "/home/user/.local/share/Steam/steamapps/compatdata/505460/pfx/drive_c/users/steamuser/AppData/Local/Foxhole/Saved/SaveGames"

@@ -10,6 +10,11 @@ use url::Url;
 
 /// The interval between two uploads when the file does not set one.
 pub const DEFAULT_UPLOAD_INTERVAL_SECONDS: u64 = 300;
+/// The time with no change of the file before an upload, when the file does not set one.
+pub const DEFAULT_UPLOAD_DELAY_SECONDS: u64 = 10;
+/// The time after the start of the watch when Custos ignores the changes of the file, when the file
+/// does not set one.
+pub const DEFAULT_UPLOAD_START_DELAY_SECONDS: u64 = 60;
 
 /// The service of Custos when the file sets none.
 pub const DEFAULT_SERVICE_URL: &str = "https://optio.atlashq.gg";
@@ -26,6 +31,14 @@ pub fn template() -> String {
 
 # The shortest time between two uploads, in seconds. The service can set a longer time.
 # upload_interval_seconds = {DEFAULT_UPLOAD_INTERVAL_SECONDS}
+
+# The time with no change of the map data file before Custos sends it, in seconds. Each change starts
+# this time again, so that a set of map refreshes goes in one upload.
+# upload_delay_seconds = {DEFAULT_UPLOAD_DELAY_SECONDS}
+
+# The time after the start of Foxhole when Custos ignores the changes of the map data file, in seconds.
+# The file is old when the game starts. Custos sends the first change after this time.
+# upload_start_delay_seconds = {DEFAULT_UPLOAD_START_DELAY_SECONDS}
 {platform}{rest}"#,
         platform = platform_template(),
         rest = REST_OF_TEMPLATE,
@@ -106,6 +119,10 @@ pub struct Config {
     pub service_url: Url,
     #[serde(default = "default_interval")]
     pub upload_interval_seconds: u64,
+    #[serde(default = "default_delay")]
+    pub upload_delay_seconds: u64,
+    #[serde(default = "default_start_delay")]
+    pub upload_start_delay_seconds: u64,
     pub save_dir: Option<PathBuf>,
     /// Linux only.
     pub steam_root: Option<PathBuf>,
@@ -212,6 +229,14 @@ fn default_service_url() -> Url {
 
 fn default_interval() -> u64 {
     DEFAULT_UPLOAD_INTERVAL_SECONDS
+}
+
+fn default_delay() -> u64 {
+    DEFAULT_UPLOAD_DELAY_SECONDS
+}
+
+fn default_start_delay() -> u64 {
+    DEFAULT_UPLOAD_START_DELAY_SECONDS
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -346,11 +371,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn minimal_file_gets_the_default_interval() {
+    fn minimal_file_gets_the_default_interval_and_delays() {
         let Ok(config) = parse(r#"service_url = "https://example.com""#) else {
             panic!()
         };
         assert_eq!(config.upload_interval_seconds, DEFAULT_UPLOAD_INTERVAL_SECONDS);
+        assert_eq!(config.upload_delay_seconds, DEFAULT_UPLOAD_DELAY_SECONDS);
+        assert_eq!(config.upload_start_delay_seconds, DEFAULT_UPLOAD_START_DELAY_SECONDS);
         assert_eq!(config.save_dir, None);
         assert_eq!(config.overlay, Overlay::default());
     }
@@ -361,6 +388,8 @@ mod tests {
             r#"
             service_url = "http://localhost:5080"
             upload_interval_seconds = 30
+            upload_delay_seconds = 5
+            upload_start_delay_seconds = 120
             save_dir = "/tmp/saves"
             steam_root = "/tmp/steam"
 
@@ -375,6 +404,8 @@ mod tests {
             panic!()
         };
         assert_eq!(config.upload_interval_seconds, 30);
+        assert_eq!(config.upload_delay_seconds, 5);
+        assert_eq!(config.upload_start_delay_seconds, 120);
         assert_eq!(
             config.overlay,
             Overlay {
@@ -480,12 +511,16 @@ mod tests {
             (
                 config.service_url,
                 config.upload_interval_seconds,
+                config.upload_delay_seconds,
+                config.upload_start_delay_seconds,
                 config.overlay,
                 config.query
             ),
             (
                 defaults.service_url,
                 defaults.upload_interval_seconds,
+                defaults.upload_delay_seconds,
+                defaults.upload_start_delay_seconds,
                 defaults.overlay,
                 defaults.query
             )
