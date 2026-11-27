@@ -923,7 +923,7 @@ mod tests {
         assert_eq!(texts(&fit(&lines, 1, 10, 2, "More")), ["  More", "> Hint"]);
         assert_eq!(texts(&fit(&lines, 1, 10, 1, "More")), ["> Hint"]);
         assert_eq!(texts(&fit(&lines, 3, 10, 2, "More")), ["  ccc", "> Hint"]);
-        assert!(fit(&lines, 0, 10, 0, "More").is_empty());
+        assert_eq!(texts(&fit(&lines, 0, 10, 0, "More")), Vec::<String>::new());
     }
 
     #[test]
