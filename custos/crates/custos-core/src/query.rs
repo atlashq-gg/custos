@@ -7,7 +7,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::lines::{ERROR_PROMPT, INDENT, PROMPT};
+use crate::lines::{ERROR_PROMPT, INDENT, PROMPT, wrap};
 use crate::upload::Problem;
 
 /// The most characters of a question.
@@ -478,6 +478,36 @@ pub struct Line {
     pub tone: Tone,
 }
 
+/// The lines on the screen of `lines`, at most `max`. A line wraps at `width` characters (see
+/// [`wrap`]). When the lines do not fit, the last `tail` lines stay, and the lines before them are cut
+/// at the end, with the line `more` after them.
+#[must_use]
+pub fn fit(lines: &[Line], tail: usize, width: usize, max: usize, more: &str) -> Vec<Line> {
+    let wrapped = |lines: &[Line]| -> Vec<Line> {
+        lines
+            .iter()
+            .flat_map(|line| {
+                wrap(&line.text, width).into_iter().enumerate().map(|(i, text)| Line {
+                    prompt: if i == 0 { line.prompt } else { INDENT },
+                    text,
+                    tone: line.tone,
+                })
+            })
+            .collect()
+    };
+    let split = lines.len().saturating_sub(tail);
+    let (mut head, mut tail) = (wrapped(&lines[..split]), wrapped(&lines[split..]));
+    if head.len() + tail.len() > max {
+        tail.drain(..tail.len().saturating_sub(max));
+        let room = max - tail.len();
+        let more = wrapped(&[Line::indented(more)]);
+        head.truncate(room.saturating_sub(more.len()));
+        head.extend(more.into_iter().take(room));
+    }
+    head.append(&mut tail);
+    head
+}
+
 /// The color of a line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tone {
@@ -569,11 +599,9 @@ impl Query {
         self.closed_at.is_none_or(|closed| now < closed + lifetime)
     }
 
-    /// The lines of the query at `now`. `key` is the name of the key that starts a question. With
-    /// `max_lines`, the text of the end has at most that number of lines, and its last line tells the
-    /// user that the key shows the full text.
+    /// The lines of the query at `now`. Each line can wrap (see [`fit`]).
     #[must_use]
-    pub fn lines(&self, now: SystemTime, key: &str, max_lines: Option<usize>) -> Vec<Line> {
+    pub fn lines(&self, now: SystemTime) -> Vec<Line> {
         let mut lines = Vec::new();
         let mut add = |text: &str, is_error: bool| {
             for (i, text) in text.split('\n').enumerate() {
@@ -605,16 +633,7 @@ impl Query {
                 let cause = self.cause.unwrap_or(Cause::Failed);
                 let fallback = cause.text(&self.service);
                 let text = self.text.as_deref().unwrap_or(&fallback);
-                let is_error = self.local_error || cause.is_error();
-                let mut text_lines: Vec<&str> = text.split('\n').collect();
-                if let Some(max) = max_lines.filter(|&max| text_lines.len() > max) {
-                    text_lines.truncate(max.saturating_sub(1));
-                    let more = format!("{key} shows the full text");
-                    add(&text_lines.join("\n"), is_error);
-                    add(&more, false);
-                } else {
-                    add(text, is_error);
-                }
+                add(text, self.local_error || cause.is_error());
             }
         }
         if self.no_contact(now) {
@@ -855,34 +874,56 @@ mod tests {
         let now = Instant::now();
         let at = parse_time("2026-11-25T20:00:00Z").unwrap();
         let mut query = Query::sending("r".into(), "Optio".into(), "How many rifles?".into());
-        assert_eq!(
-            texts(&query.lines(at, "Ctrl+Alt+K", None)),
-            ["> How many rifles?", "  Sent"]
-        );
+        assert_eq!(texts(&query.lines(at)), ["> How many rifles?", "  Sent"]);
 
         query.apply(update("working", Some("Custos: Find items"), None), now);
         assert_eq!(
-            texts(&query.lines(at, "Ctrl+Alt+K", None)),
+            texts(&query.lines(at)),
             ["> How many rifles?", "  Working: Custos: Find items"]
         );
 
         query.apply(update("waiting", Some("Set Label? \"Main Depot\""), None), now);
         assert_eq!(
-            texts(&query.lines(at, "Ctrl+Alt+K", None)),
+            texts(&query.lines(at)),
             ["> How many rifles?", "  Set Label? \"Main Depot\" [Y/N] (5 s)"]
         );
 
         query.apply(update("closed", Some("Line 1\nLine 2\nLine 3"), Some("answer")), now);
         assert_eq!(query.closed_at, Some(now));
         assert_eq!(
-            texts(&query.lines(at, "Ctrl+Alt+K", Some(2))),
-            ["> How many rifles?", "  Line 1", "  Ctrl+Alt+K shows the full text"]
+            texts(&query.lines(at)),
+            ["> How many rifles?", "  Line 1", "  Line 2", "  Line 3"]
         );
-        assert_eq!(query.lines(at, "K", None).len(), 4);
 
         // A closed query does not change.
         query.apply(update("working", None, None), now);
         assert_eq!(query.state, State::Closed);
+    }
+
+    #[test]
+    fn fit_wraps_and_cuts_the_lines_before_the_tail() {
+        let line = |prompt, text: &str| Line {
+            prompt,
+            text: text.into(),
+            tone: Tone::Normal,
+        };
+        let lines = [
+            line(PROMPT, "Question"),
+            line(INDENT, "aaa bbb ccc"),
+            line(PROMPT, "Hint"),
+        ];
+        assert_eq!(
+            texts(&fit(&lines, 1, 10, 10, "More")),
+            ["> Question", "  aaa bbb", "  ccc", "> Hint"]
+        );
+        assert_eq!(
+            texts(&fit(&lines, 1, 10, 3, "More")),
+            ["> Question", "  More", "> Hint"]
+        );
+        assert_eq!(texts(&fit(&lines, 1, 10, 2, "More")), ["  More", "> Hint"]);
+        assert_eq!(texts(&fit(&lines, 1, 10, 1, "More")), ["> Hint"]);
+        assert_eq!(texts(&fit(&lines, 3, 10, 2, "More")), ["  ccc", "> Hint"]);
+        assert_eq!(texts(&fit(&lines, 0, 10, 0, "More")), Vec::<String>::new());
     }
 
     #[test]
@@ -891,15 +932,12 @@ mod tests {
         let at = SystemTime::UNIX_EPOCH;
         let mut query = Query::learned(update("closed", None, Some("power_failure")), "Optio".into(), now);
         assert_eq!(query.question, None);
-        assert_eq!(texts(&query.lines(at, "K", None)), ["! The question failed."]);
-        assert_eq!(query.lines(at, "K", None)[0].tone, Tone::Error);
+        assert_eq!(texts(&query.lines(at)), ["! The question failed."]);
+        assert_eq!(query.lines(at)[0].tone, Tone::Error);
 
         query = Query::sending("r".into(), "Optio".into(), "Hi".into());
         query.fail("Optio refused the question.".into(), now);
-        assert_eq!(
-            texts(&query.lines(at, "K", None)),
-            ["> Hi", "! Optio refused the question."]
-        );
+        assert_eq!(texts(&query.lines(at)), ["> Hi", "! Optio refused the question."]);
     }
 
     #[test]
@@ -909,7 +947,7 @@ mod tests {
         let mut query = Query::learned(update("working", None, None), "Optio".into(), now);
         assert!(!query.no_contact(deadline + DEADLINE_GRACE));
         assert!(query.no_contact(deadline + DEADLINE_GRACE + Duration::from_secs(1)));
-        let lines = query.lines(deadline + Duration::from_secs(60), "K", None);
+        let lines = query.lines(deadline + Duration::from_secs(60));
         assert_eq!(texts(&lines).last().unwrap(), "! No contact with Optio");
 
         let lifetime = Duration::from_secs(180);

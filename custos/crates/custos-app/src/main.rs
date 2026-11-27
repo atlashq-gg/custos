@@ -78,7 +78,7 @@ fn main() {
     #[cfg(windows)]
     let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
     let app = builder
-        .invoke_handler(tauri::generate_handler![overlay::overlay_key])
+        .invoke_handler(tauri::generate_handler![overlay::overlay_key, overlay::overlay_width])
         .setup(|app| {
             setup(app.handle(), loaded)?;
             Ok(())

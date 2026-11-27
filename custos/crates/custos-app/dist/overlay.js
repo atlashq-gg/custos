@@ -95,3 +95,18 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     window.__TAURI__.core.invoke("overlay_key", { key: event.key });
 });
+
+// Gives Custos the number of characters in a line of the page, so that it wraps the lines and counts
+// them for the limit (lines.rs in custos-core).
+function reportWidth() {
+    const context = document.createElement("canvas").getContext("2d");
+    context.font = getComputedStyle(prompt).font;
+    const sample = "M".repeat(100);
+    const charWidth = context.measureText(sample).width / sample.length;
+    if (charWidth > 0) {
+        const chars = Math.max(1, Math.floor(document.body.clientWidth / charWidth));
+        window.__TAURI__.core.invoke("overlay_width", { chars });
+    }
+}
+window.addEventListener("resize", reportWidth);
+reportWidth();

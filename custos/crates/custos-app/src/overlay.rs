@@ -7,7 +7,9 @@
 //! style in `dist/overlay.css`.
 //!
 //! The lines of the query (see [`crate::ask`]) have their own area at the edge of the anchor, so that
-//! the lines of the events do not move them. The user types a question at the prompt: then the
+//! the lines of the events do not move them. The two areas share the limit `lines` of the
+//! configuration: the area of the query uses at most half of it, or all of it while the user types,
+//! and the events use the rest. The user types a question at the prompt: then the
 //! overlay takes the keyboard, and holds the new messages until the user sends the question or
 //! cancels it. The prompt also closes when the overlay loses the keyboard to another window, and
 //! after [`query::INPUT_TIMEOUT`] with no key. Then the typed text stays for the next prompt.
@@ -19,7 +21,7 @@ use std::time::Instant;
 
 use custos_core::agent::Command;
 use custos_core::config::Overlay as Settings;
-use custos_core::lines::{ERROR_PROMPT, Lines, Notification, PROMPT, Reference};
+use custos_core::lines::{self, ERROR_PROMPT, Lines, Notification, PROMPT, Reference};
 use custos_core::query::{self, Entry, Key, Line, Outcome, Tone};
 use tauri::{AppHandle, Manager};
 
@@ -55,7 +57,7 @@ pub fn open(app: &AppHandle, settings: Settings) -> Result<(), String> {
     close();
     let view = platform::View::open(app, settings)?;
     OVERLAY.with_borrow_mut(|overlay| {
-        *overlay = Some(Overlay {
+        let overlay = overlay.insert(Overlay {
             view,
             lines: Lines::new(settings.into()),
             query: Vec::new(),
@@ -66,6 +68,9 @@ pub fn open(app: &AppHandle, settings: Settings) -> Result<(), String> {
             app: app.clone(),
             seconds: 0,
         });
+        if let Some(chars) = overlay.view.max_chars() {
+            set_width(overlay, chars);
+        }
     });
     render_query();
     Ok(())
@@ -213,14 +218,12 @@ fn end_input(close: Close) {
 pub fn render_query() -> bool {
     OVERLAY.with_borrow_mut(|overlay| {
         let Some(overlay) = overlay else { return false };
-        let query = match &overlay.entry {
-            None => {
-                let mut lines = crate::ask::overlay_lines(usize::from(overlay.settings.lines));
-                lines.extend(crate::ask::key_hint());
-                lines
-            }
+        let (width, max) = (overlay.lines.width(), usize::from(overlay.settings.lines));
+        let (query, typed) = match &overlay.entry {
+            None => (crate::ask::overlay_lines(width, max.div_ceil(2)), 0),
             Some(entry) => {
                 let mut lines = crate::ask::full_lines();
+                let answer = lines.len();
                 if entry.help {
                     lines.extend(query::help().into_iter().map(Line::indented));
                 }
@@ -236,9 +239,15 @@ pub fn render_query() -> bool {
                     text: query::AWAITING.into(),
                     tone: Tone::Input,
                 });
-                lines
+                // The typed line wraps at the prompt. The width leaves room for the cursor.
+                let typed = lines::wrap(&entry.text, width).len();
+                let fitted = query::fit(&lines, lines.len() - answer, width, max.saturating_sub(typed), "…");
+                (fitted, typed)
             }
         };
+        if overlay.lines.reserve(query.len() + typed) {
+            overlay.view.render(&overlay.lines);
+        }
         if query != overlay.query {
             overlay.view.render_query(&query);
             overlay.query = query;
@@ -263,6 +272,9 @@ fn tick() {
     with(|overlay| {
         overlay.seconds += 1;
         let moved = overlay.seconds % PLACE_INTERVAL == 0 && overlay.view.place();
+        if moved && let Some(chars) = overlay.view.max_chars() {
+            set_width(overlay, chars);
+        }
         if overlay.lines.prune(Instant::now()) || moved {
             overlay.view.render(&overlay.lines);
         }
@@ -287,6 +299,27 @@ pub fn overlay_key(app: AppHandle, key: String) -> Result<(), String> {
     };
     app.run_on_main_thread(move || self::key(key))
         .map_err(|e| e.to_string())
+}
+
+/// The command of the page `dist/overlay.js` on Windows: the number of characters in a line of the
+/// page.
+#[tauri::command]
+#[allow(clippy::needless_pass_by_value)] // Tauri gives the arguments by value.
+pub fn overlay_width(app: AppHandle, chars: usize) -> Result<(), String> {
+    app.run_on_main_thread(move || {
+        with(|overlay| {
+            set_width(overlay, chars);
+            overlay.view.render(&overlay.lines);
+        });
+        render_query();
+    })
+    .map_err(|e| e.to_string())
+}
+
+/// Sets the width of the lines from the characters in a line of the view. The lines are one character
+/// shorter, so that the cursor fits after a line that types.
+fn set_width(overlay: &mut Overlay, chars: usize) {
+    overlay.lines.set_width(chars.saturating_sub(1));
 }
 
 fn with(f: impl FnOnce(&mut Overlay)) {
@@ -602,6 +635,11 @@ mod platform {
             }
         }
 
+        /// The number of characters after which a line wraps.
+        pub fn max_chars(&self) -> Option<usize> {
+            usize::try_from(self.max_chars).ok()
+        }
+
         /// Puts the window on the monitor of the game, and sets the offset and the line width for that
         /// monitor. When Custos cannot find the game window, the desktop selects the monitor. Returns true
         /// when the monitor changed.
@@ -900,6 +938,12 @@ mod platform {
             if let Err(e) = self.window.eval(format!("renderQuery({})", json!(rows))) {
                 tracing::warn!("cannot show the query in the overlay: {e}");
             }
+        }
+
+        /// `None`: the page measures its line, and gives it with the command `overlay_width`.
+        #[allow(clippy::unused_self)] // The same function as on Linux.
+        pub fn max_chars(&self) -> Option<usize> {
+            None
         }
 
         /// Puts the window on the primary monitor. Custos cannot find the game window on Windows with a

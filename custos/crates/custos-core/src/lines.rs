@@ -3,6 +3,9 @@
 //! removes its reference. The overlay shows only the newest lines within the limits of the
 //! configuration. An older line is hidden, and it comes back when a newer message goes.
 //!
+//! Each line is one line on the screen: a text that is wider than the overlay wraps into more lines
+//! (see [`wrap`]), so that the limits apply to the height of the overlay.
+//!
 //! The caller gives the time to each operation, so the tests need no clock.
 
 use std::time::{Duration, Instant};
@@ -109,10 +112,12 @@ impl Notification {
         if self.is_error { ERROR_LIFETIME } else { LIFETIME }
     }
 
-    /// The lines of the overlay, which type one after the other from `start`.
-    fn rows(&self, mut start: Instant) -> Vec<Row> {
+    /// The lines of the overlay, which wrap at `width` characters and type one after the other from
+    /// `start`.
+    fn rows(&self, mut start: Instant, width: usize) -> Vec<Row> {
         self.lines()
-            .into_iter()
+            .iter()
+            .flat_map(|line| wrap(line, width))
             .enumerate()
             .map(|(i, text)| {
                 let row = Row {
@@ -137,6 +142,35 @@ impl Notification {
             .map(|line| line.chars().map(|c| if c.is_control() { ' ' } else { c }).collect())
             .collect()
     }
+}
+
+/// Splits a line of text into the lines on the screen. Each line on the screen has at most `width`
+/// characters, with its prompt or indent. A line breaks after the last space that fits, or in a word
+/// that is wider than the line.
+#[must_use]
+pub fn wrap(text: &str, width: usize) -> Vec<String> {
+    let width = width.saturating_sub(PROMPT.len()).max(1);
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    let mut count = 0;
+    for word in text.split_inclusive(' ') {
+        let length = word.trim_end_matches(' ').chars().count();
+        if count > 0 && count + length > width {
+            lines.push(line.trim_end_matches(' ').to_owned());
+            line.clear();
+            count = 0;
+        }
+        for c in word.chars() {
+            if count == width && c != ' ' {
+                lines.push(std::mem::take(&mut line));
+                count = 0;
+            }
+            line.push(c);
+            count += 1;
+        }
+    }
+    lines.push(line.trim_end_matches(' ').to_owned());
+    lines
 }
 
 /// The most messages and the most lines that the overlay shows. The stricter limit applies.
@@ -212,6 +246,10 @@ struct Message {
 #[derive(Debug, Clone)]
 pub struct Lines {
     limits: Limits,
+    /// The characters of a line on the screen. A longer line wraps.
+    width: usize,
+    /// The lines on the screen that the area of the query uses. The lines of the messages use the rest.
+    reserved: usize,
     /// The oldest message first.
     messages: Vec<Message>,
     /// The new messages while the user types a question, oldest first. `None` while no question is
@@ -224,9 +262,33 @@ impl Lines {
     pub fn new(limits: Limits) -> Self {
         Self {
             limits,
+            width: usize::MAX,
             messages: Vec::new(),
             held: None,
+            reserved: 0,
         }
+    }
+
+    /// The characters of a line on the screen.
+    #[must_use]
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    /// Sets the characters of a line on the screen. The new width applies to the next messages.
+    /// Returns false when the width did not change.
+    pub fn set_width(&mut self, width: usize) -> bool {
+        let changed = self.width != width;
+        self.width = width;
+        changed
+    }
+
+    /// Gives `lines` lines of the limit to the area of the query. Returns false when the number did
+    /// not change.
+    pub fn reserve(&mut self, lines: usize) -> bool {
+        let changed = self.reserved != lines;
+        self.reserved = lines;
+        changed
     }
 
     /// Holds the new messages, so that no line moves while the user types a question.
@@ -266,7 +328,7 @@ impl Lines {
             .fold(now, Instant::max);
         let message = Message {
             until: now + notification.lifetime(),
-            rows: notification.rows(start),
+            rows: notification.rows(start, self.width),
             notification,
         };
         match index {
@@ -298,7 +360,7 @@ impl Lines {
         else {
             return false;
         };
-        let mut rows = notification.rows(message.rows.first().map_or(now, |row| row.start));
+        let mut rows = notification.rows(message.rows.first().map_or(now, |row| row.start), self.width);
         for (row, old) in rows.iter_mut().zip(&message.rows) {
             row.start = old.start;
         }
@@ -368,7 +430,9 @@ impl Lines {
                 continue;
             }
             let new_message = last != Some(*m);
-            if lines + 1 > self.limits.lines || messages + usize::from(new_message) > self.limits.messages {
+            if lines + 1 > self.limits.lines.saturating_sub(self.reserved)
+                || messages + usize::from(new_message) > self.limits.messages
+            {
                 break;
             }
             lines += 1;
@@ -512,6 +576,36 @@ mod tests {
             lines.rows(now + Duration::from_secs(10))[1].start,
             now + Duration::from_secs(10)
         );
+    }
+
+    #[test]
+    fn wrap_breaks_after_a_space_or_in_a_long_word() {
+        // 8 characters with the prompt, so 6 of text.
+        assert_eq!(wrap("", 8), [""]);
+        assert_eq!(wrap("abc de", 8), ["abc de"]);
+        assert_eq!(wrap("abc def", 8), ["abc", "def"]);
+        assert_eq!(wrap("abc  def gh", 8), ["abc", "def gh"]);
+        assert_eq!(wrap("abcdefghij k", 8), ["abcdef", "ghij k"]);
+        assert_eq!(wrap("ab abcdefgh", 8), ["ab", "abcdef", "gh"]);
+        assert_eq!(wrap("äöü æøå", 8), ["äöü", "æøå"]);
+        assert_eq!(wrap("abc", 0), ["a", "b", "c"]);
+    }
+
+    #[test]
+    fn wrapped_lines_count_for_the_limit_and_the_query_reserves_lines() {
+        let now = Instant::now();
+        let mut lines = Lines::new(Limits { messages: 6, lines: 4 });
+        lines.set_width(8);
+        lines.put(service(None, "old"), now);
+        lines.put(service(None, "one two three"), now);
+        let at = later(now);
+        assert_eq!(shown(&lines, at), ["old", "one", "two", "three"]);
+        assert_eq!(lines.rows(at)[1].prompt, PROMPT);
+        assert_eq!(lines.rows(at)[2].prompt, INDENT);
+
+        assert!(lines.reserve(2));
+        assert!(!lines.reserve(2));
+        assert_eq!(shown(&lines, at), ["two", "three"]);
     }
 
     #[test]
