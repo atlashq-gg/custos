@@ -85,7 +85,7 @@ fn toml_path(path: &Path) -> String {
 }
 
 /// The lines of the template that are the same on each platform.
-const REST_OF_TEMPLATE: &str = r#"
+const REST_OF_TEMPLATE: &str = r##"
 # The overlay shows the messages above the game while Foxhole runs. Without it, Custos shows
 # desktop notifications.
 # [overlay]
@@ -100,6 +100,11 @@ const REST_OF_TEMPLATE: &str = r#"
 # most half of the lines. An older line is hidden, and it comes back when a newer message goes.
 # messages = 6
 # lines = 20
+# The colors of the text, as "#rrggbb": the messages, the errors, and the lines of the input (the
+# prompt of a question, and the key). The glow has the color of its text.
+# text_color = "#00ff41"
+# error_color = "#ff4141"
+# input_color = "#ffb000"
 
 # The query: a question to the service in plain language, if the service has a query.
 # [query]
@@ -109,9 +114,9 @@ const REST_OF_TEMPLATE: &str = r#"
 # The time that the answer stays in the overlay, in seconds, from 1 to 3600. A new question replaces
 # it before that time.
 # answer_seconds = 180
-# Show the key and /help in the overlay, in amber.
+# Show the key and /help in the overlay, in input_color of [overlay].
 # hint = true
-"#;
+"##;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -184,6 +189,12 @@ pub struct Overlay {
     /// The most lines on the screen that the overlay shows, for the messages and the query. A line
     /// that wraps counts as more lines.
     pub lines: u8,
+    /// The color of the messages.
+    pub text_color: Color,
+    /// The color of the errors.
+    pub error_color: Color,
+    /// The color of the lines of the input: the prompt of a question, and the key.
+    pub input_color: Color,
 }
 
 /// The largest value of [`Overlay::offset`].
@@ -199,7 +210,46 @@ impl Default for Overlay {
             offset: 28,
             messages: 6,
             lines: 20,
+            text_color: Color::rgb(0x00, 0xff, 0x41),
+            error_color: Color::rgb(0xff, 0x41, 0x41),
+            input_color: Color::rgb(0xff, 0xb0, 0x00),
         }
+    }
+}
+
+/// A color of the overlay. The configuration has it as `#rrggbb`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "String")]
+pub struct Color {
+    pub red: u8,
+    pub green: u8,
+    pub blue: u8,
+}
+
+impl Color {
+    #[must_use]
+    pub const fn rgb(red: u8, green: u8, blue: u8) -> Self {
+        Self { red, green, blue }
+    }
+}
+
+impl TryFrom<String> for Color {
+    type Error = String;
+
+    fn try_from(text: String) -> Result<Self, Self::Error> {
+        let invalid = || format!("{text:?} is not a color: use \"#rrggbb\", for example \"#00ff41\"");
+        let hex = text
+            .strip_prefix('#')
+            .filter(|hex| hex.len() == 6)
+            .ok_or_else(invalid)?;
+        let byte = |i: usize| u8::from_str_radix(hex.get(i..i + 2).ok_or_else(invalid)?, 16).map_err(|_| invalid());
+        Ok(Self::rgb(byte(0)?, byte(2)?, byte(4)?))
+    }
+}
+
+impl std::fmt::Display for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#{:02x}{:02x}{:02x}", self.red, self.green, self.blue)
     }
 }
 
@@ -387,7 +437,7 @@ mod tests {
     #[test]
     fn full_file_is_read() {
         let Ok(config) = parse(
-            r#"
+            r##"
             service_url = "http://localhost:5080"
             upload_interval_seconds = 30
             upload_delay_seconds = 5
@@ -401,7 +451,8 @@ mod tests {
             offset = 0
             messages = 2
             lines = 30
-            "#,
+            text_color = "#FFFFFF"
+            "##,
         ) else {
             panic!()
         };
@@ -416,6 +467,8 @@ mod tests {
                 offset: 0,
                 messages: 2,
                 lines: 30,
+                text_color: Color::rgb(255, 255, 255),
+                ..Overlay::default()
             }
         );
         assert_eq!(config.save_dir.as_deref(), Some(Path::new("/tmp/saves")));
@@ -527,6 +580,20 @@ mod tests {
                 defaults.query
             )
         );
+    }
+
+    #[test]
+    fn color_is_read_as_rrggbb_and_written_back() {
+        let color = |text: &str| Color::try_from(text.to_owned());
+        assert_eq!(color("#00ff41"), Ok(Color::rgb(0, 255, 65)));
+        assert_eq!(color("#00FF41").map(|c| c.to_string()), Ok("#00ff41".into()));
+        for bad in ["00ff41", "#00ff4", "#00ff411", "#00gg41", "#ééé"] {
+            assert!(color(bad).is_err(), "{bad}");
+        }
+        let Err(ParseError::Toml(e)) = parse("[overlay]\nerror_color = \"red\"") else {
+            panic!()
+        };
+        assert!(e.to_string().contains("\"red\" is not a color"), "{e}");
     }
 
     #[test]

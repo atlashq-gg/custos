@@ -93,6 +93,12 @@ offset = 28
 messages = 6
 # The most lines on the screen that the overlay shows, from 1 to 30. Default: 20.
 lines = 20
+# The colors of the text, as "#rrggbb": the messages, the errors, and the lines of the input (the
+# prompt of a question, and the key). The glow has the color of its text.
+# Defaults: "#00ff41" (green), "#ff4141" (red), and "#ffb000" (amber).
+text_color = "#00ff41"
+error_color = "#ff4141"
+input_color = "#ffb000"
 
 # Optional. The query, if the service has one.
 [query]
@@ -100,7 +106,7 @@ lines = 20
 key = "Ctrl+Alt+K"
 # The time that the answer stays in the overlay, in seconds, from 1 to 3600. Default: 180.
 answer_seconds = 180
-# Show the key and /help in the overlay, in amber. Default: true.
+# Show the key and /help in the overlay, in input_color. Default: true.
 hint = true
 ```
 
@@ -128,7 +134,7 @@ Custos keeps the tokens in the Secret Service on Linux, and in the Credential Ma
 
 ## Overlay
 
-While Foxhole runs, Custos shows its messages as lines in a corner of the monitor that shows the game. The newest line is at the bottom. A line wraps when it is wider than 15 % of the monitor width. In the top left corner, the default `offset` of 28 % puts the lines below the notifications of the game. The distance from the side of the monitor is 8 pixels. The overlay looks like an old terminal: green text with a glow, and no background. Each new line types out after the line above it, as on a ticker tape. While no line types, a prompt shows at the bottom, and its cursor fades in and out. An error line is red. The font is the first of these that the computer has: JetBrains Mono, Cascadia Mono, Fira Code, Source Code Pro, Hack, and Noto Sans Mono. Without them, it is the default monospace font, for example Consolas on Windows 10.
+While Foxhole runs, Custos shows its messages as lines in a corner of the monitor that shows the game. The newest line is at the bottom. A line wraps when it is wider than 15 % of the monitor width. In the top left corner, the default `offset` of 28 % puts the lines below the notifications of the game. The distance from the side of the monitor is 8 pixels. The overlay looks like an old terminal: green text with a glow, and no background. A dark shadow keeps the text readable on a light scene. Each new line types out after the line above it, as on a ticker tape. While no line types, a prompt shows at the bottom, and its cursor fades in and out. An error line is red. The lines of the input are amber. Set other colors with `text_color`, `error_color`, and `input_color` in `[overlay]`. The font is the first of these that the computer has: JetBrains Mono, Cascadia Mono, Fira Code, Source Code Pro, Hack, and Noto Sans Mono. Without them, it is the default monospace font, for example Consolas on Windows 10.
 
 A message can have more than one line. A line break in the text starts a new line, and each other control character shows as a space. The first line of a message has the prompt. Each next line starts with two spaces, under the text of the first line. The lines of a message type one after the other.
 

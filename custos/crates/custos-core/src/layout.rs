@@ -1,6 +1,7 @@
-//! The place and the size of the overlay on a monitor. The same rules apply on Linux and on Windows.
+//! The place, the size, and the colors of the overlay on a monitor. The same rules apply on Linux and
+//! on Windows.
 
-use crate::config::Overlay;
+use crate::config::{Color, Overlay};
 
 /// The distance from the top or bottom edge, in logical pixels, in addition to the offset.
 pub const MARGIN: i32 = 16;
@@ -49,6 +50,26 @@ pub fn area(monitor: Rect, settings: Overlay, scale: f64) -> Rect {
     }
 }
 
+/// The colors of the configuration as CSS, after `dist/overlay.css`: the color of each kind of line,
+/// with a glow of the same color, and a dark shadow that keeps the text readable on a light scene.
+/// GTK on Linux and the page on Windows read it, so it uses only properties that GTK knows.
+#[must_use]
+pub fn style(settings: Overlay) -> String {
+    let rule = |selector: &str, color: Color| {
+        let Color { red, green, blue } = color;
+        format!(
+            "#custos-overlay label{selector} {{ color: {color}; text-shadow: 0 0 4px rgba({red}, {green}, {blue}, 0.7), \
+             1px 1px 2px rgba(0, 0, 0, 0.9); }}\n"
+        )
+    };
+    [
+        rule("", settings.text_color),
+        rule(".custos-error", settings.error_color),
+        rule(".custos-input", settings.input_color),
+    ]
+    .concat()
+}
+
 #[expect(clippy::cast_possible_truncation, reason = "a margin is small")]
 fn scaled(pixels: i32, scale: f64) -> i32 {
     (f64::from(pixels) * scale).round() as i32
@@ -72,6 +93,18 @@ mod tests {
             offset: 30,
             ..Overlay::default()
         }
+    }
+
+    #[test]
+    fn style_has_each_color_with_its_glow() {
+        let settings = Overlay {
+            error_color: Color::rgb(1, 2, 3),
+            ..Overlay::default()
+        };
+        let style = style(settings);
+        assert!(style.contains("#custos-overlay label { color: #00ff41; text-shadow: 0 0 4px rgba(0, 255, 65, 0.7)"));
+        assert!(style.contains("label.custos-error { color: #010203; text-shadow: 0 0 4px rgba(1, 2, 3, 0.7)"));
+        assert!(style.contains("label.custos-input { color: #ffb000;"));
     }
 
     #[test]

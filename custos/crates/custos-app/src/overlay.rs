@@ -430,7 +430,8 @@ mod platform {
             let screen = WidgetExt::screen(&window).ok_or("the window has no screen")?;
             make_transparent(&window, &screen);
             let style = gtk::CssProvider::new();
-            style.load_from_data(CSS.as_bytes()).map_err(|e| e.to_string())?;
+            let css = format!("{CSS}{}", layout::style(settings));
+            style.load_from_data(css.as_bytes()).map_err(|e| e.to_string())?;
 
             let align = if anchor.is_left() {
                 gtk::Align::Start
@@ -891,6 +892,7 @@ mod platform {
                 "left": anchor.is_left(),
                 "rate": lines::TYPING_RATE,
                 "period": lines::CURSOR_PERIOD.as_secs_f64(),
+                "style": layout::style(self.settings),
                 "rows": rows,
             });
             // JSON is valid JavaScript.
