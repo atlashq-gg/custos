@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Custos no longer sends the map data file when Foxhole starts, because the file is old then. It ignores the changes of the file for `upload_start_delay_seconds` (default 60) after the start of Foxhole, after its own start while Foxhole runs, and after a change of the save folder. Then the overlay shows `Watching the map for changes` (#114).
+- Custos no longer sends the map data file when Foxhole starts, because the file is old then. It ignores the changes of the file for `upload_start_delay_seconds` (default 60) after the start of Foxhole, after its own start while Foxhole runs, and after a change of the save folder. At the start, the overlay shows `Not watching the map yet (60 s)`. After the start delay, `Watching the map for changes` replaces it (#114).
 - Custos sends a change only after the file did not change for `upload_delay_seconds` (default 10). Each change starts this time again, so that a set of map refreshes goes in one upload. A change during the interval stays pending, and goes when the interval is over (#113).
 
 ## 0.3.0

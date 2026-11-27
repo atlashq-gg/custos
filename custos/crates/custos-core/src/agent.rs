@@ -19,7 +19,7 @@ use crate::locate;
 use crate::process;
 use crate::query::{self, Input, Query, Response, State as QueryState, Update};
 use crate::root_cause;
-use crate::schedule::Schedule;
+use crate::schedule::{Announcement, Schedule};
 use crate::stream::{self, Action, Backoff, End, Signal};
 use crate::upload::{self, Outcome, UploadResult};
 use crate::watch;
@@ -295,7 +295,7 @@ impl Agent {
                 self.emit(Event::GameRunning(running));
                 if running {
                     self.announce_problems();
-                    self.start_watching();
+                    self.start_watching(now);
                 } else {
                     self.stop_watching();
                 }
@@ -305,8 +305,8 @@ impl Agent {
         self.update_state();
 
         if self.state == Some(State::Watching) {
-            if self.schedule.listening(now) {
-                self.notify(listening_notification());
+            if let Some(announcement) = self.schedule.announcement(now) {
+                self.notify(watch_notification(announcement));
             }
             if self.schedule.is_due(now) {
                 self.upload(now).await;
@@ -347,7 +347,7 @@ impl Agent {
         self.settings.steam_roots = steam_roots;
         if moved && self.game_running {
             self.stop_watching();
-            self.start_watching();
+            self.start_watching(Instant::now());
         }
     }
 
@@ -392,7 +392,7 @@ impl Agent {
         self.emit(Event::QueryAvailable(false));
     }
 
-    fn start_watching(&mut self) {
+    fn start_watching(&mut self, now: Instant) {
         let located = locate::find_save_dir(self.settings.config.save_dir.as_deref(), &self.settings.steam_roots)
             .and_then(|dir| locate::find_map_data(&dir).map(|file| (dir, file)));
         let (dir, file) = match located {
@@ -407,7 +407,7 @@ impl Agent {
         tracing::info!("watching {}", file.display());
         self.map_file = Some(file);
         // The file is old now. Custos sends only a change after the start delay.
-        self.schedule.start(Instant::now());
+        self.schedule.start(now);
     }
 
     fn stop_watching(&mut self) {
@@ -963,11 +963,17 @@ async fn next_signal(task: &mut Option<(JoinHandle<()>, mpsc::UnboundedReceiver<
     }
 }
 
-/// The message at the end of the start delay. The next upload message replaces it.
-fn listening_notification() -> Notification {
+/// The message at the start of the watch, and at the end of the start delay: `Not watching the map
+/// yet (60 s)`, then `Watching the map for changes`. Each message replaces the one before it, and the
+/// next upload message replaces the last.
+fn watch_notification(announcement: Announcement) -> Notification {
+    let title = match announcement {
+        Announcement::Waiting(left) => format!("Not watching the map yet ({} s)", left.as_millis().div_ceil(1000)),
+        Announcement::Listening => "Watching the map for changes".into(),
+    };
     Notification {
         reference: Some(Kind::Upload.into()),
-        title: "Watching the map for changes".into(),
+        title,
         body: String::new(),
         is_error: false,
     }
@@ -1166,7 +1172,7 @@ mod tests {
     }
 
     fn is_listening(e: &Event) -> bool {
-        *e == Event::Notify(listening_notification())
+        *e == Event::Notify(watch_notification(Announcement::Listening))
     }
 
     #[tokio::test]
@@ -1312,7 +1318,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn change_in_the_start_delay_is_not_sent() {
+    async fn change_in_the_start_delay_is_not_sent_and_the_messages_tell_it() {
         let game = Arc::new(AtomicBool::new(false));
         let mut f = Fixture::start_service(Some(tokens("a1")), game, false, 1).await;
         Mock::given(method("POST"))
@@ -1323,6 +1329,11 @@ mod tests {
 
         f.start_game();
         f.next(is_state(State::Watching)).await;
+        let Event::Notify(n) = f.next(is_notification).await else {
+            unreachable!()
+        };
+        assert_eq!(n.text(), "Not watching the map yet (1 s)");
+        assert_eq!(n.reference, Some(Kind::Upload.into()));
         std::fs::write(f.save_dir.path().join("1_MapData.sav"), b"GVAS0002").unwrap();
         f.next(is_listening).await;
         tokio::time::sleep(Duration::from_millis(200)).await;

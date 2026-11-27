@@ -4,6 +4,15 @@ use std::time::{Duration, Instant};
 
 use crate::config::Config;
 
+/// What the user must know about the watch of the file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Announcement {
+    /// Custos does not watch the changes yet. The start delay ends after this time.
+    Waiting(Duration),
+    /// The start delay is over. Custos sends the next change.
+    Listening,
+}
+
 /// Decides when Custos sends the next upload.
 ///
 /// When Custos starts to watch the file, the file is stale. Custos ignores its changes during the start
@@ -21,8 +30,10 @@ pub struct Schedule {
     rejected_sha256: Option<String>,
     /// The time when Custos started to watch the file. `None` while it does not watch.
     started: Option<Instant>,
-    /// True after [`Schedule::listening`] returned true for the current watch.
-    announced: bool,
+    /// True after [`Schedule::announcement`] gave [`Announcement::Waiting`] for the current watch.
+    announced_waiting: bool,
+    /// True after [`Schedule::announcement`] gave [`Announcement::Listening`] for the current watch.
+    announced_listening: bool,
     /// The time of the last change after the start delay. `None` when no change waits.
     changed_at: Option<Instant>,
 }
@@ -40,7 +51,8 @@ impl Schedule {
             last_accepted_sha256: None,
             rejected_sha256: None,
             started: None,
-            announced: false,
+            announced_waiting: false,
+            announced_listening: false,
             changed_at: None,
         };
         schedule.configure(config);
@@ -68,7 +80,8 @@ impl Schedule {
     /// Custos starts to watch the file. No change waits, and the start delay starts.
     pub fn start(&mut self, now: Instant) {
         self.started = Some(now);
-        self.announced = false;
+        self.announced_waiting = false;
+        self.announced_listening = false;
         self.changed_at = None;
     }
 
@@ -88,11 +101,15 @@ impl Schedule {
         listening
     }
 
-    /// True one time for each watch, at the first call after the start delay.
-    pub fn listening(&mut self, now: Instant) -> bool {
-        let first = !self.announced && self.is_listening(now);
-        self.announced |= first;
-        first
+    /// The news of the watch, one time each: [`Announcement::Waiting`] at the first call in the start
+    /// delay, and [`Announcement::Listening`] at the first call after it. `None` when there is no news.
+    pub fn announcement(&mut self, now: Instant) -> Option<Announcement> {
+        let end = self.started? + self.start_delay;
+        if now >= end {
+            (!std::mem::replace(&mut self.announced_listening, true)).then_some(Announcement::Listening)
+        } else {
+            (!std::mem::replace(&mut self.announced_waiting, true)).then(|| Announcement::Waiting(end - now))
+        }
     }
 
     fn is_listening(&self, now: Instant) -> bool {
@@ -194,16 +211,24 @@ mod tests {
     }
 
     #[test]
-    fn listening_is_true_one_time_after_the_start_delay() {
+    fn each_announcement_comes_one_time_for_each_watch() {
         let start = Instant::now();
         let mut schedule = watching(start);
-        assert!(!schedule.listening(start + 59 * SECOND));
-        assert!(schedule.listening(start + MINUTE));
-        assert!(!schedule.listening(start + 2 * MINUTE));
+        assert_eq!(
+            schedule.announcement(start + SECOND),
+            Some(Announcement::Waiting(59 * SECOND))
+        );
+        assert_eq!(schedule.announcement(start + 59 * SECOND), None);
+        assert_eq!(schedule.announcement(start + MINUTE), Some(Announcement::Listening));
+        assert_eq!(schedule.announcement(start + 2 * MINUTE), None);
 
+        // A watch that started again announces again. A late first call skips the wait.
         schedule.start(start + 3 * MINUTE);
-        assert!(!schedule.listening(start + 3 * MINUTE));
-        assert!(schedule.listening(start + 4 * MINUTE));
+        assert_eq!(schedule.announcement(start + 4 * MINUTE), Some(Announcement::Listening));
+        assert_eq!(schedule.announcement(start + 5 * MINUTE), None);
+
+        schedule.stop();
+        assert_eq!(schedule.announcement(start + 6 * MINUTE), None);
     }
 
     #[test]
