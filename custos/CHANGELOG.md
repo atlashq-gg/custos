@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.1
+
+The upload waits for a new map after the start of Foxhole, the prompt no longer locks, the overlay keeps to its line limit, and its colors are in the configuration.
 
 - Custos no longer sends the map data file when Foxhole starts, because the file is old then. It ignores the changes of the file for `upload_start_delay_seconds` (default 60) after the start of Foxhole, after its own start while Foxhole runs, and after a change of the save folder. At the start, the overlay shows `Not watching the map yet (60 s)`. The seconds count down in place, with no new typing and no new desktop notification, and the message stays until `Watching the map for changes` replaces it at the end of the start delay. The log shows the end of the start delay at the level `info`, and each change of the file at the level `debug`, also in the start delay (#114).
 - Custos sends a change only after the file did not change for `upload_delay_seconds` (default 10). Each change starts this time again, so that a set of map refreshes goes in one upload. A change during the interval stays pending, and goes when the interval is over (#113).
