@@ -3,6 +3,7 @@
 ## Unreleased
 
 - On Linux, the cursor of the prompt is again on the line of `>` when the overlay does not show the line with the key, for example with `hint = false` in `[query]`. Before, the prompt wrapped, and the cursor was half a line lower.
+- A build from source needs Rust 1.95 or later. The dependencies have their newest compatible versions, among them Tauri 2.12.
 
 ## 0.3.1
 

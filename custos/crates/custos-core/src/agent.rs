@@ -25,7 +25,7 @@ use crate::upload::{self, Outcome, UploadResult};
 use crate::watch;
 
 /// An identical error notification is shown at most one time in this period.
-const ERROR_REPEAT: Duration = Duration::from_secs(15 * 60);
+const ERROR_REPEAT: Duration = Duration::from_mins(15);
 /// The wait before Custos gets the discovery document again after a failure.
 const DISCOVERY_RETRY: Duration = Duration::from_secs(60);
 /// The message when Custos has no valid token.

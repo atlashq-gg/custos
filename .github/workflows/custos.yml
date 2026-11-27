@@ -78,7 +78,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
 
-      # The user must not need the Visual C++ Redistributable (see custos/.cargo/config.toml).
+      # The user must not need the Visual C++ Redistributable (see staticVCRuntime in tauri.conf.json).
       - name: Make sure that custos.exe needs no Visual C++ runtime DLL
         shell: pwsh
         run: |
