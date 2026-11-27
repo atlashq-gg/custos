@@ -82,6 +82,15 @@ pub fn put(notification: Notification) -> Option<Notification> {
     })
 }
 
+/// Changes the text of the message with the reference of `notification`, with no new typing.
+pub fn update(notification: Notification) {
+    with(|overlay| {
+        if overlay.lines.update(notification, Instant::now()) {
+            overlay.view.render(&overlay.lines);
+        }
+    });
+}
+
 /// Removes the message with this reference.
 pub fn expire(reference: &Reference) {
     with(|overlay| {

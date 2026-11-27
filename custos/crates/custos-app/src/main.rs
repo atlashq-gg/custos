@@ -338,6 +338,7 @@ fn on_agent_event(app: &AppHandle, event: Event) -> tauri::Result<()> {
                 }
             })?;
         }
+        Event::Update(n) => app.run_on_main_thread(move || overlay::update(n))?,
         Event::Expire(reference) => app.run_on_main_thread(move || overlay::expire(&reference))?,
         // The query shows in the overlay. When it is not open, a question or an end shows as a
         // desktop notification.

@@ -7,7 +7,7 @@ Custos is a tray application for Linux and Windows. It watches the map data file
 ## Behavior
 
 - Custos is idle while Foxhole does not run. It does not watch the file, and it does not send data.
-- While Foxhole runs, Custos watches the save folder. The map data file is old when the game starts, so Custos ignores its changes for `upload_start_delay_seconds`. When the game starts, the overlay shows `Not watching the map yet (60 s)`. When the time is over, `Watching the map for changes` replaces it.
+- While Foxhole runs, Custos watches the save folder. The map data file is old when the game starts, so Custos ignores its changes for `upload_start_delay_seconds`. When the game starts, the overlay shows `Not watching the map yet (60 s)`. The seconds count down, and the message stays until `Watching the map for changes` replaces it at the end of the time. The log shows each change of the file at the level `debug`, also in the start delay, and the end of the start delay at the level `info`.
 - When the map data file changes after that time, Custos waits until the file did not change for `upload_delay_seconds`. Each change starts this time again, so that a set of map refreshes goes in one upload. Then Custos sends the full file at the next interval.
 - Custos does not send a file that the service already accepted, or a file that the service refused.
 - The interval is the larger of `upload_interval_seconds` and the minimum of the service. A `429` response makes Custos wait longer.

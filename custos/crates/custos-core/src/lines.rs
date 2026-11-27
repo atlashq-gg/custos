@@ -104,6 +104,30 @@ impl Notification {
         }
     }
 
+    /// The time that the message stays.
+    fn lifetime(&self) -> Duration {
+        if self.is_error { ERROR_LIFETIME } else { LIFETIME }
+    }
+
+    /// The lines of the overlay, which type one after the other from `start`.
+    fn rows(&self, mut start: Instant) -> Vec<Row> {
+        self.lines()
+            .into_iter()
+            .enumerate()
+            .map(|(i, text)| {
+                let row = Row {
+                    prompt: if i == 0 { self.prompt() } else { INDENT },
+                    text,
+                    is_error: self.is_error,
+                    start,
+                    hide_at: None,
+                };
+                start = row.end();
+                row
+            })
+            .collect()
+    }
+
     /// The lines of the text. A line break (U+000A) starts a new line. Each other control character
     /// shows as a space (#51).
     #[must_use]
@@ -234,42 +258,56 @@ impl Lines {
             self.messages[index].rows.clear();
         }
 
-        let mut start = self
+        let start = self
             .messages
             .iter()
             .flat_map(|m| &m.rows)
             .map(Row::end)
             .fold(now, Instant::max);
-        let rows = notification
-            .lines()
-            .into_iter()
-            .enumerate()
-            .map(|(i, text)| {
-                let row = Row {
-                    prompt: if i == 0 { notification.prompt() } else { INDENT },
-                    text,
-                    is_error: notification.is_error,
-                    start,
-                    hide_at: None,
-                };
-                start = row.end();
-                row
-            })
-            .collect();
-        let lifetime = if notification.is_error {
-            ERROR_LIFETIME
-        } else {
-            LIFETIME
-        };
         let message = Message {
+            until: now + notification.lifetime(),
+            rows: notification.rows(start),
             notification,
-            until: now + lifetime,
-            rows,
         };
         match index {
             Some(index) => self.messages[index] = message,
             None => self.messages.push(message),
         }
+    }
+
+    /// Changes the text of the message with the reference of `notification` in place. Its lines do not
+    /// type again, and its lifetime starts again. Returns false when no message has the reference.
+    pub fn update(&mut self, notification: Notification, now: Instant) -> bool {
+        let Some(reference) = notification.reference.clone() else {
+            return false;
+        };
+        if let Some(held) = self
+            .held
+            .iter_mut()
+            .flatten()
+            .find(|n| n.reference.as_ref() == Some(&reference))
+        {
+            *held = notification;
+            return true;
+        }
+        self.prune(now);
+        let Some(message) = self
+            .messages
+            .iter_mut()
+            .find(|m| m.notification.reference.as_ref() == Some(&reference))
+        else {
+            return false;
+        };
+        let mut rows = notification.rows(message.rows.first().map_or(now, |row| row.start));
+        for (row, old) in rows.iter_mut().zip(&message.rows) {
+            row.start = old.start;
+        }
+        *message = Message {
+            until: now + notification.lifetime(),
+            rows,
+            notification,
+        };
+        true
     }
 
     /// Removes the message with this reference. Returns false when no message has it.
@@ -549,6 +587,32 @@ mod tests {
         assert_eq!(rows[2].typed(at), 5, "the message after it does not type again");
         assert!(lines.prune(now + LIFETIME), "the other message goes");
         assert_eq!(lines.next_expiry(), Some(at + LIFETIME));
+    }
+
+    #[test]
+    fn update_changes_the_text_with_no_typing_and_restarts_the_lifetime() {
+        let now = Instant::now();
+        let mut lines = Lines::new(LIMITS);
+        lines.put(local(Kind::Upload, "Wait (60 s)", false), now);
+        let typed = later(now);
+        assert!(lines.update(local(Kind::Upload, "Wait (59 s)", false), typed));
+        let rows = lines.rows(typed);
+        assert_eq!(shown(&lines, typed), ["Custos. Wait (59 s)"]);
+        assert!(!rows[0].is_typing(typed));
+
+        // The first lifetime is over, but the update started it again.
+        let after_first = now + LIFETIME;
+        lines.prune(after_first);
+        assert_eq!(shown(&lines, after_first), ["Custos. Wait (59 s)"]);
+
+        assert!(!lines.update(local(Kind::Login, "No such message", false), typed));
+        assert!(!lines.update(service(None, "No reference"), typed));
+
+        lines.hold();
+        lines.put(service(Some("s:1"), "Held"), typed);
+        assert!(lines.update(service(Some("s:1"), "Held again"), typed));
+        lines.release(typed);
+        assert_eq!(shown(&lines, later(typed)), ["Custos. Wait (59 s)", "Held again"]);
     }
 
     #[test]

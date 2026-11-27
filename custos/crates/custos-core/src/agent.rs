@@ -85,6 +85,9 @@ pub enum Event {
     /// Foxhole started (`true`) or stopped (`false`).
     GameRunning(bool),
     Notify(Notification),
+    /// The new text of the message with the reference of this message. Change it in the overlay with
+    /// no new typing. Without the overlay, or without such a message, do nothing.
+    Update(Notification),
     /// The message with this reference is no longer correct. Remove it if it is visible.
     Expire(Reference),
     /// Open this URL in the browser.
@@ -250,10 +253,9 @@ impl Agent {
                     Some(command) => self.handle(command).await,
                 },
                 Some(()) = self.file_events.1.recv() => {
-                    if self.schedule.changed(Instant::now()) {
-                        tracing::debug!("the map data file changed");
-                    } else {
-                        tracing::debug!("the map data file changed in the start delay: Custos ignores it");
+                    tracing::debug!("the map data file changed");
+                    if !self.schedule.changed(Instant::now()) {
+                        tracing::debug!("Custos ignores the change in the start delay");
                     }
                 }
                 Some(signal) = next_signal(&mut self.stream.task) => self.on_signal(signal).await,
@@ -305,8 +307,14 @@ impl Agent {
         self.update_state();
 
         if self.state == Some(State::Watching) {
-            if let Some(announcement) = self.schedule.announcement(now) {
-                self.notify(watch_notification(announcement));
+            match self.schedule.announcement(now) {
+                Some(Announcement::Waiting(seconds)) => self.notify(waiting_notification(seconds)),
+                Some(Announcement::Countdown(seconds)) => self.emit(Event::Update(waiting_notification(seconds))),
+                Some(Announcement::Listening) => {
+                    tracing::info!("the start delay is over: Custos listens to the changes of the map data file");
+                    self.notify(listening_notification());
+                }
+                None => {}
             }
             if self.schedule.is_due(now) {
                 self.upload(now).await;
@@ -404,7 +412,11 @@ impl Agent {
             Ok(watcher) => self.watcher = Some(watcher),
             Err(e) => self.notify_error(Kind::SaveFile, &format!("cannot watch {}: {e}", dir.display())),
         }
-        tracing::info!("watching {}", file.display());
+        tracing::info!(
+            "watching {}: Custos ignores its changes for the start delay of {} s",
+            file.display(),
+            self.settings.config.upload_start_delay_seconds
+        );
         self.map_file = Some(file);
         // The file is old now. Custos sends only a change after the start delay.
         self.schedule.start(now);
@@ -963,17 +975,22 @@ async fn next_signal(task: &mut Option<(JoinHandle<()>, mpsc::UnboundedReceiver<
     }
 }
 
-/// The message at the start of the watch, and at the end of the start delay: `Not watching the map
-/// yet (60 s)`, then `Watching the map for changes`. Each message replaces the one before it, and the
-/// next upload message replaces the last.
-fn watch_notification(announcement: Announcement) -> Notification {
-    let title = match announcement {
-        Announcement::Waiting(left) => format!("Not watching the map yet ({} s)", left.as_millis().div_ceil(1000)),
-        Announcement::Listening => "Watching the map for changes".into(),
-    };
+/// The message in the start delay, with the seconds that are left: `Not watching the map yet (60 s)`.
+/// It counts down in place ([`Event::Update`]), and [`listening_notification`] replaces it.
+fn waiting_notification(seconds: u64) -> Notification {
     Notification {
         reference: Some(Kind::Upload.into()),
-        title,
+        title: format!("Not watching the map yet ({seconds} s)"),
+        body: String::new(),
+        is_error: false,
+    }
+}
+
+/// The message at the end of the start delay. The next upload message replaces it.
+fn listening_notification() -> Notification {
+    Notification {
+        reference: Some(Kind::Upload.into()),
+        title: "Watching the map for changes".into(),
         body: String::new(),
         is_error: false,
     }
@@ -1172,7 +1189,7 @@ mod tests {
     }
 
     fn is_listening(e: &Event) -> bool {
-        *e == Event::Notify(watch_notification(Announcement::Listening))
+        *e == Event::Notify(listening_notification())
     }
 
     #[tokio::test]
@@ -1320,7 +1337,7 @@ mod tests {
     #[tokio::test]
     async fn change_in_the_start_delay_is_not_sent_and_the_messages_tell_it() {
         let game = Arc::new(AtomicBool::new(false));
-        let mut f = Fixture::start_service(Some(tokens("a1")), game, false, 1).await;
+        let mut f = Fixture::start_service(Some(tokens("a1")), game, false, 2).await;
         Mock::given(method("POST"))
             .respond_with(ResponseTemplate::new(200).set_body_raw(RESULT, "application/json"))
             .expect(1)
@@ -1332,9 +1349,14 @@ mod tests {
         let Event::Notify(n) = f.next(is_notification).await else {
             unreachable!()
         };
-        assert_eq!(n.text(), "Not watching the map yet (1 s)");
+        assert_eq!(n.text(), "Not watching the map yet (2 s)");
         assert_eq!(n.reference, Some(Kind::Upload.into()));
         std::fs::write(f.save_dir.path().join("1_MapData.sav"), b"GVAS0002").unwrap();
+        // The message counts down in place.
+        let Event::Update(n) = f.next(|e| matches!(e, Event::Update(_))).await else {
+            unreachable!()
+        };
+        assert_eq!(n.text(), "Not watching the map yet (1 s)");
         f.next(is_listening).await;
         tokio::time::sleep(Duration::from_millis(200)).await;
         assert_eq!(f.uploads().await, 0);
