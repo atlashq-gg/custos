@@ -10,7 +10,7 @@
 //! the lines of the events do not move them. The user types a question at the prompt: then the
 //! overlay takes the keyboard, and holds the new messages until the user sends the question or
 //! cancels it. The prompt also closes when the overlay loses the keyboard to another window, and
-//! after [`query::INPUT_TIMEOUT`] with no key.
+//! after [`query::INPUT_TIMEOUT`] with no key. Then the typed text stays for the next prompt.
 //!
 //! Call each function on the main thread.
 
@@ -36,6 +36,8 @@ struct Overlay {
     settings: Settings,
     /// The line that the user types at the prompt. `None` while the game has the keyboard.
     entry: Option<Entry>,
+    /// The text of a prompt that closed with no Enter or Escape. The next prompt starts with it.
+    draft: String,
     /// True after the overlay got the keyboard for the open prompt. A loss of the keyboard before
     /// that time does not close the prompt.
     focused: bool,
@@ -60,6 +62,7 @@ pub fn open(app: &AppHandle, settings: Settings) -> Result<(), String> {
             settings,
             entry: None,
             focused: false,
+            draft: String::new(),
             app: app.clone(),
             seconds: 0,
         });
@@ -117,10 +120,12 @@ pub fn begin_input() -> bool {
     let open = OVERLAY.with_borrow_mut(|overlay| {
         let Some(overlay) = overlay else { return false };
         if overlay.entry.is_none() {
-            overlay.entry = Some(Entry::new(Instant::now()));
+            let mut entry = Entry::new(Instant::now());
+            entry.text = std::mem::take(&mut overlay.draft);
+            overlay.view.render_input(Some(&entry.text));
+            overlay.entry = Some(entry);
             overlay.focused = false;
             overlay.lines.hold();
-            overlay.view.render_input(Some(""));
         }
         overlay.view.take_keyboard();
         true
@@ -146,17 +151,18 @@ pub fn key(key: Key) {
         Some((Outcome::Continue, _)) => {
             render_query();
         }
-        Some((Outcome::Close, _)) => end_input(true),
+        Some((Outcome::Close, _)) => end_input(Close::Done),
         Some((Outcome::Send(input), app)) => {
             app.state::<Tray>().send(Command::Query(input));
-            end_input(true);
+            end_input(Close::Done);
         }
         None => {}
     }
 }
 
 /// The overlay got (`true`) or lost the keyboard. A loss after the overlay got it closes the prompt,
-/// as Escape does, but leaves the keyboard to the window that the user selected.
+/// keeps the typed text, and leaves the keyboard to the window that took it. For example, a key of
+/// another application, such as push-to-talk, can take the keyboard while the user holds it.
 fn focus(focused: bool) {
     let lost = OVERLAY.with_borrow_mut(|overlay| {
         let Some(overlay) = overlay.as_mut().filter(|o| o.entry.is_some()) else {
@@ -167,16 +173,32 @@ fn focus(focused: bool) {
         lost
     });
     if lost {
-        tracing::debug!("the overlay lost the keyboard: the prompt closes");
-        end_input(false);
+        tracing::debug!("the overlay lost the keyboard: the prompt closes and keeps the text");
+        end_input(Close::FocusLost);
     }
 }
 
-/// Closes the prompt, and shows the held messages. With `to_game`, the game gets the keyboard back.
-fn end_input(to_game: bool) {
+/// Why the prompt closes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Close {
+    /// Enter or Escape. The text goes, and the game gets the keyboard back.
+    Done,
+    /// No key for [`query::INPUT_TIMEOUT`]. The text stays, and the game gets the keyboard back.
+    Idle,
+    /// Another window took the keyboard, and keeps it. The text stays.
+    FocusLost,
+}
+
+/// Closes the prompt, and shows the held messages.
+fn end_input(close: Close) {
     with(|overlay| {
-        if overlay.entry.take().is_some() {
-            overlay.view.release_keyboard(to_game);
+        if let Some(entry) = overlay.entry.take() {
+            overlay.draft = if close == Close::Done {
+                String::new()
+            } else {
+                entry.text
+            };
+            overlay.view.release_keyboard(close != Close::FocusLost);
             overlay.view.render_input(None);
             overlay.lines.release(Instant::now());
             overlay.view.render(&overlay.lines);
@@ -235,7 +257,7 @@ fn tick() {
             .is_some_and(|entry| entry.is_idle(Instant::now()))
     });
     if idle {
-        end_input(true);
+        end_input(Close::Idle);
     }
     render_query();
     with(|overlay| {

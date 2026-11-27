@@ -167,10 +167,10 @@ While you type:
 
 The input also stops in these conditions:
 
-- You select another window, for example with Alt+Tab. The selected window keeps the keyboard.
+- Another window takes the keyboard. Examples are Alt+Tab, a mouse click that goes through the overlay to the game, and a push-to-talk key of Discord. The window that took the keyboard keeps it.
 - You push no key for 60 seconds. The game gets the keyboard back.
 
-While the prompt is open, the key takes the keyboard for the overlay again.
+In these conditions, Custos keeps the typed text. The next push of the key opens the prompt with it. Enter and Escape remove the text. While the prompt is open, the key takes the keyboard for the overlay again.
 
 While you type, the area of the query shows the last question with its full answer, and the amber line `> Awaiting input...`. The cursor at the prompt does not fade.
 
