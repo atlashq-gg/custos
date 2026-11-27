@@ -19,7 +19,7 @@ use crate::locate;
 use crate::process;
 use crate::query::{self, Input, Query, Response, State as QueryState, Update};
 use crate::root_cause;
-use crate::schedule::Schedule;
+use crate::schedule::{Announcement, Schedule};
 use crate::stream::{self, Action, Backoff, End, Signal};
 use crate::upload::{self, Outcome, UploadResult};
 use crate::watch;
@@ -85,6 +85,9 @@ pub enum Event {
     /// Foxhole started (`true`) or stopped (`false`).
     GameRunning(bool),
     Notify(Notification),
+    /// The new text of the message with the reference of this message. Change it in the overlay with
+    /// no new typing. Without the overlay, or without such a message, do nothing.
+    Update(Notification),
     /// The message with this reference is no longer correct. Remove it if it is visible.
     Expire(Reference),
     /// Open this URL in the browser.
@@ -158,7 +161,6 @@ pub struct Agent {
     map_file: Option<PathBuf>,
     watcher: Option<RecommendedWatcher>,
     file_events: (mpsc::UnboundedSender<()>, mpsc::UnboundedReceiver<()>),
-    dirty: bool,
     state: Option<State>,
     /// The last time that each error showed, by reference and text.
     shown_errors: HashMap<(Reference, String), Instant>,
@@ -206,7 +208,7 @@ enum Refresh {
 impl Agent {
     #[must_use]
     pub fn new(settings: Settings, events: mpsc::UnboundedSender<Event>) -> Self {
-        let interval = Duration::from_secs(settings.config.upload_interval_seconds);
+        let schedule = Schedule::new(&settings.config);
         Self {
             settings,
             events,
@@ -220,14 +222,13 @@ impl Agent {
             last_discovery_attempt: None,
             tokens: None,
             pending: None,
-            schedule: Schedule::new(interval),
+            schedule,
             paused: false,
             game_running: false,
             last_process_check: None,
             map_file: None,
             watcher: None,
             file_events: mpsc::unbounded_channel(),
-            dirty: false,
             state: None,
             shown_errors: HashMap::new(),
             refresh_after: None,
@@ -253,7 +254,9 @@ impl Agent {
                 },
                 Some(()) = self.file_events.1.recv() => {
                     tracing::debug!("the map data file changed");
-                    self.dirty = true;
+                    if !self.schedule.changed(Instant::now()) {
+                        tracing::debug!("Custos ignores the change in the start delay");
+                    }
                 }
                 Some(signal) = next_signal(&mut self.stream.task) => self.on_signal(signal).await,
                 _ = ticker.tick() => self.tick().await,
@@ -294,7 +297,7 @@ impl Agent {
                 self.emit(Event::GameRunning(running));
                 if running {
                     self.announce_problems();
-                    self.start_watching();
+                    self.start_watching(now);
                 } else {
                     self.stop_watching();
                 }
@@ -303,8 +306,19 @@ impl Agent {
 
         self.update_state();
 
-        if self.state == Some(State::Watching) && self.dirty && self.schedule.is_due(now) {
-            self.upload(now).await;
+        if self.state == Some(State::Watching) {
+            match self.schedule.announcement(now) {
+                Some(Announcement::Waiting(seconds)) => self.notify(waiting_notification(seconds)),
+                Some(Announcement::Countdown(seconds)) => self.emit(Event::Update(waiting_notification(seconds))),
+                Some(Announcement::Listening) => {
+                    tracing::info!("the start delay is over: Custos listens to the changes of the map data file");
+                    self.notify(listening_notification());
+                }
+                None => {}
+            }
+            if self.schedule.is_due(now) {
+                self.upload(now).await;
+            }
         }
         self.update_stream(now).await;
     }
@@ -331,18 +345,17 @@ impl Agent {
         }
     }
 
-    /// Applies the interval and the location of the save folder. The record of the sent files stays, so
+    /// Applies the interval, the delays, and the location of the save folder. The record of the sent files stays, so
     /// Custos does not send the same file again.
     fn reconfigure(&mut self, mut config: Config) {
         let steam_roots = search_roots(&mut config);
         let moved = config.save_dir != self.settings.config.save_dir || steam_roots != self.settings.steam_roots;
-        self.schedule
-            .set_configured(Duration::from_secs(config.upload_interval_seconds));
+        self.schedule.configure(&config);
         self.settings.config = config;
         self.settings.steam_roots = steam_roots;
         if moved && self.game_running {
             self.stop_watching();
-            self.start_watching();
+            self.start_watching(Instant::now());
         }
     }
 
@@ -387,7 +400,7 @@ impl Agent {
         self.emit(Event::QueryAvailable(false));
     }
 
-    fn start_watching(&mut self) {
+    fn start_watching(&mut self, now: Instant) {
         let located = locate::find_save_dir(self.settings.config.save_dir.as_deref(), &self.settings.steam_roots)
             .and_then(|dir| locate::find_map_data(&dir).map(|file| (dir, file)));
         let (dir, file) = match located {
@@ -399,16 +412,20 @@ impl Agent {
             Ok(watcher) => self.watcher = Some(watcher),
             Err(e) => self.notify_error(Kind::SaveFile, &format!("cannot watch {}: {e}", dir.display())),
         }
-        tracing::info!("watching {}", file.display());
+        tracing::info!(
+            "watching {}: Custos ignores its changes for the start delay of {} s",
+            file.display(),
+            self.settings.config.upload_start_delay_seconds
+        );
         self.map_file = Some(file);
-        // Send the current file when it differs from the last accepted one.
-        self.dirty = true;
+        // The file is old now. Custos sends only a change after the start delay.
+        self.schedule.start(now);
     }
 
     fn stop_watching(&mut self) {
         self.watcher = None;
         self.map_file = None;
-        self.dirty = false;
+        self.schedule.stop();
     }
 
     async fn upload(&mut self, now: Instant) {
@@ -423,7 +440,7 @@ impl Agent {
         let sha256 = hex::encode(Sha256::digest(&bytes));
         if !self.schedule.is_new(&sha256) {
             tracing::debug!("no upload: the service already accepted or refused this map data file");
-            self.dirty = false;
+            self.schedule.discard();
             return;
         }
         if bytes.len() as u64 > service.discovery.upload_max_bytes {
@@ -459,7 +476,6 @@ impl Agent {
         match outcome {
             Outcome::Accepted(result) => {
                 self.schedule.accepted(sha256);
-                self.dirty = false;
                 self.expire(Kind::UploadError);
                 self.expire(Kind::ServiceError);
                 self.notify(accepted_notification(&result));
@@ -468,7 +484,6 @@ impl Agent {
             Outcome::NotFound => self.forget_service(),
             Outcome::Rejected { status, problem } => {
                 self.schedule.rejected(sha256);
-                self.dirty = false;
                 self.notify_error(
                     Kind::UploadError,
                     &problem.text(&format!("The service refused the file ({status}).")),
@@ -960,6 +975,27 @@ async fn next_signal(task: &mut Option<(JoinHandle<()>, mpsc::UnboundedReceiver<
     }
 }
 
+/// The message in the start delay, with the seconds that are left: `Not watching the map yet (60 s)`.
+/// It counts down in place ([`Event::Update`]), and [`listening_notification`] replaces it.
+fn waiting_notification(seconds: u64) -> Notification {
+    Notification {
+        reference: Some(Kind::Upload.into()),
+        title: format!("Not watching the map yet ({seconds} s)"),
+        body: String::new(),
+        is_error: false,
+    }
+}
+
+/// The message at the end of the start delay. The next upload message replaces it.
+fn listening_notification() -> Notification {
+    Notification {
+        reference: Some(Kind::Upload.into()),
+        title: "Watching the map for changes".into(),
+        body: String::new(),
+        is_error: false,
+    }
+}
+
 /// The short message of an accepted upload: `Uploaded 120kB`.
 fn accepted_notification(result: &UploadResult) -> Notification {
     Notification {
@@ -997,13 +1033,13 @@ mod tests {
         }
 
         async fn start_with(tokens: Option<Tokens>, game: Arc<AtomicBool>) -> Self {
-            Self::start_service(tokens, game, false).await
+            Self::start_service(tokens, game, false, 0).await
         }
 
         /// A service with a stream at `/api/v1/stream`, and a game that runs. The service accepts each
         /// upload.
         async fn start_streaming(tokens: Option<Tokens>) -> Self {
-            let f = Self::start_service(tokens, Arc::new(AtomicBool::new(true)), true).await;
+            let f = Self::start_service(tokens, Arc::new(AtomicBool::new(true)), true, 0).await;
             Mock::given(method("POST"))
                 .and(path("/api/v1/uploads"))
                 .respond_with(ResponseTemplate::new(200).set_body_raw(RESULT, "application/json"))
@@ -1012,7 +1048,8 @@ mod tests {
             f
         }
 
-        async fn start_service(tokens: Option<Tokens>, game: Arc<AtomicBool>, stream: bool) -> Self {
+        /// A service, and an agent with no interval and no delay, and with this start delay.
+        async fn start_service(tokens: Option<Tokens>, game: Arc<AtomicBool>, stream: bool, start_delay: u64) -> Self {
             let server = crate::discovery::tests::mock_service(
                 |d| {
                     d["upload_min_interval_seconds"] = 0.into();
@@ -1035,12 +1072,7 @@ mod tests {
             }
 
             // A literal string, because a path on Windows holds backslashes.
-            let config: Config = toml::from_str(&format!(
-                "service_url = \"{}\"\nupload_interval_seconds = 0\nsave_dir = '{}'",
-                server.uri(),
-                save_dir.path().display()
-            ))
-            .unwrap();
+            let config = config(&server, save_dir.path(), start_delay);
             let settings = Settings {
                 config,
                 store: store.clone(),
@@ -1065,6 +1097,18 @@ mod tests {
                 game,
                 store,
             }
+        }
+
+        /// Waits until the agent listens to the changes of the file, and changes it.
+        async fn listen_and_change(&mut self) {
+            self.next(is_listening).await;
+            std::fs::write(self.save_dir.path().join("1_MapData.sav"), b"GVAS0001").unwrap();
+        }
+
+        /// The number of uploads that the service received.
+        async fn uploads(&self) -> usize {
+            let requests = self.server.received_requests().await.unwrap();
+            requests.iter().filter(|r| r.url.path() == "/api/v1/uploads").count()
         }
 
         /// Waits until the service received a request that matches.
@@ -1108,6 +1152,18 @@ mod tests {
 
     const STREAM: &str = "/api/v1/stream";
 
+    /// A configuration with no interval and no delay, and with this start delay.
+    fn config(server: &MockServer, save_dir: &std::path::Path, start_delay: u64) -> Config {
+        // A literal string, because a path on Windows holds backslashes.
+        toml::from_str(&format!(
+            "service_url = \"{}\"\nupload_interval_seconds = 0\nupload_delay_seconds = 0\n\
+             upload_start_delay_seconds = {start_delay}\nsave_dir = '{}'",
+            server.uri(),
+            save_dir.display()
+        ))
+        .unwrap()
+    }
+
     fn event_stream(body: &str) -> ResponseTemplate {
         ResponseTemplate::new(200).set_body_raw(body.to_owned(), "text/event-stream")
     }
@@ -1132,6 +1188,10 @@ mod tests {
         matches!(e, Event::Notify(_))
     }
 
+    fn is_listening(e: &Event) -> bool {
+        *e == Event::Notify(listening_notification())
+    }
+
     #[tokio::test]
     async fn uploads_while_the_game_runs_and_goes_idle_when_it_stops() {
         let mut f = Fixture::start(Some(tokens("a1"))).await;
@@ -1147,6 +1207,7 @@ mod tests {
         f.start_game();
         f.next(|e| *e == Event::GameRunning(true)).await;
         f.next(is_state(State::Watching)).await;
+        f.listen_and_change().await;
 
         // An accepted upload expires the errors of the upload and of the service.
         f.next(|e| *e == Event::Expire(Kind::UploadError.into())).await;
@@ -1173,7 +1234,7 @@ mod tests {
             .await;
 
         f.next(|e| *e == Event::GameRunning(true)).await;
-        f.next(is_notification).await;
+        f.next(is_listening).await;
     }
 
     #[tokio::test]
@@ -1185,17 +1246,15 @@ mod tests {
             .mount(&f.server)
             .await;
         f.start_game();
+        f.listen_and_change().await;
         f.next(is_notification).await;
 
         let other = tempfile::tempdir().unwrap();
         std::fs::write(other.path().join("1_MapData.sav"), b"GVAS0003").unwrap();
-        let config: Config = toml::from_str(&format!(
-            "service_url = \"{}\"\nupload_interval_seconds = 0\nsave_dir = '{}'",
-            f.server.uri(),
-            other.path().display()
-        ))
-        .unwrap();
+        let config = config(&f.server, other.path(), 0);
         f.commands.send(Command::Reconfigure(Box::new(config))).unwrap();
+        f.next(is_listening).await;
+        std::fs::write(other.path().join("1_MapData.sav"), b"GVAS0003").unwrap();
         f.next(is_notification).await;
     }
 
@@ -1269,9 +1328,44 @@ mod tests {
             .await;
 
         f.start_game();
+        f.listen_and_change().await;
         f.next(is_notification).await;
         std::fs::write(f.save_dir.path().join("1_MapData.sav"), b"GVAS0002").unwrap();
         f.next(is_notification).await;
+    }
+
+    #[tokio::test]
+    async fn change_in_the_start_delay_is_not_sent_and_the_messages_tell_it() {
+        let game = Arc::new(AtomicBool::new(false));
+        let mut f = Fixture::start_service(Some(tokens("a1")), game, false, 2).await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(RESULT, "application/json"))
+            .expect(1)
+            .mount(&f.server)
+            .await;
+
+        f.start_game();
+        f.next(is_state(State::Watching)).await;
+        let Event::Notify(n) = f.next(is_notification).await else {
+            unreachable!()
+        };
+        assert_eq!(n.text(), "Not watching the map yet (2 s)");
+        assert_eq!(n.reference, Some(Kind::Upload.into()));
+        std::fs::write(f.save_dir.path().join("1_MapData.sav"), b"GVAS0002").unwrap();
+        // The message counts down in place.
+        let Event::Update(n) = f.next(|e| matches!(e, Event::Update(_))).await else {
+            unreachable!()
+        };
+        assert_eq!(n.text(), "Not watching the map yet (1 s)");
+        f.next(is_listening).await;
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert_eq!(f.uploads().await, 0);
+
+        std::fs::write(f.save_dir.path().join("1_MapData.sav"), b"GVAS0003").unwrap();
+        let Event::Notify(n) = f.next(is_notification).await else {
+            unreachable!()
+        };
+        assert_eq!(n.text(), "Uploaded 1kB");
     }
 
     #[tokio::test]
@@ -1296,6 +1390,7 @@ mod tests {
             .await;
 
         f.start_game();
+        f.listen_and_change().await;
         let Event::Notify(n) = f.next(is_notification).await else {
             unreachable!()
         };
@@ -1319,6 +1414,7 @@ mod tests {
             .await;
 
         f.start_game();
+        f.listen_and_change().await;
         f.next(is_state(State::SignedOut)).await;
 
         assert_eq!(f.store.load().unwrap(), None);
@@ -1365,6 +1461,8 @@ mod tests {
         f.commands.send(Command::Pause).unwrap();
         f.next(is_state(State::Paused)).await;
         f.start_game();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        std::fs::write(f.save_dir.path().join("1_MapData.sav"), b"GVAS0002").unwrap();
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
 
@@ -1564,6 +1662,7 @@ mod tests {
             .await;
 
         f.start_game();
+        f.listen_and_change().await;
         let Event::Notify(n) = f.next(is_notification).await else {
             unreachable!()
         };

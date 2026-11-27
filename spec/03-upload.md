@@ -73,8 +73,12 @@ Custos sends a file only when all of these conditions are true:
 
 1. Foxhole runs.
 2. The user did not pause Custos.
-3. The SHA-256 of the file is different from the SHA-256 of the last file that the service accepted with `200`.
-4. The time since the last upload is at least the effective interval.
+3. The file changed after the start delay. The start delay starts when Custos starts to watch the file: when Foxhole starts, when Custos starts while Foxhole runs, or when the save folder changes. The file is old at that time, so Custos ignores its changes during the start delay.
+4. The file did not change during the delay before the upload. Each change starts the delay again, so that a set of changes goes in one upload.
+5. The SHA-256 of the file is different from the SHA-256 of the last file that the service accepted with `200`.
+6. The time since the last upload is at least the effective interval.
+
+The configuration of Custos sets the start delay and the delay. A change during the effective interval stays pending, and Custos sends the file when the interval is over.
 
 The effective interval is the largest of these values:
 
