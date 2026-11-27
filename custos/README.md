@@ -165,6 +165,13 @@ While you type:
 | `/help` | Shows the commands. |
 | Escape | Cancels. The game gets the keyboard back. |
 
+The input also stops in these conditions:
+
+- Another window takes the keyboard. Examples are Alt+Tab, a mouse click that goes through the overlay to the game, and a push-to-talk key of Discord. The window that took the keyboard keeps it.
+- You push no key for 60 seconds. The game gets the keyboard back.
+
+In these conditions, Custos keeps the typed text. The next push of the key opens the prompt with it. Enter and Escape remove the text. While the prompt is open, the key takes the keyboard for the overlay again.
+
 While you type, the area of the query shows the last question with its full answer, and the amber line `> Awaiting input...`. The cursor at the prompt does not fade.
 
 The overlay shows the question and its state in its own area, at the edge of the anchor. The lines of the events do not move it. The states are:

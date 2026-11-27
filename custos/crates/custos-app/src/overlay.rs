@@ -9,7 +9,8 @@
 //! The lines of the query (see [`crate::ask`]) have their own area at the edge of the anchor, so that
 //! the lines of the events do not move them. The user types a question at the prompt: then the
 //! overlay takes the keyboard, and holds the new messages until the user sends the question or
-//! cancels it.
+//! cancels it. The prompt also closes when the overlay loses the keyboard to another window, and
+//! after [`query::INPUT_TIMEOUT`] with no key. Then the typed text stays for the next prompt.
 //!
 //! Call each function on the main thread.
 
@@ -35,6 +36,11 @@ struct Overlay {
     settings: Settings,
     /// The line that the user types at the prompt. `None` while the game has the keyboard.
     entry: Option<Entry>,
+    /// The text of a prompt that closed with no Enter or Escape. The next prompt starts with it.
+    draft: String,
+    /// True after the overlay got the keyboard for the open prompt. A loss of the keyboard before
+    /// that time does not close the prompt.
+    focused: bool,
     app: AppHandle,
     /// The number of seconds since the overlay opened.
     seconds: u32,
@@ -55,6 +61,8 @@ pub fn open(app: &AppHandle, settings: Settings) -> Result<(), String> {
             query: Vec::new(),
             settings,
             entry: None,
+            focused: false,
+            draft: String::new(),
             app: app.clone(),
             seconds: 0,
         });
@@ -106,16 +114,20 @@ pub fn is_open() -> bool {
 }
 
 /// Starts a question at the prompt: the overlay takes the keyboard, and holds the new messages.
-/// Returns false when the overlay is not open.
+/// While the prompt is open, the overlay takes the keyboard again. Returns false when the overlay is
+/// not open.
 pub fn begin_input() -> bool {
     let open = OVERLAY.with_borrow_mut(|overlay| {
         let Some(overlay) = overlay else { return false };
         if overlay.entry.is_none() {
-            overlay.entry = Some(Entry::default());
+            let mut entry = Entry::new(Instant::now());
+            entry.text = std::mem::take(&mut overlay.draft);
+            overlay.view.render_input(Some(&entry.text));
+            overlay.entry = Some(entry);
+            overlay.focused = false;
             overlay.lines.hold();
-            overlay.view.take_keyboard(true);
-            overlay.view.render_input(Some(""));
         }
+        overlay.view.take_keyboard();
         true
     });
     render_query();
@@ -128,7 +140,7 @@ pub fn key(key: Key) {
     let outcome = OVERLAY.with_borrow_mut(|overlay| {
         let overlay = overlay.as_mut()?;
         let entry = overlay.entry.as_mut()?;
-        let outcome = entry.key(key, waiting);
+        let outcome = entry.key(key, waiting, Instant::now());
         if outcome == Outcome::Continue {
             let text = entry.text.clone();
             overlay.view.render_input(Some(&text));
@@ -139,20 +151,54 @@ pub fn key(key: Key) {
         Some((Outcome::Continue, _)) => {
             render_query();
         }
-        Some((Outcome::Close, _)) => end_input(),
+        Some((Outcome::Close, _)) => end_input(Close::Done),
         Some((Outcome::Send(input), app)) => {
             app.state::<Tray>().send(Command::Query(input));
-            end_input();
+            end_input(Close::Done);
         }
         None => {}
     }
 }
 
-/// Gives the keyboard back to the game, and shows the held messages.
-fn end_input() {
+/// The overlay got (`true`) or lost the keyboard. A loss after the overlay got it closes the prompt,
+/// keeps the typed text, and leaves the keyboard to the window that took it. For example, a key of
+/// another application, such as push-to-talk, can take the keyboard while the user holds it.
+fn focus(focused: bool) {
+    let lost = OVERLAY.with_borrow_mut(|overlay| {
+        let Some(overlay) = overlay.as_mut().filter(|o| o.entry.is_some()) else {
+            return false;
+        };
+        let lost = overlay.focused && !focused;
+        overlay.focused = focused;
+        lost
+    });
+    if lost {
+        tracing::debug!("the overlay lost the keyboard: the prompt closes and keeps the text");
+        end_input(Close::FocusLost);
+    }
+}
+
+/// Why the prompt closes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Close {
+    /// Enter or Escape. The text goes, and the game gets the keyboard back.
+    Done,
+    /// No key for [`query::INPUT_TIMEOUT`]. The text stays, and the game gets the keyboard back.
+    Idle,
+    /// Another window took the keyboard, and keeps it. The text stays.
+    FocusLost,
+}
+
+/// Closes the prompt, and shows the held messages.
+fn end_input(close: Close) {
     with(|overlay| {
-        if overlay.entry.take().is_some() {
-            overlay.view.take_keyboard(false);
+        if let Some(entry) = overlay.entry.take() {
+            overlay.draft = if close == Close::Done {
+                String::new()
+            } else {
+                entry.text
+            };
+            overlay.view.release_keyboard(close != Close::FocusLost);
             overlay.view.render_input(None);
             overlay.lines.release(Instant::now());
             overlay.view.render(&overlay.lines);
@@ -204,6 +250,15 @@ pub fn render_query() -> bool {
 /// Call once each second: removes the stale messages, searches for the monitor of the game, and
 /// updates the remaining time of the query.
 fn tick() {
+    let idle = OVERLAY.with_borrow(|overlay| {
+        overlay
+            .as_ref()
+            .and_then(|o| o.entry.as_ref())
+            .is_some_and(|entry| entry.is_idle(Instant::now()))
+    });
+    if idle {
+        end_input(Close::Idle);
+    }
     render_query();
     with(|overlay| {
         overlay.seconds += 1;
@@ -353,12 +408,7 @@ mod platform {
             let lines = gtk::Box::new(gtk::Orientation::Vertical, 2);
             let query = gtk::Box::new(gtk::Orientation::Vertical, 2);
             let (prompt, typed, cursor) = prompt(align);
-            window.connect_key_press_event(|_, event| {
-                if let Some(key) = key_of(event) {
-                    super::key(key);
-                }
-                glib::Propagation::Stop
-            });
+            connect_input(&window);
             if anchor.is_top() {
                 terminal.add(&query);
             }
@@ -413,22 +463,25 @@ mod platform {
             self.window.close();
         }
 
-        /// Gives the keyboard to the overlay, or back to the game. On the layer surface, the mode
-        /// Exclusive can make a game leave fullscreen while the user types.
-        pub fn take_keyboard(&mut self, take: bool) {
+        /// Gives the keyboard to the overlay. On the layer surface, the mode Exclusive can make a game
+        /// leave fullscreen while the user types.
+        pub fn take_keyboard(&mut self) {
             if self.layer_shell {
-                self.window.set_keyboard_mode(if take {
-                    KeyboardMode::Exclusive
-                } else {
-                    KeyboardMode::None
-                });
+                self.window.set_keyboard_mode(KeyboardMode::Exclusive);
             } else {
-                self.window.set_accept_focus(take);
-                if take {
-                    self.window.present_with_time(gtk::current_event_time());
-                }
+                self.window.set_accept_focus(true);
+                self.window.present_with_time(gtk::current_event_time());
             }
-            if !take {
+        }
+
+        /// Releases the keyboard. With `to_game`, the game gets it back.
+        pub fn release_keyboard(&mut self, to_game: bool) {
+            if self.layer_shell {
+                self.window.set_keyboard_mode(KeyboardMode::None);
+            } else {
+                self.window.set_accept_focus(false);
+            }
+            if to_game {
                 // The compositor applies the new mode at the next commit of the surface. After it,
                 // the game gets the keyboard again.
                 glib::timeout_add_local_once(GIVE_BACK, || match screen::activate_game() {
@@ -631,6 +684,24 @@ mod platform {
         (prompt, typed, cursor)
     }
 
+    /// Sends the keys and the changes of the keyboard focus of the window to the prompt.
+    fn connect_input(window: &gtk::Window) {
+        window.connect_key_press_event(|_, event| {
+            if let Some(key) = key_of(event) {
+                super::key(key);
+            }
+            glib::Propagation::Stop
+        });
+        window.connect_focus_in_event(|_, _| {
+            super::focus(true);
+            glib::Propagation::Proceed
+        });
+        window.connect_focus_out_event(|_, _| {
+            super::focus(false);
+            glib::Propagation::Proceed
+        });
+    }
+
     /// The key of the typed line, or `None` for a key that the line does not use.
     fn key_of(event: &gdk::EventKey) -> Option<Key> {
         use gdk::keys::constants as keys;
@@ -715,6 +786,11 @@ mod platform {
                 })
                 .build()
                 .map_err(|e| e.to_string())?;
+            window.on_window_event(|event| {
+                if let tauri::WindowEvent::Focused(focused) = event {
+                    super::focus(*focused);
+                }
+            });
             // The pointer and its clicks go through the window to the game. Set it only once: a change
             // after the window opens gives black areas on Windows 10 (tauri#15947).
             if let Err(e) = window.set_ignore_cursor_events(true) {
@@ -785,14 +861,18 @@ mod platform {
             }
         }
 
-        /// Gives the keyboard to the overlay, or back to the game.
-        pub fn take_keyboard(&mut self, take: bool) {
-            let result = self
-                .window
-                .set_focusable(take)
-                .and_then(|()| if take { self.window.set_focus() } else { Ok(()) });
-            if let Err(e) = result {
-                tracing::warn!("cannot change the keyboard of the overlay: {e}");
+        /// Gives the keyboard to the overlay.
+        pub fn take_keyboard(&mut self) {
+            if let Err(e) = self.window.set_focusable(true).and_then(|()| self.window.set_focus()) {
+                tracing::warn!("cannot take the keyboard for the overlay: {e}");
+            }
+        }
+
+        /// Releases the keyboard. Windows has no step that gives it back to the game, so `to_game`
+        /// has no effect.
+        pub fn release_keyboard(&mut self, _to_game: bool) {
+            if let Err(e) = self.window.set_focusable(false) {
+                tracing::warn!("cannot release the keyboard of the overlay: {e}");
             }
         }
 
