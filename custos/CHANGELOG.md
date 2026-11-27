@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- On Linux, the cursor of the prompt is again on the line of `>` when the overlay does not show the line with the key, for example with `hint = false` in `[query]`. Before, the prompt wrapped, and the cursor was half a line lower.
+
 ## 0.3.1
 
 The upload waits for a new map after the start of Foxhole, the prompt no longer locks, the overlay keeps to its line limit, and its colors are in the configuration.
