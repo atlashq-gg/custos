@@ -59,13 +59,11 @@ pub fn set_available(available: bool) {
 
 /// The amber line with the key and `/help`, while the service has a query and the configuration
 /// shows it.
-pub fn key_hint() -> Option<Line> {
-    SHOWN.with_borrow(|shown| {
-        (shown.available && shown.hint).then(|| Line {
-            prompt: PROMPT,
-            text: query::key_hint(&shown.key),
-            tone: Tone::Input,
-        })
+fn key_hint(shown: &Shown) -> Option<Line> {
+    (shown.available && shown.hint).then(|| Line {
+        prompt: PROMPT,
+        text: query::key_hint(&shown.key),
+        tone: Tone::Input,
     })
 }
 
@@ -84,7 +82,7 @@ pub fn set(query: &Query) -> Option<String> {
     let overlay_open = crate::overlay::render_query();
     let must_read = matches!(query.state, State::Waiting | State::Closed) && old_state != Some(query.state);
     (must_read && !overlay_open).then(|| {
-        let lines = SHOWN.with_borrow(|shown| query.lines(SystemTime::now(), &shown.key, None));
+        let lines = query.lines(SystemTime::now());
         // The question of the user is the title of the notification, not a line of its text.
         lines
             .iter()
@@ -95,14 +93,19 @@ pub fn set(query: &Query) -> Option<String> {
     })
 }
 
-/// The lines of the query in the overlay: while the query is open, and for the lifetime of its
-/// answer. The answer has at most `max_lines` lines.
-pub fn overlay_lines(max_lines: usize) -> Vec<Line> {
-    SHOWN.with_borrow(|shown| match &shown.query {
-        Some(query) if query.shows(Instant::now(), shown.lifetime) => {
-            query.lines(SystemTime::now(), &shown.key, Some(max_lines))
-        }
-        _ => Vec::new(),
+/// The lines of the query in the overlay, while the query is open and for the lifetime of its answer,
+/// and the line with the key. They use at most `max` lines of `width` characters on the screen. A
+/// longer text is cut, and a line tells the user that the key shows more.
+pub fn overlay_lines(width: usize, max: usize) -> Vec<Line> {
+    SHOWN.with_borrow(|shown| {
+        let mut lines = match &shown.query {
+            Some(query) if query.shows(Instant::now(), shown.lifetime) => query.lines(SystemTime::now()),
+            _ => Vec::new(),
+        };
+        let hint = key_hint(shown);
+        let tail = usize::from(hint.is_some());
+        lines.extend(hint);
+        query::fit(&lines, tail, width, max, &format!("{} shows more", shown.key))
     })
 }
 
@@ -112,7 +115,7 @@ pub fn full_lines() -> Vec<Line> {
         shown
             .query
             .as_ref()
-            .map(|query| query.lines(SystemTime::now(), &shown.key, None))
+            .map(|query| query.lines(SystemTime::now()))
             .unwrap_or_default()
     })
 }

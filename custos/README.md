@@ -91,8 +91,8 @@ anchor = "top-left"
 offset = 28
 # The most messages that the overlay shows, from 1 to 30. Default: 6.
 messages = 6
-# The most lines of text that the overlay shows, from 1 to 30. Default: 12.
-lines = 12
+# The most lines on the screen that the overlay shows, from 1 to 30. Default: 20.
+lines = 20
 
 # Optional. The query, if the service has one.
 [query]
@@ -132,7 +132,7 @@ While Foxhole runs, Custos shows its messages as lines in a corner of the monito
 
 A message can have more than one line. A line break in the text starts a new line, and each other control character shows as a space. The first line of a message has the prompt. Each next line starts with two spaces, under the text of the first line. The lines of a message type one after the other.
 
-The overlay shows at most `messages` messages and `lines` lines of text, from `[overlay]` in the configuration. The stricter limit applies, and a line that wraps counts as one. Each new line pushes the older lines up. A line above the limits is hidden, but it stays. When a newer message goes, a hidden line that is still in its lifetime comes back. A message goes after 20 seconds, and an error message after 60 seconds. A new message with the reference of a kept message replaces it in place: the new text types again, and its 20 seconds start again. A message of the service with a reference and no text removes the message with that reference. A completed login removes the line that asks for the login. An accepted upload removes the error lines of the upload and of the service. When the game starts, the overlay shows the problems that are still current. Examples are a service that is not available, and a necessary sign-in. Such an error can show as a desktop notification before.
+The overlay shows at most `messages` messages and `lines` lines of text, from `[overlay]` in the configuration. The stricter limit applies. A line that wraps counts as more lines, so the overlay is never higher than `lines` lines on the screen. The question and its answer use at most half of `lines`, and the messages use the rest. Each new line pushes the older lines up. A line above the limits is hidden, but it stays. When a newer message goes, a hidden line that is still in its lifetime comes back. A message goes after 20 seconds, and an error message after 60 seconds. A new message with the reference of a kept message replaces it in place: the new text types again, and its 20 seconds start again. A message of the service with a reference and no text removes the message with that reference. A completed login removes the line that asks for the login. An accepted upload removes the error lines of the upload and of the service. When the game starts, the overlay shows the problems that are still current. Examples are a service that is not available, and a necessary sign-in. Such an error can show as a desktop notification before.
 
 On Linux, Custos finds the monitor of the game through the window list of XWayland. If it cannot find the game window, the desktop selects the monitor. On Windows, the overlay shows on the primary monitor.
 
@@ -172,7 +172,7 @@ The input also stops in these conditions:
 
 In these conditions, Custos keeps the typed text. The next push of the key opens the prompt with it. Enter and Escape remove the text. While the prompt is open, the key takes the keyboard for the overlay again.
 
-While you type, the area of the query shows the last question with its full answer, and the amber line `> Awaiting input...`. The cursor at the prompt does not fade.
+While you type, the area of the query shows the last question with as much of its answer as fits, and the amber line `> Awaiting input...`. The cursor at the prompt does not fade.
 
 The overlay shows the question and its state in its own area, at the edge of the anchor. The lines of the events do not move it. The states are:
 
@@ -184,7 +184,7 @@ The overlay shows the question and its state in its own area, at the edge of the
 
 Each state has a deadline. If the service sends nothing before it, the overlay shows `No contact with the service`.
 
-The answer stays in the overlay until the next question, for `answer_seconds` at most. The overlay shows at most `lines` lines of it. Its last line then tells the user that the key shows the full text. While the user types, the overlay shows the last answer in full. Without the overlay, a question of the service and the end of a query show as desktop notifications.
+The answer stays in the overlay until the next question, for `answer_seconds` at most. The question and the answer use at most half of `lines`. A longer answer is cut, and its last line tells the user that the key shows more. While the user types, the last answer can use all of `lines`, less the typed line. Without the overlay, a question of the service and the end of a query show as desktop notifications.
 
 On Linux, Custos asks the desktop for the key through the `GlobalShortcuts` portal when it starts. The desktop can ask the user to confirm the key. The portal knows Custos by its launcher entry `gg.atlashq.custos.desktop`, which `install.sh` installs. Without the entry, for example with a development build, the key does nothing, and the log shows `cannot register the application ID with the portal`. The desktop keeps the key, so a later change of `key` has no effect: change the key in the settings of the desktop. On KDE Plasma, it is in **System Settings**, **Keyboard**, **Shortcuts**. On Windows, Custos uses `key` as a hot key of Windows, and applies a change at once. If another application has the key, Custos writes a warning to the log.
 

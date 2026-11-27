@@ -95,10 +95,11 @@ const REST_OF_TEMPLATE: &str = r#"
 # The distance from the top or bottom edge, in percent of the monitor height, from 0 to 90. In the
 # top left corner, the default puts the overlay below the notifications of the game.
 # offset = 28
-# The most messages, and the most lines of text, that the overlay shows, from 1 to 30. The stricter
-# limit applies. An older line is hidden, and it comes back when a newer message goes.
+# The most messages, and the most lines on the screen, that the overlay shows, from 1 to 30. The
+# stricter limit applies. A line that wraps counts as more lines. The question and its answer use at
+# most half of the lines. An older line is hidden, and it comes back when a newer message goes.
 # messages = 6
-# lines = 12
+# lines = 20
 
 # The query: a question to the service in plain language, if the service has a query.
 # [query]
@@ -180,7 +181,8 @@ pub struct Overlay {
     pub offset: u8,
     /// The most messages that the overlay shows.
     pub messages: u8,
-    /// The most lines of text that the overlay shows. A line that wraps counts as one.
+    /// The most lines on the screen that the overlay shows, for the messages and the query. A line
+    /// that wraps counts as more lines.
     pub lines: u8,
 }
 
@@ -196,7 +198,7 @@ impl Default for Overlay {
             anchor: Anchor::TopLeft,
             offset: 28,
             messages: 6,
-            lines: 12,
+            lines: 20,
         }
     }
 }
