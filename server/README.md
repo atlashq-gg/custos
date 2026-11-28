@@ -8,17 +8,17 @@ The server also runs as a Discord bot. The roles of a member in Discord give the
 
 ## Run
 
-Requirements: .NET SDK 10 and Docker. The AppHost of Optio starts the full system: Keycloak, PostgreSQL, the NATS broker, this server on `http://localhost:5080`, and Optio ([optio/README.md](../optio/README.md#run)).
+Requirements: .NET SDK 10 and Docker. The AppHost of the full system starts this server on `http://localhost:5080`, with Optio, Keycloak, PostgreSQL, and the NATS broker ([deploy/system/README.md](../deploy/system/README.md)):
 
 ```sh
-dotnet run --project ../optio/Optio.AppHost
+dotnet run --project ../deploy/system/Custos.AppHost
 ```
 
-The AppHost has two parameters, `discord-token` and `discord-user-id`. The dashboard asks for a value that is not set, and the user secrets can hold the values:
+The parameters `discord-token` and `discord-user-id` of the AppHost are optional. The user secrets of the AppHost hold the values:
 
 ```sh
-dotnet user-secrets set Parameters:discord-token <bot token> --project ../optio/Optio.AppHost
-dotnet user-secrets set Parameters:discord-user-id <your Discord user ID> --project ../optio/Optio.AppHost
+dotnet user-secrets set Parameters:discord-token <bot token> --project ../deploy/system/Custos.AppHost
+dotnet user-secrets set Parameters:discord-user-id <your Discord user ID> --project ../deploy/system/Custos.AppHost
 ```
 
 The server needs a bot token in the correct format: it stops at the start with a token that is not valid. With the bot token, the server connects to Discord, and the MCP endpoint is at `http://localhost:5080/mcp`. The Discord user ID is the user of a token without the claim `discord_id`. The realm gives the user `dev` no Discord user ID.
@@ -76,7 +76,7 @@ With the [Discord connection](#discord) on, an upload needs a member of the guil
 | The user is not a member of the guild, or has no role that can report. | `403` |
 | Discord does not answer. | `503`. Custos tries again at the next interval. |
 
-In the environment `Development`, `DevelopmentDiscordUserId` supplies the user when the claim is absent. In the AppHost, set it with `dotnet user-secrets set Parameters:discord-user-id <id> --project ../optio/Optio.AppHost`.
+In the environment `Development`, `DevelopmentDiscordUserId` supplies the user when the claim is absent. In the AppHost, set it with `dotnet user-secrets set Parameters:discord-user-id <id> --project ../deploy/system/Custos.AppHost`.
 
 The table `uploads` keeps the Discord user ID of each upload. It is null for an upload that came before the server had the Discord connection. Without the Discord connection, the server examines no role, and keeps the claim when the token has it.
 

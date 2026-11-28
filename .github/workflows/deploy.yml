@@ -1,0 +1,136 @@
+name: deploy
+
+# Checks the composition of the full system in deploy/system and the Compose file of deploy/
+# (ADR 0008). It has no image and no release.
+#
+#   each change of a part      -> build and format check of deploy/system, check of compose.yaml
+#   pull request that changes the surface between the services (spec/, deploy/, optio/schemas/,
+#   this file), pull request with the label system-tests, push to main, manual run
+#                              -> also the system tests, which start the full system
+#
+# The system tests are slow, so a change inside one service runs them only after the merge.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - "deploy/**"
+      - "optio/**"
+      - "server/**"
+      - "spec/**"
+      - ".github/workflows/deploy.yml"
+  push:
+    branches: [main]
+    paths:
+      - "deploy/**"
+      - "optio/**"
+      - "server/**"
+      - "spec/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+# One run for each ref at a time. A new push to a pull request cancels the run in progress for it.
+# A label is in a group of its own, so that a label other than system-tests cancels no run.
+concurrency:
+  group: >-
+    deploy-${{ github.event.pull_request.number || github.ref }}-${{
+    github.event.action == 'labeled' && github.event.label.name || 'change' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    if: github.event.action != 'labeled' || github.event.label.name == 'system-tests'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      system-tests: ${{ steps.surface.outputs.system-tests }}
+    steps:
+      # The merge commit of a pull request and its first parent, the base.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Find the surface between the services
+        id: surface
+        env:
+          LABELED: ${{ contains(github.event.pull_request.labels.*.name, 'system-tests') }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" != pull_request || "$LABELED" == true ]]; then
+            run=true
+          elif git diff --name-only HEAD^1 HEAD \
+            | grep -qE '^(spec/|deploy/|optio/schemas/|\.github/workflows/deploy\.yml$)'; then
+            run=true
+          else
+            run=false
+          fi
+          echo "system-tests=$run" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: deploy/system
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: deploy/system/global.json
+
+      - run: dotnet restore Custos.System.slnx
+
+      # CSharpier wraps code at 100 characters. It does not wrap comments and strings, so a second
+      # check finds those lines.
+      - name: Check the format
+        run: |
+          dotnet tool restore
+          dotnet csharpier check .
+          long=$(find . -name '*.cs' -not -path '*/obj/*' -not -path '*/bin/*' \
+            -exec awk 'length > 100 { print FILENAME ":" FNR }' {} +)
+          if [ -n "$long" ]; then echo "Lines over 100 characters:"; echo "$long"; exit 1; fi
+      - run: dotnet build Custos.System.slnx --configuration Release --no-restore
+
+  compose:
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: deploy
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker compose --env-file .env.example config --quiet
+
+  system-tests:
+    # The Docker daemon of ubuntu-latest runs the containers of the full system.
+    needs: [changes, build]
+    if: needs.changes.outputs.system-tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: deploy/system
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: deploy/system/global.json
+
+      - run: dotnet build Custos.System.slnx --configuration Release
+      - run: >
+          dotnet test Custos.System.slnx --configuration Release --no-build
+          --logger "trx;LogFileName=results.trx" --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: system-test-results
+          path: deploy/system/TestResults/**/*.trx
+          retention-days: 14

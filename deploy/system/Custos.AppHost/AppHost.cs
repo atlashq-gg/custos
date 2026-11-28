@@ -7,7 +7,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 // and each service compares iss with its authority exactly. The service ports are in their launch
 // profiles.
 const int serverPort = 5080; // server/Custos.Server/Properties/launchSettings.json
-const int optioPort = 5090; // Optio/Properties/launchSettings.json
+const int optioPort = 5090; // optio/Optio/Properties/launchSettings.json
 const int keycloakPort = 8180;
 
 // Keycloak gets the Client ID Metadata Document of Custos from optio. Keycloak runs in a
@@ -30,7 +30,7 @@ var optioSecret = builder.AddParameter(
 );
 
 // No volume: Keycloak imports the realm on every start. What the console changes lasts one run.
-// The realm file is in the server project, so that one realm file exists.
+// The realm file is the development realm of deploy/, so that one realm file exists.
 var keycloak = builder
     .AddKeycloak("keycloak", keycloakPort)
     .WithImageTag("26.8.2")
@@ -38,14 +38,7 @@ var keycloak = builder
     .WithEnvironment("CUSTOS_MCP_RESOURCE", serverResource)
     .WithEnvironment("OPTIO_CLIENT_SECRET", optioSecret)
     .WithRealmImport(
-        Path.Combine(
-            builder.AppHostDirectory,
-            "..",
-            "..",
-            "deploy",
-            "keycloak",
-            "custos-realm.json"
-        )
+        Path.Combine(builder.AppHostDirectory, "..", "..", "keycloak", "custos-realm.json")
     )
     .WithoutHttpsCertificate();
 
@@ -54,8 +47,9 @@ var keycloak = builder
 var postgres = builder.AddPostgres("postgres").WithImageTag("18");
 var database = postgres.AddDatabase("custos");
 
-// The database of Optio, for the settings of the guilds. The name is OptioDbContext.ConnectionName.
-var optioDatabase = postgres.AddDatabase("optio");
+// The database of Optio, for the settings of the guilds. The database name and the connection name
+// are OptioDbContext.ConnectionName. The resource name differs, because the project is "optio".
+var optioDatabase = postgres.AddDatabase("optio-db", databaseName: "optio");
 
 // The event broker: NATS with JetStream and the users of deploy/nats/nats.conf. A plain container,
 // because AddNats adds a single user, which NATS refuses together with a list of users. No volume:
@@ -73,7 +67,7 @@ var brokerPasswords = brokerUsers.ToDictionary(
 var events = builder
     .AddContainer("events", "nats", "2.15.3-alpine")
     .WithBindMount(
-        Path.Combine(builder.AppHostDirectory, "..", "..", "deploy", "nats", "nats.conf"),
+        Path.Combine(builder.AppHostDirectory, "..", "..", "nats", "nats.conf"),
         "/etc/nats/nats.conf",
         isReadOnly: true
     )
@@ -99,15 +93,27 @@ var server = builder
     .WithEnvironment("ConnectionStrings__events", Broker("custos"))
     .WithHttpHealthCheck("/health/ready");
 
-// The AppHost always registers the two parameters. Aspire asks for a value that is not set in the
-// dashboard, and the user secrets can hold it:
+// The parameters of outside accounts are optional: the AppHost adds a parameter only when the
+// configuration has a value, for example in the user secrets. Without it, the system starts without
+// that account (ADR 0008). Aspire refuses an empty parameter value.
+IResourceBuilder<ParameterResource>? OptionalParameter(string name, bool secret = false) =>
+    string.IsNullOrEmpty(builder.Configuration[$"Parameters:{name}"])
+        ? null
+        : builder.AddParameter(name, secret: secret);
+
+// The bot of the server, and the user of a token without the claim discord_id:
 //   dotnet user-secrets set Parameters:discord-token <bot token>
 //   dotnet user-secrets set Parameters:discord-user-id <Discord user ID of the user dev>
-// discord-user-id is for a token without the claim discord_id.
-var discordUserId = builder.AddParameter("discord-user-id");
-server
-    .WithEnvironment("Discord__Token", builder.AddParameter("discord-token", secret: true))
-    .WithEnvironment("Custos__DevelopmentDiscordUserId", discordUserId);
+var discordToken = OptionalParameter("discord-token", secret: true);
+var discordUserId = OptionalParameter("discord-user-id");
+if (discordToken is not null)
+{
+    server.WithEnvironment("Discord__Token", discordToken);
+}
+if (discordUserId is not null)
+{
+    server.WithEnvironment("Custos__DevelopmentDiscordUserId", discordUserId);
+}
 
 // appsettings.Development.json of Optio holds the localhost URLs of Optio, the realm, and the
 // upload API of the server.
@@ -116,32 +122,41 @@ var optio = builder
     .WithEnvironment("Optio__CustosClientId", custosClientId)
     .WithEnvironment("Optio__OptioClientSecret", optioSecret)
     .WithReference(server)
-    .WithReference(optioDatabase)
+    .WithReference(optioDatabase, connectionName: "optio")
     .WaitFor(optioDatabase)
     .WithEnvironment("ConnectionStrings__events", Broker("optio"))
-    // The bot of Optio for the stream, of its own Discord application:
-    //   dotnet user-secrets set Parameters:optio-discord-token <bot token>
-    .WithEnvironment(
-        "Optio__DiscordToken",
-        builder.AddParameter("optio-discord-token", secret: true)
-    )
-    .WithEnvironment("Optio__DevelopmentDiscordUserId", discordUserId)
     .WithHttpHealthCheck("/health/ready");
+
+// The bot of Optio for the stream, of its own Discord application:
+//   dotnet user-secrets set Parameters:optio-discord-token <bot token>
+if (OptionalParameter("optio-discord-token", secret: true) is { } optioDiscordToken)
+{
+    optio.WithEnvironment("Optio__DiscordToken", optioDiscordToken);
+}
+if (discordUserId is not null)
+{
+    optio.WithEnvironment("Optio__DevelopmentDiscordUserId", discordUserId);
+}
 
 // The query, only with a key of the Claude API in the user secrets:
 //   dotnet user-secrets set Parameters:claude-api-key <key>
 // The MCP service is the server, with the example system prompt of the repository.
-if (!string.IsNullOrEmpty(builder.Configuration["Parameters:claude-api-key"]))
+if (OptionalParameter("claude-api-key", secret: true) is { } claudeApiKey)
 {
     optio
-        .WithEnvironment(
-            "Optio__ClaudeApiKey",
-            builder.AddParameter("claude-api-key", secret: true)
-        )
+        .WithEnvironment("Optio__ClaudeApiKey", claudeApiKey)
         .WithEnvironment(
             "Optio__SystemPrompt",
             File.ReadAllText(
-                Path.Combine(builder.AppHostDirectory, "..", "docs", "system-prompt.example.txt")
+                Path.Combine(
+                    builder.AppHostDirectory,
+                    "..",
+                    "..",
+                    "..",
+                    "optio",
+                    "docs",
+                    "system-prompt.example.txt"
+                )
             )
         )
         .WithEnvironment("Optio__McpServices__0__Name", "custos")
