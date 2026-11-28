@@ -250,10 +250,10 @@ Set `RUST_LOG=debug` for more log output.
 
 ## Development
 
-Run Custos against a local service. [Optio](../optio/README.md) is the service of Custos. Its AppHost also starts the server, the login, and the event broker.
+Run Custos against a local service. [Optio](../optio/README.md) is the service of Custos. The AppHost of the full system starts Optio, the server, the login, and the event broker ([deploy/system/README.md](../deploy/system/README.md)).
 
 1. Install the packages in [Build](#build). The local service also needs the .NET SDK 10 and Docker.
-2. Start the service from the root folder of the repository: `dotnet run --project optio/Optio.AppHost`. It needs the parameters `discord-token`, `optio-discord-token`, and `discord-user-id`, in the user secrets of the AppHost or in the environment. It starts these resources:
+2. Start the service from the root folder of the repository: `dotnet run --project deploy/system/Custos.AppHost`. For the stream, set the parameters `discord-token`, `optio-discord-token`, and `discord-user-id` in the user secrets of the AppHost. It starts these resources:
 
    | Resource | URL |
    |---|---|

@@ -8,15 +8,14 @@ name: optio
 #   push of optio-X.Y.Z-<pre> -> push the tag X.Y.Z-<pre> only, and make a GitHub pre-release
 #
 # GitHub does not apply the paths filter to a tag push, so each optio-* tag runs this workflow.
-# The AppHost builds the Server, and the tests and the AppHost read the realm and the NATS
-# configuration of deploy/, so a change in them runs this workflow too.
+# The tests read the realm and the NATS configuration of deploy/, so a change in them runs this
+# workflow too. The workflow deploy builds and tests the full system with the Server.
 on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
     paths:
       - "optio/**"
       - "spec/**"
-      - "server/**"
       - "deploy/keycloak/**"
       - "deploy/nats/**"
       - ".github/workflows/optio.yml"
@@ -26,7 +25,6 @@ on:
     paths:
       - "optio/**"
       - "spec/**"
-      - "server/**"
       - "deploy/keycloak/**"
       - "deploy/nats/**"
       - ".github/workflows/optio.yml"

@@ -6,6 +6,5 @@
     <File Path="README.md" />
   </Folder>
   <Project Path="Optio/Optio.csproj" />
-  <Project Path="Optio.AppHost/Optio.AppHost.csproj" />
   <Project Path="Optio.Tests/Optio.Tests.csproj" />
 </Solution>

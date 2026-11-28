@@ -13,6 +13,7 @@ A decision inside one project needs no ADR. Record it in the issue or the pull r
 | [0005](0005-license-by-project.md) | License by project | accepted | repository | spec, custos, and the root content are under MIT, and server is under AGPL-3.0-or-later, with one `LICENSE` file in each project folder. |
 | [0006](0006-optio-is-the-service-of-the-contract.md) | Optio is the service of the contract | accepted | architecture, repository | `spec/` defines the contract, Custos calls only Optio, which implements it with tokens of the user, and the server becomes a domain service behind it. Supersedes 0004. |
 | [0007](0007-a-broker-carries-domain-events.md) | A broker carries domain events with their access policy | accepted | architecture | A NATS JetStream broker carries each domain event with its data and an access policy in Discord terms, and Optio applies the policy to the stream of each user and replays from the broker. |
+| [0008](0008-one-composition-of-the-full-system.md) | One composition of the full system | accepted | architecture, repository | One composition of the full system in `deploy/` is the one way to start it for development, debugging, and tests across the services. |
 
 ## Tags
 

@@ -2,7 +2,7 @@
 
 This guide deploys the services of the system with Docker Compose: Optio, the Server, and the NATS broker. It uses an existing PostgreSQL and an existing Keycloak. Custos calls only Optio ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)). Optio calls the Server with a token of the user, and reads the events of the Server from the broker ([ADR 0007](../docs/adr/0007-a-broker-carries-domain-events.md)).
 
-This folder holds the files of the deployment: the Compose file, the configuration of NATS, and the setup of Keycloak with its files. The tests and the AppHost use the same configuration of NATS and the same development realm.
+This folder holds the files of the deployment: the Compose file, the configuration of NATS, and the setup of Keycloak with its files. It also holds [system/](system/README.md), the composition of the full system for development and for the system tests. The tests and the AppHost use the same configuration of NATS and the same development realm.
 
 The options of each service are in [optio/README.md](../optio/README.md#configuration) and [server/README.md](../server/README.md#configuration). The examples use these values. Replace them with your own.
 
@@ -152,4 +152,5 @@ Various. This folder has no license of its own. Each file keeps the license of t
 |---|---|---|
 | `keycloak/custos-realm.json` | AGPL-3.0-or-later | `server/` |
 | `nats/nats.conf` | AGPL-3.0-or-later | `optio/` |
+| `system/` | AGPL-3.0-or-later | `optio/` |
 | Each other file | MIT | The root of the repository |
