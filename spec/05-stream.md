@@ -114,6 +114,7 @@ The set of kinds is open. Custos MUST show a message of a kind that it does not 
 | `event` | Something changed in the service, for example a stockpile. |
 | `error` | A part of the service failed, or the service cannot send the events of the user. |
 | `query` | A message of a query of the client ([06-query.md](06-query.md#messages)). It has more members. |
+| `notice` | A note of the service to the user, for example about the use of a limit. |
 
 ### Example
 
