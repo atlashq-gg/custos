@@ -11,7 +11,7 @@ internal static class StorageSetup
 
     /// <summary>
     /// Registers the database when the configuration has its connection string. Without it,
-    /// Optio keeps no guild settings, and has no commands and no query.
+    /// Optio keeps no guild settings and no usage rows, and has no commands.
     /// </summary>
     public static IHostApplicationBuilder AddOptioStorage(this IHostApplicationBuilder builder)
     {
@@ -36,6 +36,8 @@ internal static class StorageSetup
 
         // The migrator must start first: hosted services start in the order of registration.
         builder.Services.AddHostedService<DatabaseMigrator>();
+        builder.Services.AddSingleton<UsagePurge>();
+        builder.Services.AddHostedService(services => services.GetRequiredService<UsagePurge>());
         return builder;
     }
 }

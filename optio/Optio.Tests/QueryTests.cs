@@ -1,10 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.Metrics.Testing;
 using Optio.Harness;
 using Optio.Queries;
 using Optio.Storage;
+using Optio.Telemetry;
 using Optio.Tests.Infrastructure;
 using static Optio.Tests.Infrastructure.FakeMembers;
 
@@ -330,6 +333,91 @@ public sealed class QueryTests
             factory.Model.Requests.Single().System,
             Does.EndWith("<guild_instructions>\nAnswer in French.\n</guild_instructions>")
         );
+    }
+
+    [Test]
+    public async Task Each_request_to_the_model_writes_a_usage_row_and_counts_the_tokens()
+    {
+        using var factory = new OptioFactory(
+            stream: true,
+            broker: _broker.Url("optio"),
+            query: true,
+            database: true
+        );
+        await factory.WaitForStreamAsync();
+        using var tokens = new MetricCollector<long>(
+            factory.Services.GetRequiredService<OptioMetrics>().Meter,
+            OptioMetrics.ModelTokens
+        );
+        factory.Model.Turns.Enqueue(
+            FakeModel.Call(FakeTools.FindItems) with
+            {
+                Usage = new("model-1", "msg_1", 100, 20, 0, 50),
+            }
+        );
+        factory.Model.Turns.Enqueue(
+            FakeModel.Answer("40 rifles.") with
+            {
+                Usage = new("model-1", "msg_1", 30, 10, 50, 0),
+            }
+        );
+
+        await factory
+            .CreateMemberClient(Reader, Session)
+            .PostAsJsonAsync(QueryPath, Query("query-0030"));
+        for (
+            var i = 0;
+            (await Store(factory).GetAsync(Key(Session), default)).Record?.IsOpen != false;
+            i++
+        )
+        {
+            Assert.That(i, Is.LessThan(200), "The query did not close.");
+            await Task.Delay(50);
+        }
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var rows = await scope
+            .ServiceProvider.GetRequiredService<OptioDbContext>()
+            .QueryUsage.OrderBy(u => u.Id)
+            .ToListAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(
+                rows.Select(u =>
+                    (u.InputTokens, u.OutputTokens, u.CacheReadTokens, u.CacheWriteTokens)
+                ),
+                Is.EqualTo(new[] { (100L, 20L, 0L, 50L), (30L, 10L, 50L, 0L) })
+            );
+            Assert.That(rows.Select(u => u.QueryReference), Is.All.EqualTo("query-0030"));
+            Assert.That(rows.Select(u => u.ClientKey), Is.All.EqualTo(Key(Session)));
+            Assert.That(rows.Select(u => u.UserId), Is.All.EqualTo((long)Reader));
+            Assert.That(rows.Select(u => u.GuildId), Is.All.EqualTo((long)Guild));
+            Assert.That(rows.Select(u => u.Model), Is.All.EqualTo("model-1"));
+            Assert.That(rows.Select(u => u.ExternalReference), Is.All.EqualTo("msg_1"));
+            Assert.That(
+                tokens
+                    .GetMeasurementSnapshot()
+                    .Where(m => (string?)m.Tags[OptioMetrics.TypeTag] == "input")
+                    .Sum(m => m.Value),
+                Is.EqualTo(130)
+            );
+        }
+    }
+
+    [Test]
+    public async Task Query_without_a_database_answers_and_writes_no_row()
+    {
+        _factory.Model.Turns.Enqueue(
+            FakeModel.Answer("40 rifles.") with
+            {
+                Usage = new("model-1", "msg_1", 30, 10, 0, 0),
+            }
+        );
+
+        await Client().PostAsJsonAsync(QueryPath, Query("query-0031"));
+        var record = await WaitForStateAsync("query-0031", QueryStates.Closed);
+
+        Assert.That(record.Cause, Is.EqualTo(QueryStates.Answer));
     }
 
     [Test]

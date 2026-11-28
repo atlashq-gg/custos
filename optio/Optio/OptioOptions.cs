@@ -160,6 +160,10 @@ public sealed class OptioOptions : IValidatableObject
     [Range(1_024, 10 * 1024 * 1024)]
     public int MaxSettingsFileBytes { get; set; } = 2 * 1024 * 1024;
 
+    /// <summary>How long Optio keeps the token use of each request to the model.</summary>
+    [Range(1, 3650)]
+    public int UsageRetentionDays { get; set; } = 90;
+
     /// <summary>The data annotations do not reach the items of a list: this examines each MCP
     /// service, and that each has its own name.</summary>
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

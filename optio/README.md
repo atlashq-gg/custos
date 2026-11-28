@@ -91,6 +91,19 @@ The query answers a question of the user in plain language, on the stream ([spec
 - A failure of a service during `applying` closes the query with `result_unknown`. A new query of the client waits up to 10 seconds for a change in progress.
 - A question continues after a restart of Optio: the record holds the step. A running query closes with `interrupted`, or with `result_unknown` during a change.
 
+## Token use
+
+Each request to the model gives its tokens: the input, the output, the input that the cache gave, and the input that went into the cache. Optio adds them to the metric `optio.model.tokens`. With its database, Optio also writes a row for each request to the table `query_usage`, for the audit. The row holds no text of the query. Its columns are:
+
+- the time, the guild, and the user
+- a hash of the session, and the reference of the query
+- the model, and the four counts
+- the external reference: the ID of the response message at the provider of the model, for example `msg_...` of Anthropic
+
+- A query that fails or stops keeps the rows of its requests.
+- When the database does not take a row, the query continues. Optio writes an error to the log.
+- Optio removes the rows older than `UsageRetentionDays` when it starts, and then each day.
+
 ## Settings of a guild
 
 The database of Optio holds one settings document for each guild. Its members are in PascalCase, and each ID is a string. A guild without a document has the default.
@@ -180,8 +193,9 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 | `MaxToolCallsPerPart` | `8` | The budget of tool calls of one part of a query. |
 | `CatalogMinutes` | `10` | How long Optio keeps the card and the tool list of a service. |
 | `MaxSettingsFileBytes` | `2097152` (2 MiB) | The largest file of `/optioadmin settings update`, from 1024 bytes to 10 MiB. |
+| `UsageRetentionDays` | `90` | How long Optio keeps the usage rows, from 1 to 3650 days. |
 
-The connection string of the database is `ConnectionStrings:optio` (`ConnectionStrings__optio`), for PostgreSQL. Optio applies its migrations when it starts. Without it, Optio has no settings of a guild and no `/optioadmin`, and the query still works.
+The connection string of the database is `ConnectionStrings:optio` (`ConnectionStrings__optio`), for PostgreSQL. Optio applies its migrations when it starts. Without it, Optio has no settings of a guild, no usage rows, and no `/optioadmin`, and the query still works.
 
 The connection string of the broker is `ConnectionStrings:events` (`ConnectionStrings__events`), a NATS URL with the user `optio`, for example `nats://optio:...@broker:4222`. Without it, Optio has no stream. Optio starts without the broker, and connects again by itself.
 
@@ -203,6 +217,7 @@ The connection string of the broker is `ConnectionStrings:events` (`ConnectionSt
 | `optio.streams` | The open streams. |
 | `optio.queries` | The queries that closed, by `cause` of [spec/06-query.md](../spec/06-query.md), for example `answer`, `failed`, or `interrupted`. |
 | `optio.tool.calls` | The tool calls of the queries, by `service`, `tool`, and `outcome`: `ok`, `error` (the tool gave an error), or `failed` (no result from the service). |
+| `optio.model.tokens` | The tokens of the requests to the model, by `guild` and `type`: `input`, `output`, `cache_read`, or `cache_write`. |
 
 ## Format
 

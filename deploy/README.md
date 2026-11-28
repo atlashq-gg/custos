@@ -23,7 +23,7 @@ The system needs:
 
 ## 1. Prepare PostgreSQL
 
-Create a role and a database for the Server, and a role and a database for Optio. Each service applies its migrations when it starts, so each role must be able to create tables in its database. The database of Optio holds only the settings of each guild, such as the text of the guild for the query.
+Create a role and a database for the Server, and a role and a database for Optio. Each service applies its migrations when it starts, so each role must be able to create tables in its database. The database of Optio holds only the settings of each guild, such as the text of the guild for the query, and the token use of the queries.
 
 ```sql
 CREATE ROLE custos LOGIN PASSWORD 'change-me';

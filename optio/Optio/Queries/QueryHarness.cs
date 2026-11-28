@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Optio.Harness;
+using Optio.Storage;
 
 namespace Optio.Queries;
 
@@ -50,7 +51,8 @@ internal sealed class QueryHarness(
     IModelClient model,
     IToolSource tools,
     IOptions<OptioOptions> options,
-    TimeProvider time
+    TimeProvider time,
+    UsageRecorder usage
 )
 {
     /// <summary>The time of the last step after the budget.</summary>
@@ -119,6 +121,8 @@ internal sealed class QueryHarness(
                 {
                     continue;
                 }
+                if (turn.Usage is { } used)
+                    await usage.RecordAsync(query, used);
 
                 switch (turn.Stop)
                 {

@@ -5,13 +5,19 @@ using Microsoft.Extensions.Options;
 
 namespace Optio.Harness;
 
-/// <summary>The model through the Messages API of Anthropic, with the Anthropic C# SDK.</summary>
-internal sealed class AnthropicModelClient(IOptions<OptioOptions> options) : IModelClient
+/// <summary>The model through the Messages API of Anthropic, with the Anthropic C# SDK. A test
+/// gives <paramref name="handler"/> in place of the API.</summary>
+internal sealed class AnthropicModelClient(
+    IOptions<OptioOptions> options,
+    HttpMessageHandler? handler = null
+) : IModelClient
 {
     /// <summary>Room for the thinking and the tool calls of one turn.</summary>
     private const int MaxTokens = 16000;
 
-    private readonly AnthropicClient _client = new() { ApiKey = options.Value.ClaudeApiKey };
+    private readonly AnthropicClient _client = handler is null
+        ? new() { ApiKey = options.Value.ClaudeApiKey }
+        : new() { ApiKey = options.Value.ClaudeApiKey, HttpClient = new HttpClient(handler) };
 
     public async Task<ModelTurn> NextAsync(
         ModelRequest request,
@@ -81,7 +87,15 @@ internal sealed class AnthropicModelClient(IOptions<OptioOptions> options) : IMo
             StopReason.MaxTokens => ModelStop.Limit,
             _ => calls.Count > 0 ? ModelStop.ToolCalls : ModelStop.End,
         };
-        return new ModelTurn(string.Concat(texts).Trim(), calls, stop, content);
+        var usage = new ModelUsage(
+            o.ModelId,
+            message.ID,
+            message.Usage.InputTokens,
+            message.Usage.OutputTokens,
+            message.Usage.CacheReadInputTokens ?? 0,
+            message.Usage.CacheCreationInputTokens ?? 0
+        );
+        return new ModelTurn(string.Concat(texts).Trim(), calls, stop, content, usage);
     }
 
     private static ToolUnion ToTool(ModelTool tool)
