@@ -4,7 +4,7 @@
 
 - The settings of a guild are one versioned document, as in the Server. It holds the roles that can ask Optio a question, the text of the guild and of each role for the system prompt, and the tokens in one hour for each role and each member. The migration moves the prompt of each guild into the document. Two changes at the same time both stay.
 - `/optioadmin` has the commands `settings view`, `settings update [file]`, `prompt guild`, `prompt role`, `access add`, `access remove`, `limit role`, and `limit user`. They replace `/optioadmin settings`. The query uses only the text of the guild for now.
-- Token use: each request to the model writes a row to the new table `query_usage`. The row holds the guild, the user, a hash of the session, the reference of the query, the model, and the four token counts. Each day, Optio removes the rows older than `UsageRetentionDays` (default 90). The new metrics are `optio.model.tokens`, by guild and type, and `optio.usage.failures`.
+- Token use: each request to the model writes a row to the new table `query_usage`. The row holds the guild, the user, a hash of the session, the reference of the query, the model, and the four token counts. It also holds the ID of the response message at the provider of the model (`msg_...` of Anthropic). Each day, Optio removes the rows older than `UsageRetentionDays` (default 90). The new metrics are `optio.model.tokens`, by guild and type, and `optio.usage.failures`.
 
 ## 0.1.0
 

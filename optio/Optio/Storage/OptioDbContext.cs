@@ -37,6 +37,7 @@ public sealed class OptioDbContext(DbContextOptions<OptioDbContext> options) : D
             e.Property(u => u.ClientKey).HasMaxLength(32);
             e.Property(u => u.QueryReference).HasMaxLength(64);
             e.Property(u => u.Model).HasMaxLength(100);
+            e.Property(u => u.ExternalReference).HasMaxLength(100);
             e.HasIndex(u => new { u.UserId, u.At });
             e.HasIndex(u => new { u.GuildId, u.At });
             e.HasIndex(u => u.At);

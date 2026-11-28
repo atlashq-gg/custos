@@ -72,10 +72,11 @@ internal sealed record ModelTurn(
 );
 
 /// <summary>The tokens of one request to <paramref name="Model"/>: the input that the cache did
-/// not hold, the output, the input that the cache gave, and the input that went into the
-/// cache.</summary>
+/// not hold, the output, the input that the cache gave, and the input that went into the cache.
+/// <paramref name="MessageId"/> is the ID of the response message at the provider.</summary>
 internal sealed record ModelUsage(
     string Model,
+    string? MessageId,
     long Input,
     long Output,
     long CacheRead,

@@ -20,6 +20,11 @@ public sealed class QueryUsageRow
 
     public required string QueryReference { get; init; }
     public required string Model { get; init; }
+
+    /// <summary>The ID of the response message at the provider of the model, for example
+    /// <c>msg_...</c> of Anthropic. Null when the provider gave none.</summary>
+    public string? ExternalReference { get; init; }
+
     public required long InputTokens { get; init; }
     public required long OutputTokens { get; init; }
     public required long CacheReadTokens { get; init; }
@@ -55,6 +60,7 @@ internal sealed partial class UsageRecorder(
                     ClientKey = query.Client,
                     QueryReference = query.Reference,
                     Model = usage.Model,
+                    ExternalReference = usage.MessageId,
                     InputTokens = usage.Input,
                     OutputTokens = usage.Output,
                     CacheReadTokens = usage.CacheRead,

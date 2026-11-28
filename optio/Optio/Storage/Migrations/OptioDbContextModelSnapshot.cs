@@ -80,6 +80,11 @@ namespace Optio.Storage.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("client_key");
 
+                    b.Property<string>("ExternalReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("external_reference");
+
                     b.Property<long>("GuildId")
                         .HasColumnType("bigint")
                         .HasColumnName("guild_id");

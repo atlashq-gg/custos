@@ -352,13 +352,13 @@ public sealed class QueryTests
         factory.Model.Turns.Enqueue(
             FakeModel.Call(FakeTools.FindItems) with
             {
-                Usage = new("model-1", 100, 20, 0, 50),
+                Usage = new("model-1", "msg_1", 100, 20, 0, 50),
             }
         );
         factory.Model.Turns.Enqueue(
             FakeModel.Answer("40 rifles.") with
             {
-                Usage = new("model-1", 30, 10, 50, 0),
+                Usage = new("model-1", "msg_1", 30, 10, 50, 0),
             }
         );
 
@@ -393,6 +393,7 @@ public sealed class QueryTests
             Assert.That(rows.Select(u => u.UserId), Is.All.EqualTo((long)Reader));
             Assert.That(rows.Select(u => u.GuildId), Is.All.EqualTo((long)Guild));
             Assert.That(rows.Select(u => u.Model), Is.All.EqualTo("model-1"));
+            Assert.That(rows.Select(u => u.ExternalReference), Is.All.EqualTo("msg_1"));
             Assert.That(
                 tokens
                     .GetMeasurementSnapshot()
@@ -409,7 +410,7 @@ public sealed class QueryTests
         _factory.Model.Turns.Enqueue(
             FakeModel.Answer("40 rifles.") with
             {
-                Usage = new("model-1", 30, 10, 0, 0),
+                Usage = new("model-1", "msg_1", 30, 10, 0, 0),
             }
         );
 

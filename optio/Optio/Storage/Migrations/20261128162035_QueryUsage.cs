@@ -43,6 +43,11 @@ namespace Optio.Storage.Migrations
                         maxLength: 100,
                         nullable: false
                     ),
+                    external_reference = table.Column<string>(
+                        type: "character varying(100)",
+                        maxLength: 100,
+                        nullable: true
+                    ),
                     input_tokens = table.Column<long>(type: "bigint", nullable: false),
                     output_tokens = table.Column<long>(type: "bigint", nullable: false),
                     cache_read_tokens = table.Column<long>(type: "bigint", nullable: false),

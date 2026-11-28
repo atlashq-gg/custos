@@ -12,7 +12,7 @@ using Optio.Storage;
 namespace Optio.Storage.Migrations
 {
     [DbContext(typeof(OptioDbContext))]
-    [Migration("20261128134912_QueryUsage")]
+    [Migration("20261128162035_QueryUsage")]
     partial class QueryUsage
     {
         /// <inheritdoc />
@@ -82,6 +82,11 @@ namespace Optio.Storage.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
                         .HasColumnName("client_key");
+
+                    b.Property<string>("ExternalReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("external_reference");
 
                     b.Property<long>("GuildId")
                         .HasColumnType("bigint")

@@ -98,6 +98,7 @@ Each request to the model gives its tokens: the input, the output, the input tha
 - the time, the guild, and the user
 - a hash of the session, and the reference of the query
 - the model, and the four counts
+- the external reference: the ID of the response message at the provider of the model, for example `msg_...` of Anthropic
 
 - A query that fails or stops keeps the rows of its requests.
 - When the database does not take a row, the query continues. Optio writes an error to the log and adds to `optio.usage.failures`.
