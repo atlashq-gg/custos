@@ -308,8 +308,7 @@ public sealed class QueryTests
         using var factory = new OptioFactory(
             stream: true,
             broker: _broker.Url("optio"),
-            query: true,
-            database: true
+            query: true
         );
         await factory.WaitForStreamAsync();
         await using (var scope = factory.Services.CreateAsyncScope())
@@ -341,8 +340,7 @@ public sealed class QueryTests
         using var factory = new OptioFactory(
             stream: true,
             broker: _broker.Url("optio"),
-            query: true,
-            database: true
+            query: true
         );
         await factory.WaitForStreamAsync();
         using var tokens = new MetricCollector<long>(
@@ -405,19 +403,111 @@ public sealed class QueryTests
     }
 
     [Test]
-    public async Task Query_without_a_database_answers_and_writes_no_row()
+    public async Task Member_without_a_query_role_gets_403()
     {
-        _factory.Model.Turns.Enqueue(
-            FakeModel.Answer("40 rifles.") with
+        const ulong user = 400000000000000003;
+        _factory.Members.Members[(Guild, user)] = [OtherRole];
+
+        var response = await _factory
+            .CreateMemberClient(user, Session)
+            .PostAsJsonAsync(QueryPath, Query("query-0032"));
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+            Assert.That(
+                problem.GetProperty("detail").GetString(),
+                Is.EqualTo("You have no role that may ask Optio in this guild.")
+            );
+        }
+    }
+
+    [Test]
+    public async Task Member_over_the_quota_gets_429_with_a_wait()
+    {
+        const string sid = "session-quota";
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            await scope
+                .ServiceProvider.GetRequiredService<GuildSettingsStore>()
+                .UpdateAsync(
+                    Guild,
+                    s =>
+                        s with
+                        {
+                            Limits = new()
+                            {
+                                Roles = new Dictionary<ulong, long> { [ReadRole] = 10 },
+                            },
+                        },
+                    Owner,
+                    default
+                );
+            var db = scope.ServiceProvider.GetRequiredService<OptioDbContext>();
+            db.QueryUsage.Add(
+                new QueryUsageRow
+                {
+                    At = _factory.Time.GetUtcNow().AddMinutes(-30),
+                    GuildId = (long)Guild,
+                    UserId = (long)Reader,
+                    ClientKey = Key(sid),
+                    QueryReference = "query-0033",
+                    Model = "model-1",
+                    InputTokens = 20,
+                    OutputTokens = 0,
+                    CacheReadTokens = 0,
+                    CacheWriteTokens = 0,
+                }
+            );
+            await db.SaveChangesAsync();
+        }
+
+        var response = await Client(sid).PostAsJsonAsync(QueryPath, Query("query-0034"));
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
+            Assert.That(
+                response.Headers.RetryAfter?.Delta,
+                Is.EqualTo(TimeSpan.FromMinutes(30)).Within(TimeSpan.FromSeconds(1))
+            );
+            Assert.That(
+                problem.GetProperty("detail").GetString(),
+                Is.EqualTo("Your hourly quota is used. Try again in 30 min.")
+            );
+            Assert.That(await RecordAsync(sid), Is.Null);
+        }
+    }
+
+    [Test]
+    public async Task Optio_without_a_database_has_no_query()
+    {
+        using var factory = new OptioFactory(
+            stream: true,
+            settings: new()
             {
-                Usage = new("model-1", "msg_1", 30, 10, 0, 0),
+                ["Optio:ClaudeApiKey"] = "test",
+                ["Optio:SystemPrompt"] = "You help the players of a guild.",
+                ["Optio:McpServices:0:Name"] = "custos",
+                ["Optio:McpServices:0:Url"] = "http://server.test/mcp",
+                ["Optio:McpServices:0:ReadScope"] = "custos:read",
             }
         );
 
-        await Client().PostAsJsonAsync(QueryPath, Query("query-0031"));
-        var record = await WaitForStateAsync("query-0031", QueryStates.Closed);
+        var discovery = await factory
+            .CreateClient()
+            .GetFromJsonAsync<JsonElement>("/.well-known/custos-configuration");
+        var response = await factory
+            .CreateMemberClient(Reader, Session)
+            .PostAsJsonAsync(QueryPath, Query("query-0031"));
 
-        Assert.That(record.Cause, Is.EqualTo(QueryStates.Answer));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(discovery.TryGetProperty("query_endpoint", out _), Is.False);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        }
     }
 
     [Test]
@@ -585,38 +675,6 @@ public sealed class QueryTests
             )
         );
         _factory.Model.Turns.Enqueue(FakeModel.Answer(answer));
-    }
-
-    [Test]
-    public async Task User_with_too_many_queries_gets_429_with_a_wait()
-    {
-        using var factory = new OptioFactory(
-            stream: true,
-            broker: _broker.Url("optio"),
-            query: true,
-            settings: new() { ["Optio:MaxQueriesPerHour"] = "1" }
-        );
-        await factory.WaitForStreamAsync();
-        var client = factory.CreateMemberClient(Owner, "session-limit");
-        await client.PostAsJsonAsync(QueryPath, Query("query-0015"));
-        for (
-            var i = 0;
-            (await Store(factory).GetAsync(Key("session-limit"), default)).Record
-                is not { IsOpen: false };
-            i++
-        )
-        {
-            Assert.That(i, Is.LessThan(100));
-            await Task.Delay(50);
-        }
-
-        var second = await client.PostAsJsonAsync(QueryPath, Query("query-0016"));
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(second.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
-            Assert.That(second.Headers.RetryAfter?.Delta, Is.GreaterThan(TimeSpan.Zero));
-        }
     }
 
     [Test]

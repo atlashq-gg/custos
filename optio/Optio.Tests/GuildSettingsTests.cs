@@ -208,6 +208,7 @@ public sealed class GuildSettingsTests
         var command = typeof(AdminCommands).GetCustomAttribute<SlashCommandAttribute>()!;
         var handlers = typeof(AdminCommands)
             .Assembly.GetTypes()
+            .Where(t => t.DeclaringType != typeof(OperatorCommands))
             .SelectMany(t => t.GetMethods())
             .Where(m =>
                 m.GetCustomAttribute<SubSlashCommandAttribute>() is not null

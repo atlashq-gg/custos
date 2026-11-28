@@ -18,7 +18,19 @@ internal enum MemberState
     Unavailable,
 }
 
-/// <summary>The Discord facts of the users that have an open stream.</summary>
+/// <summary>The facts of a user in a guild for a query. Role IDs and administrator only for a
+/// <see cref="MemberState.Member"/>.</summary>
+internal sealed record MemberAccess(
+    MemberState State,
+    IReadOnlyCollection<ulong> RoleIds,
+    bool IsAdministrator
+)
+{
+    public static MemberAccess Not(MemberState state) => new(state, [], false);
+}
+
+/// <summary>The Discord facts of the users that have an open stream, and of a user that
+/// asks.</summary>
 internal interface IMemberDirectory
 {
     /// <summary>A guild became ready, so that <see cref="CanRead"/> knows its facts.</summary>
@@ -37,4 +49,8 @@ internal interface IMemberDirectory
     /// <summary>The policy rules for a followed user, with the roles of now. Null when the guild
     /// is not ready.</summary>
     bool? CanRead(EventPolicy policy, ulong guild, ulong user);
+
+    /// <summary>The roles of a user now, and whether the user is an administrator. The roles of a
+    /// followed user come from memory, the roles of another user from Discord.</summary>
+    Task<MemberAccess> AccessAsync(ulong guild, ulong user, CancellationToken cancellationToken);
 }

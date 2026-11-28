@@ -76,19 +76,37 @@ internal sealed class FakeMembers : IMemberDirectory
             return null;
         if (!Members.TryGetValue((guild, user), out var roles))
             return false;
-        return AccessPolicy.CanRead(
-            policy,
-            new GuildFacts(
-                guild,
-                Owner,
-                new Dictionary<ulong, Permissions>
-                {
-                    [guild] = Permissions.ViewChannel,
-                    [ReadRole] = Permissions.ViewChannel,
-                    [OtherRole] = Permissions.ViewChannel,
-                }
-            ),
-            new MemberFacts(user, roles)
-        );
+        return AccessPolicy.CanRead(policy, Facts(guild), new MemberFacts(user, roles));
     }
+
+    public Task<MemberAccess> AccessAsync(
+        ulong guild,
+        ulong user,
+        CancellationToken cancellationToken
+    ) =>
+        Task.FromResult(
+            Unavailable ? MemberAccess.Not(MemberState.Unavailable)
+            : !BotGuilds.Contains(guild) ? MemberAccess.Not(MemberState.NoBot)
+            : Members.TryGetValue((guild, user), out var roles)
+                ? new MemberAccess(
+                    MemberState.Member,
+                    roles,
+                    AccessPolicy.IsAdministrator(Facts(guild), new MemberFacts(user, roles))
+                )
+            : MemberAccess.Not(MemberState.NotMember)
+        );
+
+    /// <summary>The owner is <see cref="Owner"/>, and no role has the permission
+    /// Administrator.</summary>
+    private static GuildFacts Facts(ulong guild) =>
+        new(
+            guild,
+            Owner,
+            new Dictionary<ulong, Permissions>
+            {
+                [guild] = Permissions.ViewChannel,
+                [ReadRole] = Permissions.ViewChannel,
+                [OtherRole] = Permissions.ViewChannel,
+            }
+        );
 }

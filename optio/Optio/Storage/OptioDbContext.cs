@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore.Design;
 namespace Optio.Storage;
 
 /// <summary>
-/// The database of Optio, PostgreSQL. It holds the settings of Optio for each guild and the token
-/// use of the queries, and no records of a domain service. The names of tables and columns are in
-/// snake_case.
+/// The database of Optio, PostgreSQL. It holds the settings of Optio for each guild, the operator
+/// limits, and the token use of the queries, and no records of a domain service. The names of
+/// tables and columns are in snake_case.
 /// </summary>
 public sealed class OptioDbContext(DbContextOptions<OptioDbContext> options) : DbContext(options)
 {
@@ -16,6 +16,8 @@ public sealed class OptioDbContext(DbContextOptions<OptioDbContext> options) : D
     public DbSet<GuildSettingsRow> GuildSettings => Set<GuildSettingsRow>();
 
     public DbSet<QueryUsageRow> QueryUsage => Set<QueryUsageRow>();
+
+    public DbSet<OperatorLimitRow> OperatorLimits => Set<OperatorLimitRow>();
 
     /// <summary>Adds the options that Optio and the design-time factory share.</summary>
     public static void Configure(DbContextOptionsBuilder options) =>
@@ -41,6 +43,12 @@ public sealed class OptioDbContext(DbContextOptions<OptioDbContext> options) : D
             e.HasIndex(u => new { u.UserId, u.At });
             e.HasIndex(u => new { u.GuildId, u.At });
             e.HasIndex(u => u.At);
+        });
+        model.Entity<OperatorLimitRow>(e =>
+        {
+            e.ToTable("operator_limits");
+            e.HasKey(l => new { l.Scope, l.TargetId });
+            e.Property(l => l.Scope).HasConversion<string>().HasMaxLength(10);
         });
     }
 }

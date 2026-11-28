@@ -223,7 +223,8 @@ public sealed class QueryHarnessTests
             Recorder()
         );
 
-    /// <summary>A recorder with no database: it only counts the tokens.</summary>
+    /// <summary>A recorder with no database: it counts the tokens, and each row gives an error in
+    /// the log.</summary>
     private static UsageRecorder Recorder() =>
         new ServiceCollection()
             .AddMetrics()

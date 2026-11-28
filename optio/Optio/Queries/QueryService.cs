@@ -37,6 +37,7 @@ internal sealed record QueryOutcome(
 internal sealed partial class QueryService(
     QueryStore store,
     QueryHarness harness,
+    QueryLimits limits,
     EventStream events,
     IServiceScopeFactory scopes,
     OptioMetrics metrics,
@@ -70,7 +71,6 @@ internal sealed partial class QueryService(
     [
         .. Enumerable.Range(0, 64).Select(_ => new SemaphoreSlim(1, 1)),
     ];
-    private readonly Dictionary<ulong, Queue<DateTimeOffset>> _starts = [];
 
     public bool IsReady => events.IsReady;
 
@@ -90,12 +90,8 @@ internal sealed partial class QueryService(
             var (record, _) = await store.GetAsync(client.Key, cancellationToken);
             if (record?.Reference == request.Reference)
                 return new QueryOutcome(StatusCodes.Status202Accepted, record);
-            if (Wait(client.User) is { } wait)
-                return new QueryOutcome(
-                    StatusCodes.Status429TooManyRequests,
-                    Problem: "You sent too many queries. Wait, then ask again.",
-                    RetryAfter: wait
-                );
+            if (await limits.CheckAsync(client, cancellationToken) is { } refusal)
+                return refusal;
             if (!await store.ClaimUserAsync(client, cancellationToken))
                 return new QueryOutcome(
                     StatusCodes.Status409Conflict,
@@ -155,7 +151,6 @@ internal sealed partial class QueryService(
                     Problem: "The query changed at the same time. Send it again."
                 );
             }
-            Count(client.User);
             await store.PublishAsync(query, cancellationToken);
             StartPart(
                 client,
@@ -664,13 +659,11 @@ internal sealed partial class QueryService(
             cancellationToken
         );
 
-    /// <summary>The prompt of the guild, or null for a guild without one, or for Optio without a
-    /// database.</summary>
+    /// <summary>The prompt of the guild, or null for a guild without one.</summary>
     private async Task<string?> GuildPromptAsync(ulong guild, CancellationToken cancellationToken)
     {
         await using var scope = scopes.CreateAsyncScope();
-        if (scope.ServiceProvider.GetService<GuildSettingsStore>() is not { } store)
-            return null;
+        var store = scope.ServiceProvider.GetRequiredService<GuildSettingsStore>();
         try
         {
             return (await store.GetAsync(guild, cancellationToken)).Prompts.Guild;
@@ -736,32 +729,6 @@ internal sealed partial class QueryService(
 
     private static QueryClient Client(QueryRecord record) =>
         new(record.Client, record.Guild, record.User);
-
-    /// <summary>The wait until the user can start a query, or null.</summary>
-    private TimeSpan? Wait(ulong user)
-    {
-        var now = time.GetUtcNow();
-        lock (_starts)
-        {
-            if (!_starts.TryGetValue(user, out var starts))
-                return null;
-            while (starts.TryPeek(out var first) && first <= now - TimeSpan.FromHours(1))
-                starts.Dequeue();
-            return starts.Count >= options.Value.MaxQueriesPerHour
-                ? starts.Peek() + TimeSpan.FromHours(1) - now
-                : null;
-        }
-    }
-
-    private void Count(ulong user)
-    {
-        lock (_starts)
-        {
-            if (!_starts.TryGetValue(user, out var starts))
-                _starts[user] = starts = new();
-            starts.Enqueue(time.GetUtcNow());
-        }
-    }
 
     private sealed record Run(
         QueryClient Client,

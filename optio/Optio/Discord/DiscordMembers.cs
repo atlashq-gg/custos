@@ -1,5 +1,7 @@
+using System.Net;
 using NetCord;
 using NetCord.Gateway;
+using NetCord.Rest;
 using Optio.Streams;
 
 namespace Optio.Discord;
@@ -9,7 +11,8 @@ namespace Optio.Discord;
 /// and the permissions of their roles come from the cache of NetCord, which <c>GUILD_CREATE</c>
 /// fills. A separate dictionary holds only the users with an open stream: Optio requests a user
 /// when a stream opens, and the member events keep the roles current. Optio ignores the other
-/// members that NetCord caches.
+/// members that NetCord caches. The roles of a user without a stream come from the REST API of
+/// Discord, for each query.
 /// </summary>
 internal sealed partial class DiscordMembers : IMemberDirectory
 {
@@ -114,21 +117,73 @@ internal sealed partial class DiscordMembers : IMemberDirectory
 
     public bool? CanRead(EventPolicy policy, ulong guild, ulong user)
     {
-        IReadOnlyCollection<ulong>? roles;
-        lock (_lock)
-            roles = _follows.GetValueOrDefault((guild, user))?.RoleIds;
-        if (!_client.Cache.Guilds.TryGetValue(guild, out var cached))
+        var roles = RolesOf(guild, user);
+        if (Facts(guild) is not { } facts)
             return null;
         if (roles is null)
             return false;
-
-        var facts = new GuildFacts(
-            cached.Id,
-            cached.OwnerId,
-            cached.Roles.ToDictionary(r => r.Key, r => r.Value.Permissions)
-        );
         return AccessPolicy.CanRead(policy, facts, new MemberFacts(user, roles));
     }
+
+    public async Task<MemberAccess> AccessAsync(
+        ulong guild,
+        ulong user,
+        CancellationToken cancellationToken
+    )
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(Timeout);
+        try
+        {
+            await _ready.Task.WaitAsync(timeout.Token);
+            if (!HasGuild(guild))
+                return MemberAccess.Not(MemberState.NoBot);
+            var roles = RolesOf(guild, user);
+            if (roles is null)
+            {
+                // No rate limit wait: the user gets an answer now and asks again.
+                var member = await _client.Rest.GetGuildUserAsync(
+                    guild,
+                    user,
+                    new RestRequestProperties { RateLimitHandling = RestRateLimitHandling.NoRetry },
+                    timeout.Token
+                );
+                roles = [.. member.RoleIds];
+            }
+            GuildFacts? facts;
+            while ((facts = Facts(guild)) is null)
+                await Task.Delay(50, timeout.Token);
+            var isAdministrator = AccessPolicy.IsAdministrator(facts, new MemberFacts(user, roles));
+            return new MemberAccess(MemberState.Member, roles, isAdministrator);
+        }
+        catch (RestException e) when (e.StatusCode == HttpStatusCode.NotFound)
+        {
+            return MemberAccess.Not(MemberState.NotMember);
+        }
+        catch (Exception e) when (!cancellationToken.IsCancellationRequested)
+        {
+            if (e is not OperationCanceledException)
+                LogLookupFailed(_logger, e, guild);
+            return MemberAccess.Not(MemberState.Unavailable);
+        }
+    }
+
+    private IReadOnlyCollection<ulong>? RolesOf(ulong guild, ulong user)
+    {
+        lock (_lock)
+            return _follows.GetValueOrDefault((guild, user))?.RoleIds;
+    }
+
+    /// <summary>The facts of a guild in the cache of NetCord. Null when the guild is not
+    /// ready.</summary>
+    private GuildFacts? Facts(ulong guild) =>
+        _client.Cache.Guilds.TryGetValue(guild, out var cached)
+            ? new GuildFacts(
+                cached.Id,
+                cached.OwnerId,
+                cached.Roles.ToDictionary(r => r.Key, r => r.Value.Permissions)
+            )
+            : null;
 
     /// <summary>A new session replaces the cache of NetCord, so Optio requests the followed users
     /// again.</summary>
@@ -231,4 +286,10 @@ internal sealed partial class DiscordMembers : IMemberDirectory
         Exception exception,
         ulong guildId
     );
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The lookup of a member of guild {GuildId} failed"
+    )]
+    private static partial void LogLookupFailed(ILogger logger, Exception exception, ulong guildId);
 }

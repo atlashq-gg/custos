@@ -60,9 +60,9 @@ The stream sends the events of the domain services to Custos ([spec](../spec/05-
 
 ## Query
 
-The query answers a question of the user in plain language, on the stream ([spec](../spec/06-query.md)). It is on when the stream is on and the configuration has `ClaudeApiKey`, `SystemPrompt`, and one item of `McpServices` or more. Then the discovery document lists `query` in `features_supported`, and has `query_endpoint`.
+The query answers a question of the user in plain language, on the stream ([spec](../spec/06-query.md)). It is on when the stream and the database are on and the configuration has `ClaudeApiKey`, `SystemPrompt`, and one item of `McpServices` or more. Then the discovery document lists `query` in `features_supported`, and has `query_endpoint`.
 
-1. Custos sends `POST /api/v1/query` with a reference that it makes and the question. The client is the claim `sid` of the token, so a token with no `sid` gets `403`.
+1. Custos sends `POST /api/v1/query` with a reference that it makes and the question. The client is the claim `sid` of the token, so a token with no `sid` gets `403`. Optio then examines the [access and the limits](#access-and-limits).
 2. Optio writes the record of the query to the bucket `OPTIO_QUERIES`, and responds `202`. Each change of state is a compare-and-set on the record, and the winner publishes the message of the change below `queries.<guild>.<user>.<client>` in the stream `OPTIO`. Thus the messages replay with the events, and only the streams of the client get them.
 3. The model gets the system prompt, a section for each MCP service with its card, `OperatorText`, the guild, and the tools of the services. Each tool name is `{service}_{tool}`. Code sets the argument `guild_id`. A tool that the service does not mark read-only is a write tool, and only a service with `WriteScope` gives its write tools.
 4. Each tool call publishes a status, for example `Custos: Find items`. A failure of a tool goes to the model as a tool error. A service that is not available is not in the tool list, and the prompt states it.
@@ -72,28 +72,54 @@ The query answers a question of the user in plain language, on the stream ([spec
 
 | Answer | Cause |
 |---|---|
-| `403` | The token names no guild, user, or session. |
+| `403` | The token names no guild, user, or session. Or the user is not a member of the guild or has no query role, or Optio is not in the guild. |
 | `404` | An action for a reference that is not the last query of the client. |
 | `409` | Another client of the user has an open query, the state of the query does not permit the action, or a change of the last query is still in progress after 10 seconds. |
-| `429` | The user started `MaxQueriesPerHour` queries in the last hour. `Retry-After` gives the wait. |
-| `503` | The broker is not available. |
+| `429` | The use of the user or of the guild reached a limit. `Retry-After` gives the wait. |
+| `503` | The broker, Discord, or the database is not available. |
 
 - A new query of a client closes its open query with the cause `replaced`. `stop` closes it with `stopped`.
 - A stream that opens sends the state of the open query of its client after the position.
 - Optio keeps the card and the tool list of each service for `CatalogMinutes`, and gets them again with the token of a query. It gets a token of the user for the read scope of each service by exchange.
 - When a new tool list has a tool that the earlier list did not have, Optio uses the tool at once and writes a warning: the [evaluation set](#evaluation) did not run with it.
 - At its start, Optio closes each query that an earlier instance left open, with the cause `interrupted`. At a normal stop, it closes its running queries the same way.
-- The limit of queries in each hour is in memory. A restart of Optio resets it.
 - Each tool call writes an audit line to the log.
-- The text of the guild ([settings](#settings-of-a-guild)) comes last in the system prompt, in its own block. When Optio has a database but cannot read it, the query fails.
+- The text of the guild ([settings](#settings-of-a-guild)) comes last in the system prompt, in its own block. When Optio cannot read the database, the query fails.
 - The question: the model writes it in the argument `confirm_text` of the write tool. Code uses it only when it is one line of 120 characters at most, holds each text value of 40 characters or less, and each quoted text comes from the call or from a tool result of the query. Code then gives each quoted text the case of its source. Else code makes the question from the tool title and the values, for example `Set the label of a structure? "Main Depot"`. Code sets the argument `confirm` of a write tool to true.
 - Each ID argument of a write call must come from a tool result of the query. Else no call of the step runs, and the model gets a tool error.
 - A failure of a service during `applying` closes the query with `result_unknown`. A new query of the client waits up to 10 seconds for a change in progress.
 - A question continues after a restart of Optio: the record holds the step. A running query closes with `interrupted`, or with `result_unknown` during a change.
 
+## Access and limits
+
+Before a query starts, Optio examines the user in the guild of the token:
+
+1. The user must be a member of the guild. Optio has the roles of a user with an open stream. For another user, it gets the member from Discord.
+2. An administrator (the owner, or a role with the permission Administrator) can always ask. Another member needs a role in `Access.QueryRoleIds` ([settings](#settings-of-a-guild)). A limit of a user gives no access.
+3. The use is the sum of the input, output, and cache write tokens of the [usage rows](#token-use) in the last hour. Cache reads are free. Optio admits the query while each use is below its limit:
+
+| Limit | Use | Value |
+|---|---|---|
+| Member | The user in the guild | `Limits.Users` of the user, else the largest of `Limits.Roles` of the roles of the user, else none. None for an administrator. |
+| User cap | The user in all guilds | The operator limit of the user, else `UserTokensPerHour`, else none. |
+| Guild pool | All members of the guild | The operator limit of the guild, else `GuildTokensPerHour`, else none. |
+
+- Optio knows the tokens of a query only after the model answers. Thus one query can go over a limit.
+- The wait in `Retry-After` is the time until enough of the oldest rows leave the hour, so that the use falls below each limit.
+- The use comes from the rows in the database, so it is the same in each instance and after a restart.
+
+An operator sets the pool of a guild and the cap of a user with `/optioctl` in Discord. Optio registers it only in the guild `OperatorGuildId`, and only a member with a role in `OperatorRoleIds` can use it. Each reply is ephemeral.
+
+| Command | Result |
+|---|---|
+| `limit guild guild_id:G [tokens]` | Sets the pool of guild `G`. No value sets the default of the configuration. |
+| `limit user user_id:U [tokens]` | Sets the cap of user `U`. No value sets the default of the configuration. |
+
+Optio keeps the operator limits in the table `operator_limits`. Each change writes an audit line to the log.
+
 ## Token use
 
-Each request to the model gives its tokens: the input, the output, the input that the cache gave, and the input that went into the cache. Optio adds them to the metric `optio.model.tokens`. With its database, Optio also writes a row for each request to the table `query_usage`, for the audit. The row holds no text of the query. Its columns are:
+Each request to the model gives four token counts: the input, the output, the input from the cache, and the input into the cache. Optio adds them to the metric `optio.model.tokens`. Optio also writes a row for each request to the table `query_usage`, for the audit and the limits. The row holds no text of the query. Its columns are:
 
 - the time, the guild, and the user
 - a hash of the session, and the reference of the query
@@ -131,7 +157,7 @@ The database of Optio holds one settings document for each guild. Its members ar
 | `Limits.Roles` | The tokens in one hour for a member with the role, 25 roles at most. |
 | `Limits.Users` | The tokens in one hour for one member. It replaces the limits of the roles of the member. |
 
-The query uses only `Prompts.Guild` now. Optio keeps the other members.
+The query uses `Access`, `Limits`, and `Prompts.Guild` now. Optio keeps `Prompts.Roles`.
 
 An administrator of the guild changes the settings with `/optioadmin` in Discord. Each reply is ephemeral.
 
@@ -185,7 +211,6 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 | `OperatorText` | (none) | The text about the services together: the words that they share, and how their records relate. [docs/operator-text.example.txt](docs/operator-text.example.txt) is an example. |
 | `McpServices` | `[]` | The MCP services of the query. Each item has `Name` (lowercase letters and digits, at most 16), `Url`, `ReadScope`, and optionally `WriteScope`, `Title`, and `Card`. Without `WriteScope`, the query uses no write tool of the service. `Card` replaces the card that the service gives. |
 | `HiddenTools` | `[]` | The tools that the model does not get, as `{service}_{tool}`. |
-| `MaxQueriesPerHour` | `20` | The queries of one user in one hour. |
 | `FollowUpMinutes` | `10` | The follow-up window, and the lifetime of a conversation. |
 | `MaxConversationBytes` | `100000` | The largest conversation. Optio removes its oldest queries to fit. |
 | `QuestionSeconds` | `60` | The lifetime of a question before a change. |
@@ -194,8 +219,12 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 | `CatalogMinutes` | `10` | How long Optio keeps the card and the tool list of a service. |
 | `MaxSettingsFileBytes` | `2097152` (2 MiB) | The largest file of `/optioadmin settings update`, from 1024 bytes to 10 MiB. |
 | `UsageRetentionDays` | `90` | How long Optio keeps the usage rows, from 1 to 3650 days. |
+| `GuildTokensPerHour` | (none) | The default pool of a guild: the tokens of all its members in one hour. |
+| `UserTokensPerHour` | (none) | The default cap of a user: the tokens of the user in all guilds in one hour. |
+| `OperatorGuildId` | (none) | The guild of the operators, the only guild with `/optioctl`. Without it, Optio has no `/optioctl`. |
+| `OperatorRoleIds` | `[]` | The roles of the operator guild that can use `/optioctl`. `OperatorGuildId` needs one or more. |
 
-The connection string of the database is `ConnectionStrings:optio` (`ConnectionStrings__optio`), for PostgreSQL. Optio applies its migrations when it starts. Without it, Optio has no settings of a guild, no usage rows, and no `/optioadmin`, and the query still works.
+The connection string of the database is `ConnectionStrings:optio` (`ConnectionStrings__optio`), for PostgreSQL. Optio applies its migrations when it starts. Without it, Optio has no settings of a guild, no usage rows, no commands, and no query.
 
 The connection string of the broker is `ConnectionStrings:events` (`ConnectionStrings__events`), a NATS URL with the user `optio`, for example `nats://optio:...@broker:4222`. Without it, Optio has no stream. Optio starts without the broker, and connects again by itself.
 
