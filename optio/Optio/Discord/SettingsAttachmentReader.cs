@@ -1,20 +1,23 @@
+using Microsoft.Extensions.Options;
 using NetCord;
 
 namespace Optio.Discord;
 
-/// <summary>Gets the settings document that an administrator attached to a command.</summary>
-public sealed class SettingsAttachmentReader(HttpClient http)
+/// <summary>
+/// Gets the settings document that an administrator attached to a command, up to
+/// <see cref="OptioOptions.MaxSettingsFileBytes"/>. The roles fill less than 4 KiB. The rest is
+/// for the limits of members.
+/// </summary>
+public sealed class SettingsAttachmentReader(HttpClient http, IOptions<OptioOptions> options)
 {
-    /// <summary>The roles fill less than 4 KiB. The rest is for the limits of members.</summary>
-    public const int MaxBytes = 64 * 1024;
-
     public async Task<(string? Text, string? Refusal)> ReadAsync(
         Attachment file,
         CancellationToken cancellationToken
     )
     {
-        if (file.Size > MaxBytes)
-            return (null, $"The file is larger than {MaxBytes} bytes.");
+        var maxBytes = options.Value.MaxSettingsFileBytes;
+        if (file.Size > maxBytes)
+            return (null, $"The file is larger than {maxBytes} bytes.");
 
         try
         {

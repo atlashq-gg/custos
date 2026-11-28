@@ -125,7 +125,7 @@ An administrator of the guild changes the settings with `/optioadmin` in Discord
 | Command | Result |
 |---|---|
 | `settings view` | Shows the document, and attaches it as a file. |
-| `settings update [file]` | Replaces the document from a file (64 KiB at most) or from a form. The reply names each role ID that the guild does not have. |
+| `settings update [file]` | Replaces the document from a file (`MaxSettingsFileBytes` at most) or from a form. The reply names each role ID that the guild does not have. |
 | `prompt guild` | A form with the text of the guild. An empty form removes the text. |
 | `prompt role role:@R` | A form with the text of a role. An empty form removes the text. |
 | `access add role:@R`, `access remove role:@R` | Adds or removes a role in `Access.QueryRoleIds`. |
@@ -179,6 +179,7 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 | `PartBudgetSeconds` | `60` | The budget of time of one part of a query. |
 | `MaxToolCallsPerPart` | `8` | The budget of tool calls of one part of a query. |
 | `CatalogMinutes` | `10` | How long Optio keeps the card and the tool list of a service. |
+| `MaxSettingsFileBytes` | `2097152` (2 MiB) | The largest file of `/optioadmin settings update`, from 1024 bytes to 10 MiB. |
 
 The connection string of the database is `ConnectionStrings:optio` (`ConnectionStrings__optio`), for PostgreSQL. Optio applies its migrations when it starts. Without it, Optio has no settings of a guild and no `/optioadmin`, and the query still works.
 

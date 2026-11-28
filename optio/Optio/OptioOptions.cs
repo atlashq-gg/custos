@@ -155,6 +155,11 @@ public sealed class OptioOptions : IValidatableObject
     [Range(1, 1440)]
     public int CatalogMinutes { get; set; } = 10;
 
+    /// <summary>The largest file of <c>/optioadmin settings update</c>. The default is 2 MiB.
+    /// Discord limits a file to 10 MiB.</summary>
+    [Range(1_024, 10 * 1024 * 1024)]
+    public int MaxSettingsFileBytes { get; set; } = 2 * 1024 * 1024;
+
     /// <summary>The data annotations do not reach the items of a list: this examines each MCP
     /// service, and that each has its own name.</summary>
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
