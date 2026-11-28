@@ -28,10 +28,10 @@ namespace Optio.Storage.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("guild_id");
 
-                    b.Property<string>("Prompt")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("prompt");
+                    b.Property<string>("Document")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("document");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -40,6 +40,12 @@ namespace Optio.Storage.Migrations
                     b.Property<long>("UpdatedBy")
                         .HasColumnType("bigint")
                         .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("GuildId")
                         .HasName("pk_guild_settings");

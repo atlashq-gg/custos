@@ -313,7 +313,12 @@ public sealed class QueryTests
         {
             await scope
                 .ServiceProvider.GetRequiredService<GuildSettingsStore>()
-                .SaveAsync(Guild, new GuildSettings("Answer in French."), Owner, default);
+                .UpdateAsync(
+                    Guild,
+                    s => s with { Prompts = new() { Guild = "Answer in French." } },
+                    Owner,
+                    default
+                );
         }
 
         await factory
