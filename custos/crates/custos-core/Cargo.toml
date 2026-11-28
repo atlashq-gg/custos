@@ -14,7 +14,7 @@ workspace = true
 base64 = "0.23.1"
 dirs = "7.0.0"
 hex = "0.4.3"
-notify = "8"
+notify = "9"
 rand = "0.10.4"
 reqwest = { version = "0.13.5", features = ["form", "json"] }
 serde = { version = "1.0.229", features = ["derive"] }
