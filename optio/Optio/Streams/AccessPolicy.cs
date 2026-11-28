@@ -44,7 +44,9 @@ internal static class AccessPolicy
         );
     }
 
-    private static bool IsAdministrator(GuildFacts guild, MemberFacts member) =>
+    /// <summary>True for the owner of the guild, and for a member with a role that has the
+    /// permission Administrator.</summary>
+    internal static bool IsAdministrator(GuildFacts guild, MemberFacts member) =>
         member.UserId == guild.OwnerId
         || member
             .RoleIds.Append(guild.GuildId)

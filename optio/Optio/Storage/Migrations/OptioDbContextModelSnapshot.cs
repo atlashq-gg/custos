@@ -53,6 +53,35 @@ namespace Optio.Storage.Migrations
                     b.ToTable("guild_settings", (string)null);
                 });
 
+            modelBuilder.Entity("Optio.Storage.OperatorLimitRow", b =>
+                {
+                    b.Property<string>("Scope")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("scope");
+
+                    b.Property<long>("TargetId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("target_id");
+
+                    b.Property<long>("TokensPerHour")
+                        .HasColumnType("bigint")
+                        .HasColumnName("tokens_per_hour");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Scope", "TargetId")
+                        .HasName("pk_operator_limits");
+
+                    b.ToTable("operator_limits", (string)null);
+                });
+
             modelBuilder.Entity("Optio.Storage.QueryUsageRow", b =>
                 {
                     b.Property<long>("Id")

@@ -11,12 +11,15 @@ namespace Optio.Discord;
 /// <summary>
 /// The Discord gateway of the bot of Optio, with the intent <c>GUILD_MEMBERS</c>. The member
 /// directory reads its events. With the settings store, it also serves the commands of Optio
-/// (<see cref="AdminCommands"/>) and registers them at the first <c>READY</c>.
+/// and registers them at the first <c>READY</c>: <see cref="AdminCommands"/> in all guilds, and
+/// <see cref="OperatorCommands"/> only in the operator guild.
 /// </summary>
 internal sealed partial class DiscordGateway : IHostedService, IDisposable
 {
     private readonly ApplicationCommandService<ApplicationCommandContext> _commands = new();
     private readonly ComponentInteractionService<ModalInteractionContext> _modals = new();
+    private readonly ApplicationCommandService<ApplicationCommandContext>? _operatorCommands;
+    private readonly ulong? _operatorGuildId;
     private readonly IServiceScopeFactory _scopes;
     private readonly ILogger<DiscordGateway> _logger;
     private int _registered;
@@ -42,8 +45,14 @@ internal sealed partial class DiscordGateway : IHostedService, IDisposable
         if (!commands)
             return;
 
-        _commands.AddModules(typeof(DiscordGateway).Assembly);
+        _commands.AddModule<AdminCommands>();
         _modals.AddModules(typeof(DiscordGateway).Assembly);
+        if (options.Value.OperatorGuildId is { } operatorGuild)
+        {
+            _operatorGuildId = (ulong)operatorGuild;
+            _operatorCommands = new();
+            _operatorCommands.AddModule<OperatorCommands>();
+        }
         Client.Ready += RegisterAsync;
         Client.InteractionCreate += HandleAsync;
     }
@@ -86,6 +95,17 @@ internal sealed partial class DiscordGateway : IHostedService, IDisposable
             var manager = new ApplicationCommandServiceManager();
             manager.AddService(_commands);
             await manager.RegisterCommandsAsync(Client.Rest, args.ApplicationId);
+            if (_operatorCommands is not null)
+            {
+                // A service of its own: it holds the IDs of the commands of one guild.
+                var operators = new ApplicationCommandServiceManager();
+                operators.AddService(_operatorCommands);
+                await operators.RegisterCommandsAsync(
+                    Client.Rest,
+                    args.ApplicationId,
+                    _operatorGuildId
+                );
+            }
         }
         catch (Exception e)
         {
@@ -112,6 +132,12 @@ internal sealed partial class DiscordGateway : IHostedService, IDisposable
         await using var scope = _scopes.CreateAsyncScope();
         var result = interaction switch
         {
+            ApplicationCommandInteraction command
+                when command.Data.Name == OperatorCommands.Name && _operatorCommands is not null =>
+                await _operatorCommands.ExecuteAsync(
+                    new ApplicationCommandContext(command, Client),
+                    scope.ServiceProvider
+                ),
             ApplicationCommandInteraction command => await _commands.ExecuteAsync(
                 new ApplicationCommandContext(command, Client),
                 scope.ServiceProvider

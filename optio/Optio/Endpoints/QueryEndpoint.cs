@@ -160,9 +160,11 @@ internal static partial class QueryEndpoint
     private static string Title(int status) =>
         status switch
         {
+            StatusCodes.Status403Forbidden => "Forbidden",
             StatusCodes.Status404NotFound => "Not found",
             StatusCodes.Status409Conflict => "Conflict",
-            StatusCodes.Status429TooManyRequests => "Too many queries",
+            StatusCodes.Status429TooManyRequests => "Limit reached",
+            StatusCodes.Status503ServiceUnavailable => "Not available",
             _ => "Error",
         };
 

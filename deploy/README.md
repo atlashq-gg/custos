@@ -23,7 +23,7 @@ The system needs:
 
 ## 1. Prepare PostgreSQL
 
-Create a role and a database for the Server, and a role and a database for Optio. Each service applies its migrations when it starts, so each role must be able to create tables in its database. The database of Optio holds only the settings of each guild, such as the text of the guild for the query, and the token use of the queries.
+Create a role and a database for the Server, and a role and a database for Optio. Each service applies its migrations when it starts, so each role must be able to create tables in its database. The database of Optio holds only its settings for each guild, the operator limits, and the token use of the queries. Optio has no query without it.
 
 ```sql
 CREATE ROLE custos LOGIN PASSWORD 'change-me';
@@ -64,9 +64,9 @@ The harness opens the login of Keycloak. The consent page shows the two scopes. 
 Each service needs its own Discord application. The Server registers its commands when it starts, and a registration replaces all the commands of the application. Optio needs a privileged intent that the Server does not need.
 
 1. For the Server, do the steps of [The Discord application](../server/README.md#the-discord-application).
-2. For Optio, do the same steps with a second application. On the page **Bot**, also set **Server Members Intent** to on: Optio reads the roles of the members with an open stream. Keep the other privileged intents off.
+2. For Optio, do the same steps with a second application. On the page **Bot**, also set **Server Members Intent** to on: Optio reads the roles of the members with an open stream or a query. Keep the other privileged intents off.
 
-Add the bot of Optio to each guild that uses the stream, with the scopes `bot` and `applications.commands`. A stream of a guild without the bot gets one error message. With its database, Optio registers the command `/optioadmin` when it starts. An administrator of the guild changes the settings of Optio with `/optioadmin` ([optio/README.md](../optio/README.md#settings-of-a-guild)).
+Add the bot of Optio to each guild that uses the stream, with the scopes `bot` and `applications.commands`. A stream of a guild without the bot gets one error message. With its database, Optio registers the command `/optioadmin` when it starts. An administrator of the guild changes the settings of Optio with `/optioadmin` ([optio/README.md](../optio/README.md#settings-of-a-guild)). With `OperatorGuildId`, Optio also registers `/optioctl` in that guild, for the limits of the operator ([optio/README.md](../optio/README.md#access-and-limits)).
 
 ## 4. Prepare NATS
 

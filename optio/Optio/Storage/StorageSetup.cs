@@ -30,6 +30,7 @@ internal static class StorageSetup
             OptioDbContext.Configure
         );
         builder.Services.AddScoped<GuildSettingsStore>();
+        builder.Services.AddScoped<OperatorLimitStore>();
         builder
             .Services.AddHealthChecks()
             .AddDbContextCheck<OptioDbContext>("database", tags: [Health.ReadyTag]);

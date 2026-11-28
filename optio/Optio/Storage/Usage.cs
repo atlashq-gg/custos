@@ -32,8 +32,8 @@ public sealed class QueryUsageRow
 }
 
 /// <summary>
-/// Records the token use of each request to the model: a row in the database, when Optio has
-/// one, and the metric <see cref="OptioMetrics.ModelTokens"/>. A failure of the database does not
+/// Records the token use of each request to the model: a row in the database, and the metric
+/// <see cref="OptioMetrics.ModelTokens"/>. A failure of the database does not
 /// stop the query: it gives an error in the log.
 /// </summary>
 internal sealed partial class UsageRecorder(
@@ -47,10 +47,9 @@ internal sealed partial class UsageRecorder(
     {
         metrics.TokensUsed(query.Guild, usage);
         await using var scope = scopes.CreateAsyncScope();
-        if (scope.ServiceProvider.GetService<OptioDbContext>() is not { } db)
-            return;
         try
         {
+            var db = scope.ServiceProvider.GetRequiredService<OptioDbContext>();
             db.QueryUsage.Add(
                 new QueryUsageRow
                 {

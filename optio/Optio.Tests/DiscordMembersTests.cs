@@ -114,5 +114,26 @@ public sealed class DiscordMembersTests
         _members.Disconnect(1, _user);
     }
 
+    [Test]
+    public async Task Access_of_a_user_without_a_stream_comes_from_Discord()
+    {
+        var expected = await new RestClient(
+            new BotToken(Environment.GetEnvironmentVariable("Discord__Token")!)
+        ).GetGuildUserAsync(_guild, _user);
+
+        var access = await _members.AccessAsync(_guild, _user, default);
+        var stranger = await _members.AccessAsync(_guild, 100000000000000000, default);
+        var noBot = await _members.AccessAsync(1, _user, default);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(access.State, Is.EqualTo(MemberState.Member));
+            Assert.That(access.RoleIds, Is.EquivalentTo(expected.RoleIds));
+            Assert.That(access.IsAdministrator, Is.False);
+            Assert.That(stranger.State, Is.EqualTo(MemberState.NotMember));
+            Assert.That(noBot.State, Is.EqualTo(MemberState.NoBot));
+        }
+    }
+
     private EventPolicy Policy(ulong[] roles, ulong[]? users = null) => new(_guild, roles, users);
 }

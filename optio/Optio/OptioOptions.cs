@@ -122,10 +122,6 @@ public sealed class OptioOptions : IValidatableObject
     /// tool that only selects a guild.</summary>
     public string[] HiddenTools { get; set; } = [];
 
-    /// <summary>The queries of one user in one hour.</summary>
-    [Range(1, 10_000)]
-    public int MaxQueriesPerHour { get; set; } = 20;
-
     /// <summary>The follow-up window: a query in this time after the last answer of a client
     /// continues its conversation.</summary>
     [Range(1, 1440)]
@@ -164,6 +160,23 @@ public sealed class OptioOptions : IValidatableObject
     [Range(1, 3650)]
     public int UsageRetentionDays { get; set; } = 90;
 
+    /// <summary>The default pool of a guild: the tokens of all its members in one hour. An
+    /// operator limit of the guild replaces it. Without either, a guild has no pool.</summary>
+    [Range(1, long.MaxValue)]
+    public long? GuildTokensPerHour { get; set; }
+
+    /// <summary>The default cap of a user: the tokens of the user in all guilds in one hour. An
+    /// operator limit of the user replaces it. Without either, a user has no cap.</summary>
+    [Range(1, long.MaxValue)]
+    public long? UserTokensPerHour { get; set; }
+
+    /// <summary>The guild of the operators. Only this guild gets <c>/optioctl</c>. Without it,
+    /// Optio has no operator commands.</summary>
+    public long? OperatorGuildId { get; set; }
+
+    /// <summary>The roles of the operator guild that may use <c>/optioctl</c>.</summary>
+    public long[] OperatorRoleIds { get; set; } = [];
+
     /// <summary>The data annotations do not reach the items of a list: this examines each MCP
     /// service, and that each has its own name.</summary>
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
@@ -177,6 +190,8 @@ public sealed class OptioOptions : IValidatableObject
         }
         if (McpServices.DistinctBy(s => s.Name).Count() != McpServices.Count)
             yield return new ValidationResult("Each MCP service needs its own name.");
+        if (OperatorGuildId is not null && OperatorRoleIds.Length == 0)
+            yield return new ValidationResult("The operator guild needs an operator role.");
     }
 
     public TimeSpan FollowUpWindow => TimeSpan.FromMinutes(FollowUpMinutes);

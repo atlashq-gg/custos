@@ -32,7 +32,9 @@ namespace Optio.Tests.Infrastructure;
 /// upload API of the server. The tokens of Custos are signed with a test key. With
 /// <paramref name="stream"/>, the stream is on, with <see cref="Members"/> as Discord and
 /// <see cref="Time"/> as the clock. With <paramref name="broker"/>, Optio reads the events from
-/// that broker. Without it, Optio has no broker.
+/// that broker. Without it, Optio has no broker. The query needs the database: with
+/// <paramref name="query"/>, Optio has one, and the role <see cref="FakeMembers.ReadRole"/> may
+/// ask.
 /// </summary>
 internal sealed class OptioFactory(
     bool stream = false,
@@ -104,7 +106,7 @@ internal sealed class OptioFactory(
             builder.UseSetting("Optio:McpServices:0:Url", "http://server.test/mcp");
             builder.UseSetting("Optio:McpServices:0:ReadScope", "custos:read");
         }
-        if (database)
+        if (database || query)
             builder.UseSetting("ConnectionStrings:optio", Postgres.NewDatabase());
         foreach (var (key, value) in settings ?? [])
             builder.UseSetting(key, value);
@@ -126,12 +128,13 @@ internal sealed class OptioFactory(
                 services.AddSingleton<TimeProvider>(Time);
                 // The fake members need no start. Optio makes the stream only on a broker.
                 services.RemoveAll<IHostedService>();
-                if (database)
+                if (database || query)
                     services.AddHostedService<DatabaseMigrator>();
                 if (broker is not null)
                     services.AddHostedService(s => s.GetRequiredService<EventStream>());
                 if (query)
                 {
+                    services.AddHostedService<QueryRoleSeed>();
                     services.AddSingleton<IModelClient>(Model);
                     services.AddSingleton<IToolSource>(Tools);
                     if (broker is not null)
@@ -287,4 +290,24 @@ internal sealed class FakeUploadApi : HttpMessageHandler
         );
         return Respond();
     }
+}
+
+/// <summary>Gives the role <see cref="FakeMembers.ReadRole"/> the query, after the
+/// migration.</summary>
+internal sealed class QueryRoleSeed(IServiceScopeFactory scopes) : IHostedService
+{
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        await scope
+            .ServiceProvider.GetRequiredService<GuildSettingsStore>()
+            .UpdateAsync(
+                FakeMembers.Guild,
+                s => s with { Access = new() { QueryRoleIds = [FakeMembers.ReadRole] } },
+                FakeMembers.Owner,
+                cancellationToken
+            );
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
