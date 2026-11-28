@@ -48,7 +48,7 @@ The schema of the body is [schemas/query.schema.json](schemas/query.schema.json)
 
 ### Conversation
 
-A query of a client can continue the conversation of the earlier queries of that client. The service then uses those queries and their answers as context. The service decides how long a conversation stays. A query with `new_conversation` `true` starts a new conversation.
+A query of a client can continue the conversation of the earlier queries of that client. The service then uses those queries and their answers as context. The service decides how long a conversation stays and how large it can be. When the conversation is full, the service refuses a query that continues it with `409` ([problem types](#problem-types)). A query with `new_conversation` `true` starts a new conversation.
 
 ### Open query
 
@@ -104,13 +104,21 @@ The response to a query is `202`. The response to an action is `200`. The body o
 | `202` | The service accepted the query. | Show the state. Show the messages of the query from the stream. |
 | `400` | The body is not valid. | Report the error. Do not send the same body again. |
 | `401` | The token is missing or not valid. | Do the challenge steps in [02-authentication.md](02-authentication.md#challenge). |
-| `403` | The service answers no query of this user, for example because the token names no session. | Report the error. |
+| `403` | The service answers no query of this user, for example because the token names no session, or the user has no access to the query. | Report the error. |
 | `404` | The endpoint does not exist, or the client has no query with this reference. | For a query, get the discovery document again. For an action, remove the query. |
-| `409` | The service refuses the query: another client of the user has an open query. Or the service refuses the action: the state does not permit it, or a different action won. | Report the error. After an action, show the state from the stream. |
-| `429` | The user sent too many queries. The response MUST have a `Retry-After` header. | Report the error with the time in `Retry-After`. |
+| `409` | The service refuses the query: another client of the user has an open query, or the conversation is full. Or the service refuses the action: the state does not permit it, or a different action won. | Report the error. After an action, show the state from the stream. |
+| `429` | The user or the guild reached a limit of the service. The response MUST have a `Retry-After` header. | Report the error with the time in `Retry-After`. |
 | `5xx` | An error in the service. | Report the error. Custos MAY send the same body again: the reference makes it safe. |
 
 Each error response has the type `application/problem+json`. Custos SHOULD show its `title` and `detail` to the user, because they give the cause of a refusal.
+
+### Problem types
+
+A problem `type` identifies a cause only where the status alone does not. The service MAY set one of these values. Custos MUST ignore a `type` that it does not know.
+
+| Status | Type | Cause | Action of Custos |
+|---|---|---|---|
+| `409` | `urn:custos:problem:conversation-full` | The conversation of the client is full. The service answers no more queries in it. | Report the error. The user can send the query again with `new_conversation` `true`. |
 
 ## Messages
 
