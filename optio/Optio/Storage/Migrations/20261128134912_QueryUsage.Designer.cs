@@ -63,7 +63,7 @@ namespace Optio.Storage.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+                    b.Property<long>("Id").UseIdentityByDefaultColumn();
 
                     b.Property<DateTimeOffset>("At")
                         .HasColumnType("timestamp with time zone")
