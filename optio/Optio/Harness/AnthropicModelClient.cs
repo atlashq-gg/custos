@@ -81,7 +81,14 @@ internal sealed class AnthropicModelClient(IOptions<OptioOptions> options) : IMo
             StopReason.MaxTokens => ModelStop.Limit,
             _ => calls.Count > 0 ? ModelStop.ToolCalls : ModelStop.End,
         };
-        return new ModelTurn(string.Concat(texts).Trim(), calls, stop, content);
+        var usage = new ModelUsage(
+            o.ModelId,
+            message.Usage.InputTokens,
+            message.Usage.OutputTokens,
+            message.Usage.CacheReadInputTokens ?? 0,
+            message.Usage.CacheCreationInputTokens ?? 0
+        );
+        return new ModelTurn(string.Concat(texts).Trim(), calls, stop, content, usage);
     }
 
     private static ToolUnion ToTool(ModelTool tool)

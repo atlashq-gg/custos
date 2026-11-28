@@ -1,7 +1,10 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using Optio.Harness;
 using Optio.Queries;
+using Optio.Storage;
+using Optio.Telemetry;
 using Optio.Tests.Infrastructure;
 
 namespace Optio.Tests;
@@ -212,7 +215,24 @@ public sealed class QueryHarnessTests
     }
 
     private QueryHarness Harness() =>
-        new(_model, _tools, Microsoft.Extensions.Options.Options.Create(Options), _time);
+        new(
+            _model,
+            _tools,
+            Microsoft.Extensions.Options.Options.Create(Options),
+            _time,
+            Recorder()
+        );
+
+    /// <summary>A recorder with no database: it only counts the tokens.</summary>
+    private static UsageRecorder Recorder() =>
+        new ServiceCollection()
+            .AddMetrics()
+            .AddLogging()
+            .AddSingleton(TimeProvider.System)
+            .AddSingleton<OptioMetrics>()
+            .AddSingleton<UsageRecorder>()
+            .BuildServiceProvider()
+            .GetRequiredService<UsageRecorder>();
 
     private Task<PartResult> RunAsync() =>
         Harness()

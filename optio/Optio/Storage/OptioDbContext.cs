@@ -4,8 +4,9 @@ using Microsoft.EntityFrameworkCore.Design;
 namespace Optio.Storage;
 
 /// <summary>
-/// The database of Optio, PostgreSQL. It holds the settings of Optio for each guild, and no
-/// records of a domain service. The names of tables and columns are in snake_case.
+/// The database of Optio, PostgreSQL. It holds the settings of Optio for each guild and the token
+/// use of the queries, and no records of a domain service. The names of tables and columns are in
+/// snake_case.
 /// </summary>
 public sealed class OptioDbContext(DbContextOptions<OptioDbContext> options) : DbContext(options)
 {
@@ -14,11 +15,14 @@ public sealed class OptioDbContext(DbContextOptions<OptioDbContext> options) : D
 
     public DbSet<GuildSettingsRow> GuildSettings => Set<GuildSettingsRow>();
 
+    public DbSet<QueryUsageRow> QueryUsage => Set<QueryUsageRow>();
+
     /// <summary>Adds the options that Optio and the design-time factory share.</summary>
     public static void Configure(DbContextOptionsBuilder options) =>
         options.UseSnakeCaseNamingConvention();
 
-    protected override void OnModelCreating(ModelBuilder model) =>
+    protected override void OnModelCreating(ModelBuilder model)
+    {
         model.Entity<GuildSettingsRow>(e =>
         {
             e.ToTable("guild_settings");
@@ -27,6 +31,17 @@ public sealed class OptioDbContext(DbContextOptions<OptioDbContext> options) : D
             e.Property(s => s.Document).HasColumnType("jsonb");
             e.Property(s => s.Version).IsRowVersion();
         });
+        model.Entity<QueryUsageRow>(e =>
+        {
+            e.ToTable("query_usage");
+            e.Property(u => u.ClientKey).HasMaxLength(32);
+            e.Property(u => u.QueryReference).HasMaxLength(64);
+            e.Property(u => u.Model).HasMaxLength(100);
+            e.HasIndex(u => new { u.UserId, u.At });
+            e.HasIndex(u => new { u.GuildId, u.At });
+            e.HasIndex(u => u.At);
+        });
+    }
 }
 
 /// <summary>The settings of Optio for one guild.</summary>

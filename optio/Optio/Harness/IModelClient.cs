@@ -61,12 +61,25 @@ internal enum ModelStop
 /// harness gives it back with no change in the next request of the same query, because the
 /// provider can need it (for example the thinking blocks of Claude). A turn of an earlier query of
 /// the conversation has none: the client then makes the content from the text and the calls.
+/// <paramref name="Usage"/> is the token use of the request of the turn.
 /// </summary>
 internal sealed record ModelTurn(
     string Text,
     IReadOnlyList<ToolCall> ToolCalls,
     ModelStop Stop,
-    object? ProviderContent = null
+    object? ProviderContent = null,
+    ModelUsage? Usage = null
+);
+
+/// <summary>The tokens of one request to <paramref name="Model"/>: the input that the cache did
+/// not hold, the output, the input that the cache gave, and the input that went into the
+/// cache.</summary>
+internal sealed record ModelUsage(
+    string Model,
+    long Input,
+    long Output,
+    long CacheRead,
+    long CacheWrite
 );
 
 internal abstract record ModelMessage;

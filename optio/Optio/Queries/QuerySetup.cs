@@ -1,5 +1,6 @@
 using Optio.Events;
 using Optio.Harness;
+using Optio.Storage;
 
 namespace Optio.Queries;
 
@@ -27,6 +28,7 @@ internal static class QuerySetup
         builder.Services.AddHttpClient(McpToolSource.HttpClientName);
         builder.Services.AddSingleton<IModelClient, AnthropicModelClient>();
         builder.Services.AddSingleton<IToolSource, McpToolSource>();
+        builder.Services.AddSingleton<UsageRecorder>();
         builder.Services.AddSingleton<QueryHarness>();
         builder.Services.AddSingleton<QueryStore>();
         builder.Services.AddSingleton<QueryService>();

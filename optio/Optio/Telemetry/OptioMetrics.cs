@@ -10,6 +10,10 @@ internal sealed class OptioMetrics
     public const string Streams = "optio.streams";
     public const string Queries = "optio.queries";
     public const string ToolCalls = "optio.tool.calls";
+    public const string ModelTokens = "optio.model.tokens";
+    public const string UsageFailures = "optio.usage.failures";
+    public const string GuildTag = "guild";
+    public const string TypeTag = "type";
     public const string CauseTag = "cause";
     public const string ServiceTag = "service";
     public const string ToolTag = "tool";
@@ -21,6 +25,8 @@ internal sealed class OptioMetrics
     private readonly UpDownCounter<long> _streams;
     private readonly Counter<long> _queries;
     private readonly Counter<long> _toolCalls;
+    private readonly Counter<long> _modelTokens;
+    private readonly Counter<long> _usageFailures;
 
     public OptioMetrics(IMeterFactory meterFactory)
     {
@@ -51,6 +57,17 @@ internal sealed class OptioMetrics
             "The tool calls of the queries, by service, tool, and outcome: ok, error (the tool "
                 + "gave an error), or failed (no result from the service)."
         );
+        _modelTokens = Meter.CreateCounter<long>(
+            ModelTokens,
+            "{token}",
+            "The tokens of the requests to the model, by guild and type: input, output, "
+                + "cache_read, or cache_write."
+        );
+        _usageFailures = Meter.CreateCounter<long>(
+            UsageFailures,
+            "{request}",
+            "The requests to the model whose token use did not go into the database."
+        );
     }
 
     public Meter Meter { get; }
@@ -75,4 +92,18 @@ internal sealed class OptioMetrics
             new KeyValuePair<string, object?>(ToolTag, tool),
             new KeyValuePair<string, object?>(OutcomeTag, outcome)
         );
+
+    public void TokensUsed(ulong guild, Harness.ModelUsage usage)
+    {
+        var id = new KeyValuePair<string, object?>(
+            GuildTag,
+            guild.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        );
+        _modelTokens.Add(usage.Input, id, new(TypeTag, "input"));
+        _modelTokens.Add(usage.Output, id, new(TypeTag, "output"));
+        _modelTokens.Add(usage.CacheRead, id, new(TypeTag, "cache_read"));
+        _modelTokens.Add(usage.CacheWrite, id, new(TypeTag, "cache_write"));
+    }
+
+    public void UsageNotRecorded() => _usageFailures.Add(1);
 }
