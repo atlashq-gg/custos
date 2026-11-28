@@ -101,7 +101,7 @@ Each request to the model gives its tokens: the input, the output, the input tha
 - the external reference: the ID of the response message at the provider of the model, for example `msg_...` of Anthropic
 
 - A query that fails or stops keeps the rows of its requests.
-- When the database does not take a row, the query continues. Optio writes an error to the log and adds to `optio.usage.failures`.
+- When the database does not take a row, the query continues. Optio writes an error to the log.
 - Optio removes the rows older than `UsageRetentionDays` when it starts, and then each day.
 
 ## Settings of a guild
@@ -218,7 +218,6 @@ The connection string of the broker is `ConnectionStrings:events` (`ConnectionSt
 | `optio.queries` | The queries that closed, by `cause` of [spec/06-query.md](../spec/06-query.md), for example `answer`, `failed`, or `interrupted`. |
 | `optio.tool.calls` | The tool calls of the queries, by `service`, `tool`, and `outcome`: `ok`, `error` (the tool gave an error), or `failed` (no result from the service). |
 | `optio.model.tokens` | The tokens of the requests to the model, by `guild` and `type`: `input`, `output`, `cache_read`, or `cache_write`. |
-| `optio.usage.failures` | The requests to the model whose token use did not go into the database. |
 
 ## Format
 

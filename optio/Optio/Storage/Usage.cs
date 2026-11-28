@@ -34,7 +34,7 @@ public sealed class QueryUsageRow
 /// <summary>
 /// Records the token use of each request to the model: a row in the database, when Optio has
 /// one, and the metric <see cref="OptioMetrics.ModelTokens"/>. A failure of the database does not
-/// stop the query.
+/// stop the query: it gives an error in the log.
 /// </summary>
 internal sealed partial class UsageRecorder(
     IServiceScopeFactory scopes,
@@ -72,7 +72,6 @@ internal sealed partial class UsageRecorder(
         }
         catch (Exception e)
         {
-            metrics.UsageNotRecorded();
             LogNotRecorded(logger, e, query.Reference);
         }
     }

@@ -11,7 +11,6 @@ internal sealed class OptioMetrics
     public const string Queries = "optio.queries";
     public const string ToolCalls = "optio.tool.calls";
     public const string ModelTokens = "optio.model.tokens";
-    public const string UsageFailures = "optio.usage.failures";
     public const string GuildTag = "guild";
     public const string TypeTag = "type";
     public const string CauseTag = "cause";
@@ -26,7 +25,6 @@ internal sealed class OptioMetrics
     private readonly Counter<long> _queries;
     private readonly Counter<long> _toolCalls;
     private readonly Counter<long> _modelTokens;
-    private readonly Counter<long> _usageFailures;
 
     public OptioMetrics(IMeterFactory meterFactory)
     {
@@ -62,11 +60,6 @@ internal sealed class OptioMetrics
             "{token}",
             "The tokens of the requests to the model, by guild and type: input, output, "
                 + "cache_read, or cache_write."
-        );
-        _usageFailures = Meter.CreateCounter<long>(
-            UsageFailures,
-            "{request}",
-            "The requests to the model whose token use did not go into the database."
         );
     }
 
@@ -104,6 +97,4 @@ internal sealed class OptioMetrics
         _modelTokens.Add(usage.CacheRead, id, new(TypeTag, "cache_read"));
         _modelTokens.Add(usage.CacheWrite, id, new(TypeTag, "cache_write"));
     }
-
-    public void UsageNotRecorded() => _usageFailures.Add(1);
 }
