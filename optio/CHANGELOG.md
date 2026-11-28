@@ -3,8 +3,11 @@
 ## Unreleased
 
 - The settings of a guild are one versioned document, as in the Server. It holds the roles that can ask Optio a question, the text of the guild and of each role for the system prompt, and the tokens in one hour for each role and each member. The migration moves the prompt of each guild into the document. Two changes at the same time both stay.
-- `/optioadmin` has the commands `settings view`, `settings update [file]`, `prompt guild`, `prompt role`, `access add`, `access remove`, `limit role`, and `limit user`. They replace `/optioadmin settings`. The query uses only the text of the guild for now.
+- `/optioadmin` has the commands `settings view`, `settings update [file]`, `prompt guild`, `prompt role`, `access add`, `access remove`, `limit role`, and `limit user`. They replace `/optioadmin settings`.
 - Token use: each request to the model writes a row to the new table `query_usage`. The row holds the guild, the user, a hash of the session, the reference of the query, the model, and the four token counts. It also holds the ID of the response message at the provider of the model (`msg_...` of Anthropic). Each day, Optio removes the rows older than `UsageRetentionDays` (default 90). The new metric `optio.model.tokens` counts the tokens by guild and type.
+- Access and limits of a query. An administrator can always ask. Another member needs a query role of the guild. With no query role, only administrators can ask: add a role with `/optioadmin access add` so that members can ask. Optio gets the roles of a user without an open stream from Discord. The limits are tokens in a sliding hour, from the usage rows. There are three limits: the member in the guild, the user in all guilds, and the guild pool. Cache reads do not count. A refusal is `403` or `429` with `Retry-After`. The limits work with more than one instance and after a restart.
+- The query needs the database. Optio no longer has `MaxQueriesPerHour` and the count of queries in memory.
+- `/optioctl limit guild` and `/optioctl limit user` set the pool of a guild and the cap of a user in the new table `operator_limits`. Optio registers them only in the guild `OperatorGuildId`, for the roles `OperatorRoleIds`. `GuildTokensPerHour` and `UserTokensPerHour` give the defaults. Without them, there is no pool and no cap.
 
 ## 0.1.0
 
