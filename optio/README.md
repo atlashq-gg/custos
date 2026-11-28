@@ -85,11 +85,54 @@ The query answers a question of the user in plain language, on the stream ([spec
 - At its start, Optio closes each query that an earlier instance left open, with the cause `interrupted`. At a normal stop, it closes its running queries the same way.
 - The limit of queries in each hour is in memory. A restart of Optio resets it.
 - Each tool call writes an audit line to the log.
-- The prompt of the guild comes last in the system prompt, in its own block. An administrator of the guild sets it with `/optioadmin settings` in Discord, 1000 characters at most. When Optio has a database but cannot read it, the query fails.
+- The text of the guild ([settings](#settings-of-a-guild)) comes last in the system prompt, in its own block. When Optio has a database but cannot read it, the query fails.
 - The question: the model writes it in the argument `confirm_text` of the write tool. Code uses it only when it is one line of 120 characters at most, holds each text value of 40 characters or less, and each quoted text comes from the call or from a tool result of the query. Code then gives each quoted text the case of its source. Else code makes the question from the tool title and the values, for example `Set the label of a structure? "Main Depot"`. Code sets the argument `confirm` of a write tool to true.
 - Each ID argument of a write call must come from a tool result of the query. Else no call of the step runs, and the model gets a tool error.
 - A failure of a service during `applying` closes the query with `result_unknown`. A new query of the client waits up to 10 seconds for a change in progress.
 - A question continues after a restart of Optio: the record holds the step. A running query closes with `interrupted`, or with `result_unknown` during a change.
+
+## Settings of a guild
+
+The database of Optio holds one settings document for each guild. Its members are in PascalCase, and each ID is a string. A guild without a document has the default.
+
+```json
+{
+  "SchemaVersion": 1,
+  "Access": { "QueryRoleIds": ["500000000000000001"] },
+  "Prompts": {
+    "Guild": "Answer in French.",
+    "Roles": { "500000000000000001": "The member leads a logistics crew." }
+  },
+  "Limits": {
+    "Roles": { "500000000000000001": 50000 },
+    "Users": { "400000000000000002": 10000 }
+  }
+}
+```
+
+| Member | Content |
+|---|---|
+| `Access.QueryRoleIds` | The roles that can ask Optio a question, 25 at most. Empty: an administrator only. |
+| `Prompts.Guild` | The text of the guild for the system prompt, 1000 characters at most. |
+| `Prompts.Roles` | The text of each role for the system prompt, 500 characters at most, 25 roles at most. |
+| `Limits.Roles` | The tokens in one hour for a member with the role, 25 roles at most. |
+| `Limits.Users` | The tokens in one hour for one member. It replaces the limits of the roles of the member. |
+
+The query uses only `Prompts.Guild` now. Optio keeps the other members.
+
+An administrator of the guild changes the settings with `/optioadmin` in Discord. Each reply is ephemeral.
+
+| Command | Result |
+|---|---|
+| `settings view` | Shows the document, and attaches it as a file. |
+| `settings update [file]` | Replaces the document from a file (`MaxSettingsFileBytes` at most) or from a form. The reply names each role ID that the guild does not have. |
+| `prompt guild` | A form with the text of the guild. An empty form removes the text. |
+| `prompt role role:@R` | A form with the text of a role. An empty form removes the text. |
+| `access add role:@R`, `access remove role:@R` | Adds or removes a role in `Access.QueryRoleIds`. |
+| `limit role role:@R [tokens]` | Sets the limit of a role. No value removes it. |
+| `limit user user:@U [tokens]` | Sets the limit of a member. No value removes it. |
+
+Each change writes an audit line to the log. When two changes of a guild come at the same time, Optio applies each of them.
 
 ## Producers
 
@@ -136,8 +179,9 @@ The section `Optio` in `appsettings.json` or environment variables (`Optio__Publ
 | `PartBudgetSeconds` | `60` | The budget of time of one part of a query. |
 | `MaxToolCallsPerPart` | `8` | The budget of tool calls of one part of a query. |
 | `CatalogMinutes` | `10` | How long Optio keeps the card and the tool list of a service. |
+| `MaxSettingsFileBytes` | `2097152` (2 MiB) | The largest file of `/optioadmin settings update`, from 1024 bytes to 10 MiB. |
 
-The connection string of the database is `ConnectionStrings:optio` (`ConnectionStrings__optio`), for PostgreSQL. Optio applies its migrations when it starts. Without it, Optio has no prompt of a guild and no `/optioadmin`, and the query still works.
+The connection string of the database is `ConnectionStrings:optio` (`ConnectionStrings__optio`), for PostgreSQL. Optio applies its migrations when it starts. Without it, Optio has no settings of a guild and no `/optioadmin`, and the query still works.
 
 The connection string of the broker is `ConnectionStrings:events` (`ConnectionStrings__events`), a NATS URL with the user `optio`, for example `nats://optio:...@broker:4222`. Without it, Optio has no stream. Optio starts without the broker, and connects again by itself.
 

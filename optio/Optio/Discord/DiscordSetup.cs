@@ -16,6 +16,8 @@ internal static class DiscordSetup
             return builder;
 
         var commands = StorageSetup.IsEnabled(builder.Configuration);
+        if (commands)
+            builder.Services.AddHttpClient<SettingsAttachmentReader>();
         builder.Services.AddSingleton(services => new DiscordGateway(
             services.GetRequiredService<IOptions<OptioOptions>>(),
             services.GetRequiredService<IServiceScopeFactory>(),

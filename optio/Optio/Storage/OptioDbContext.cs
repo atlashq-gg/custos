@@ -24,7 +24,8 @@ public sealed class OptioDbContext(DbContextOptions<OptioDbContext> options) : D
             e.ToTable("guild_settings");
             e.HasKey(s => s.GuildId);
             e.Property(s => s.GuildId).ValueGeneratedNever();
-            e.Property(s => s.Prompt).HasMaxLength(Storage.GuildSettings.MaxPromptLength);
+            e.Property(s => s.Document).HasColumnType("jsonb");
+            e.Property(s => s.Version).IsRowVersion();
         });
 }
 
@@ -33,8 +34,12 @@ public sealed class GuildSettingsRow
 {
     public required long GuildId { get; init; }
 
-    /// <summary>The prompt of the guild for the query harness. Null: no prompt.</summary>
-    public string? Prompt { get; set; }
+    /// <summary>The settings document (<see cref="Storage.GuildSettings"/>) as JSON.</summary>
+    public required string Document { get; set; }
+
+    /// <summary>The PostgreSQL row version <c>xmin</c>. A change of a row that another change
+    /// changed first fails.</summary>
+    public uint Version { get; set; }
 
     public required DateTimeOffset UpdatedAt { get; set; }
 

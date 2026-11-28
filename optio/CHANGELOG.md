@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- The settings of a guild are one versioned document, as in the Server. It holds the roles that can ask Optio a question, the text of the guild and of each role for the system prompt, and the tokens in one hour for each role and each member. The migration moves the prompt of each guild into the document. Two changes at the same time both stay.
+- `/optioadmin` has the commands `settings view`, `settings update [file]`, `prompt guild`, `prompt role`, `access add`, `access remove`, `limit role`, and `limit user`. They replace `/optioadmin settings`. The query uses only the text of the guild for now.
+
 ## 0.1.0
 
 The first release. Optio is the service that Custos calls ([ADR 0006](../docs/adr/0006-optio-is-the-service-of-the-contract.md)).

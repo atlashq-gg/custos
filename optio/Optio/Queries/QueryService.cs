@@ -673,7 +673,7 @@ internal sealed partial class QueryService(
             return null;
         try
         {
-            return (await store.GetAsync(guild, cancellationToken)).Prompt;
+            return (await store.GetAsync(guild, cancellationToken)).Prompts.Guild;
         }
         catch (Exception e) when (!cancellationToken.IsCancellationRequested)
         {
